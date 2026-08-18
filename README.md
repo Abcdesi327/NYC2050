@@ -9,9 +9,15 @@ covered is left hatched. Thirteen sites also have a **street-level plate** — a
 procedurally drawn view of the place as the survey found it, with a switch to
 see it as it was built.
 
-Open `index.html` in a browser. There is no build step, no server and no
+**Preview: https://abcdesi327.github.io/NYC2050/**
+
+Or open `index.html` in a browser. There is no build step, no server and no
 dependencies; `dist/nyc2050.html` is the same app inlined into a single file if
 you want to hand someone one thing.
+
+The preview is rebuilt and redeployed by `.github/workflows/pages.yml` on every
+push to `main` or to the feature branch, and can be kicked off by hand from the
+Actions tab. `build.json` at the site root records the commit it was built from.
 
 ## What is in it
 

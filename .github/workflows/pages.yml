@@ -3,6 +3,12 @@ name: Preview on GitHub Pages
 # Publishes the survey sheet so the latest build can be looked at in a browser.
 # Runs on the default branch and on the feature branch, so a preview is available
 # before anything is merged. Pages serves whichever of them ran most recently.
+#
+# ONE-TIME SETUP: Settings -> Pages -> Build and deployment -> Source: GitHub
+# Actions. A workflow token is not allowed to turn Pages on by itself, so until
+# that is set the deploy job fails with "Not Found" / "Resource not accessible
+# by integration". Everything before it — the checks, the build, the artifact —
+# runs regardless.
 
 on:
   push:
@@ -53,10 +59,6 @@ jobs:
             "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
           JSON
-
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
