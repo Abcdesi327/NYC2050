@@ -1,0 +1,3654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="NYC 2050 — a survey sheet of a New York left to the water, with street-level plates of its monuments and room for marks of your own.">
+<title>NYC 2050 — Survey Sheet</title>
+<style>
+/* ===================================================================================
+   NYC 2050 — survey sheet styling. Paper, ink, and as little chrome as possible.
+   =================================================================================== */
+:root{
+  --paper:#FAF9F5; --ink:#2C2C2A; --muted:#6B6A64; --rule:#D3D1C7;
+  --water:#61757F; --land:#B4B2A9; --far:#C6C4BA; --park:#4E6B3A;
+  --z1:#8F2222; --z2:#C4472A; --z3:#E08A24; --z4:#F2C572; --z5:#E8E3C8;
+  --mark:#7A3E8F;
+  --cond:"Avenir Next Condensed","HelveticaNeue-CondensedBold","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,"Courier New",monospace;
+  --panel:rgba(250,249,245,.96);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);
+  font-family:var(--cond);color:var(--ink)}
+#stage{position:fixed;inset:0;touch-action:none;cursor:grab;background:var(--water)}
+#stage.drag{cursor:grabbing}
+#stage.pinning{cursor:crosshair}
+#stage.pinning::after{content:"";position:fixed;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 3px var(--mark);opacity:.55}
+svg{display:block;width:100%;height:100%}
+text{-webkit-user-select:none;user-select:none;pointer-events:none}
+button{font-family:var(--cond);color:var(--ink)}
+
+/* ---------- header ---------------------------------------------------------------- */
+.hdr{position:fixed;top:0;left:0;right:0;padding:9px 12px 8px;
+  background:rgba(250,249,245,.94);border-bottom:1px solid var(--rule);
+  backdrop-filter:blur(8px);z-index:30;display:flex;align-items:center;gap:10px}
+.hdr .ttl{flex:1;min-width:0}
+.hdr h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr p{margin:2px 0 0;font-size:10.5px;color:var(--muted);font-family:var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srch{position:relative;flex:0 1 300px}
+.srch input{width:100%;height:32px;padding:0 28px 0 10px;border:1px solid var(--rule);
+  border-radius:8px;background:#fff;font-family:var(--mono);font-size:11px;color:var(--ink)}
+.srch input:focus{outline:2px solid var(--z2);outline-offset:-1px}
+.srch .sx{position:absolute;right:6px;top:6px;width:20px;height:20px;border:0;
+  background:transparent;color:var(--muted);font-size:13px;cursor:pointer;display:none}
+.srch.has .sx{display:block}
+.res{position:absolute;top:36px;left:0;right:0;max-height:min(52vh,340px);overflow:auto;
+  background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+  box-shadow:0 8px 24px rgba(44,44,42,.16);display:none;z-index:31}
+.res.on{display:block}
+.res button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #EAE8DF;
+  background:transparent;padding:7px 10px;cursor:pointer;font-size:13px}
+.res button:last-child{border-bottom:0}
+.res button:hover,.res button.sel{background:#EFEDE4}
+.res .sub{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.04em;margin-top:1px}
+
+/* ---------- control rail ---------------------------------------------------------- */
+.ctl{position:fixed;right:12px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:25}
+.ctl button{width:44px;height:40px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--panel);font-size:17px;font-weight:600;cursor:pointer;
+  backdrop-filter:blur(8px);line-height:1;position:relative}
+.ctl button:active{background:#EFEDE5}
+.ctl button:focus-visible{outline:2px solid var(--z2);outline-offset:2px}
+.ctl button.sm{font-size:9.5px;letter-spacing:.04em;font-family:var(--mono)}
+.ctl button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.ctl button#pinBtn[aria-pressed="true"]{background:var(--mark);border-color:var(--mark);color:#fff}
+.ctl .badge{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:8px;background:var(--mark);color:#fff;font-family:var(--mono);font-size:9px;
+  line-height:16px;text-align:center;display:none}
+.ctl .badge.on{display:block}
+
+/* ---------- legend ---------------------------------------------------------------- */
+.key{position:fixed;left:12px;top:56px;background:var(--panel);
+  border:1px solid var(--rule);border-radius:10px;padding:9px 11px;z-index:24;
+  font-family:var(--mono);font-size:10px;line-height:1.75;color:#44443F;
+  backdrop-filter:blur(8px);display:none;max-height:calc(100vh - 150px);overflow:auto}
+.key.on{display:block}
+.key b{display:block;font-family:var(--cond);font-size:11px;letter-spacing:.05em;
+  margin-bottom:4px;color:var(--ink)}
+.key b+b,.key .gap{margin-top:7px}
+.key i{display:inline-block;width:11px;height:11px;border-radius:2px;
+  vertical-align:-1px;margin-right:6px}
+
+/* ---------- info sheet ------------------------------------------------------------ */
+.sheet{position:fixed;left:12px;bottom:14px;width:min(340px,calc(100vw - 80px));
+  background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+  padding:12px 14px;z-index:26;backdrop-filter:blur(8px);display:none;
+  box-shadow:0 6px 20px rgba(44,44,42,.12)}
+.sheet.on{display:block}
+.sheet .nm{font-size:15px;font-weight:600;margin:0 0 3px;padding-right:22px}
+.sheet .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  letter-spacing:.03em;margin:0 0 7px}
+.sheet .code{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:.06em;padding:2px 6px;border-radius:4px;color:var(--paper);margin-bottom:7px}
+.sheet .note{font-size:12.5px;line-height:1.45;margin:0;color:#44443F}
+.sheet .x{position:absolute;top:8px;right:9px;width:22px;height:22px;border:0;
+  background:transparent;color:var(--muted);font-size:16px;cursor:pointer;line-height:1}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.acts button{flex:1 1 auto;min-height:30px;padding:0 10px;border:1px solid var(--rule);
+  border-radius:8px;background:#fff;font-family:var(--mono);font-size:10px;
+  letter-spacing:.05em;cursor:pointer;white-space:nowrap}
+.acts button:hover{background:#F2F0E7}
+.acts button.pri{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.acts button.pri:hover{background:#3E3E3A}
+.acts button.on{background:var(--mark);color:#fff;border-color:var(--mark)}
+
+/* ---------- drawer (index + bookmarks) -------------------------------------------- */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(340px,86vw);z-index:35;
+  background:var(--panel);border-left:1px solid var(--rule);backdrop-filter:blur(10px);
+  transform:translateX(101%);transition:transform .22s ease;display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.drawer header{padding:12px 14px 10px;border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:8px}
+.drawer header h2{margin:0;font-size:14px;font-weight:600;letter-spacing:.03em;flex:1}
+.drawer header button{border:0;background:transparent;font-size:17px;color:var(--muted);
+  cursor:pointer;line-height:1;padding:2px 4px}
+.drawer .body{flex:1;overflow:auto;padding:10px 12px 20px}
+.drawer .empty{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;
+  padding:14px 4px}
+.row{border:1px solid var(--rule);border-radius:10px;background:#fff;padding:9px 10px;
+  margin-bottom:7px;cursor:pointer;position:relative}
+.row:hover{background:#F7F5EC}
+.row .rn{font-size:13.5px;font-weight:600;padding-right:52px}
+.row .rm{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:.04em;
+  margin-top:2px}
+.row .rnote{font-size:11.5px;color:#55554F;margin-top:5px;line-height:1.4}
+.row .rx{position:absolute;top:6px;right:6px;border:0;background:transparent;
+  color:var(--muted);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:5px}
+.row .rx:hover{background:#EFEDE4;color:var(--z1)}
+.row .rv{position:absolute;top:6px;right:28px;border:0;background:transparent;
+  color:var(--muted);font-size:12px;cursor:pointer;padding:2px 5px;border-radius:5px}
+.row .rv:hover{background:#EFEDE4;color:var(--ink)}
+.row .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;
+  vertical-align:1px}
+.drawer .foot{border-top:1px solid var(--rule);padding:9px 12px;display:flex;gap:6px}
+.drawer .foot button{flex:1;height:30px;border:1px solid var(--rule);border-radius:8px;
+  background:#fff;font-family:var(--mono);font-size:10px;letter-spacing:.05em;cursor:pointer}
+.drawer .foot button:hover{background:#F2F0E7}
+.tabs{display:flex;gap:4px;padding:8px 12px 0}
+.tabs button{flex:1;height:28px;border:1px solid var(--rule);border-radius:8px;background:#fff;
+  font-family:var(--mono);font-size:10px;letter-spacing:.05em;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ---------- pin editor ------------------------------------------------------------ */
+.editor{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;
+  width:min(360px,92vw);background:var(--paper);border:1px solid var(--rule);
+  border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(44,44,42,.28);display:none}
+.editor.on{display:block}
+.editor h3{margin:0 0 2px;font-size:15px;font-weight:600}
+.editor .loc{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em;
+  margin-bottom:12px}
+.editor label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  color:var(--muted);margin:0 0 4px}
+.editor input,.editor textarea{width:100%;border:1px solid var(--rule);border-radius:8px;
+  padding:8px 9px;font-family:var(--cond);font-size:13.5px;background:#fff;color:var(--ink);
+  margin-bottom:10px;resize:vertical}
+.editor textarea{min-height:64px;font-size:12.5px;line-height:1.45}
+.editor input:focus,.editor textarea:focus{outline:2px solid var(--mark);outline-offset:-1px}
+.editor .btns{display:flex;gap:7px}
+.editor .btns button{flex:1;height:34px;border:1px solid var(--rule);border-radius:8px;
+  background:#fff;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;cursor:pointer}
+.editor .btns button.pri{background:var(--mark);color:#fff;border-color:var(--mark)}
+.editor .btns button.del{color:var(--z1)}
+.scrim{position:fixed;inset:0;background:rgba(44,44,42,.28);z-index:34;display:none}
+.scrim.on{display:block}
+
+/* ---------- street view ----------------------------------------------------------- */
+.sv{position:fixed;inset:0;z-index:50;background:#0F1113;display:none;
+  flex-direction:column;overscroll-behavior:contain}
+.sv.on{display:flex}
+.sv .frame{flex:1;position:relative;overflow:hidden;background:#0F1113}
+.sv svg{position:absolute;inset:0;width:100%;height:100%}
+.sv .bar{position:absolute;left:0;right:0;top:0;padding:11px 14px;z-index:3;
+  background:linear-gradient(rgba(12,14,16,.82),rgba(12,14,16,0));
+  display:flex;align-items:flex-start;gap:10px;pointer-events:none}
+.sv .bar .t{flex:1;min-width:0;pointer-events:none}
+.sv .bar h2{margin:0;font-size:16px;font-weight:600;color:#F2EFE6;letter-spacing:.02em}
+.sv .bar p{margin:2px 0 0;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  color:#A9A79E}
+.sv .bar button{pointer-events:auto}
+.sv .close{width:34px;height:34px;border-radius:9px;border:1px solid rgba(242,239,230,.28);
+  background:rgba(20,22,24,.6);color:#F2EFE6;font-size:17px;cursor:pointer;line-height:1;
+  flex:0 0 auto}
+.sv .cap{position:absolute;left:14px;right:14px;bottom:70px;z-index:3;max-width:560px;
+  font-size:13px;line-height:1.5;color:#E6E3D9;text-shadow:0 1px 6px rgba(0,0,0,.85);
+  pointer-events:none}
+.sv .cap .disp{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;
+  letter-spacing:.08em;padding:2px 6px;border-radius:4px;color:#fff;margin-bottom:6px}
+.sv .nav{position:absolute;left:0;right:0;bottom:0;z-index:4;padding:10px 12px 14px;
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(rgba(12,14,16,0),rgba(12,14,16,.88))}
+.sv .nav button{height:36px;padding:0 12px;border-radius:9px;
+  border:1px solid rgba(242,239,230,.26);background:rgba(20,22,24,.62);color:#F2EFE6;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;cursor:pointer;
+  backdrop-filter:blur(6px);white-space:nowrap}
+.sv .nav button:hover{background:rgba(60,64,68,.7)}
+.sv .nav button:disabled{opacity:.34;cursor:default}
+.sv .nav button.on{background:#F2EFE6;color:#16181A;border-color:#F2EFE6}
+.sv .nav .route{flex:1;min-width:0;text-align:center;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.08em;color:#A9A79E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv .era{position:absolute;right:14px;top:56px;z-index:3;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.14em;color:#8F8D85;pointer-events:none}
+@media (max-width:560px){
+  .sv .cap{font-size:12px;bottom:64px}
+  .sv .nav button.wide{display:none}
+}
+
+/* ---------- toast ----------------------------------------------------------------- */
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);z-index:60;
+  background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.05em;padding:9px 14px;border-radius:9px;opacity:0;
+  transition:opacity .18s ease,transform .18s ease;pointer-events:none;max-width:90vw;
+  text-align:center}
+.toast.on{opacity:.96;transform:translate(-50%,0)}
+
+@media (max-width:520px){
+  .key{font-size:9.5px;top:52px}
+  .sheet{width:calc(100vw - 80px)}
+  .srch{flex-basis:150px}
+  .hdr h1{font-size:13.5px}
+  .hdr p{display:none}
+}
+
+/* ---------- street-view era cross-fade -------------------------------------------- */
+.sv .intact{opacity:0;transition:opacity .4s ease}
+.sv .decay{opacity:1;transition:opacity .4s ease}
+.sv.then .intact{opacity:1}
+.sv.then .decay{opacity:0}
+.sv.then .frame svg{filter:saturate(1.14) brightness(1.06)}
+.sv .frame svg{transition:filter .4s ease}
+@media (max-height:640px){ .ctl button{width:40px;height:34px} }
+
+/* ---------- map labels: laid out in map space, sized in screen space -------------- */
+#map .mlab{font-family:var(--cond);font-weight:500;fill:#2C2C2A;
+  stroke:var(--paper);stroke-width:.28em;paint-order:stroke;stroke-linejoin:round}
+#map .mlab.dist{font-weight:600;fill:#1F1F1D;letter-spacing:.06em}
+#map .slab,#map .tlab{font-family:var(--mono);fill:#3A3A36;fill-opacity:.8;
+  letter-spacing:.05em;stroke:var(--paper);stroke-width:.3em;paint-order:stroke;
+  stroke-linejoin:round}
+#map .tlab{fill-opacity:.9}
+#map .ulab{font-family:var(--cond);font-weight:600;fill:#5A2C6B;
+  stroke:var(--paper);stroke-width:.3em;paint-order:stroke;stroke-linejoin:round}
+#map .star{fill:var(--mark);stroke:var(--paper);stroke-width:.26em;paint-order:stroke}
+#map .sym{transform-box:fill-box;transform-origin:50% 50%;transform:scale(var(--symk,1))}
+#map .usym{transform-box:fill-box;transform-origin:50% 100%;transform:scale(var(--symk,1))}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="ttl">
+    <h1>NYC 2050 — Survey Sheet 2</h1>
+    <p>302 STATIONS LOGGED · 13 STREET-LEVEL PLATES · DRAG TO PAN, PINCH TO ZOOM</p>
+  </div>
+  <div class="srch" id="srch">
+    <input id="search" type="search" placeholder="Search the sheet  ( / )"
+      autocomplete="off" spellcheck="false" aria-label="Search sites and marks">
+    <button class="sx" id="searchClear" aria-label="Clear search">&times;</button>
+    <div class="res" id="results"></div>
+  </div>
+</div>
+
+<div id="stage"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+<div class="key" id="key">
+  <b>HABITABILITY</b>
+  <i style="background:#8F2222"></i>INUNDATED · BATTERY–CHAMBERS<br>
+  <i style="background:#C4472A"></i>CRITICAL · CHAMBERS–14TH<br>
+  <i style="background:#E08A24"></i>SEVERE · 14TH–59TH<br>
+  <i style="background:#F2C572"></i>DEGRADED · 59TH–155TH<br>
+  <i style="background:#E8E3C8;border:1px solid #B4B2A9"></i>MARGINAL · 155TH–INWOOD<br>
+  <i style="background:#B4B2A9"></i>OUTER BOROUGHS · STRAINED<br>
+  <b>DISPOSITION</b>
+  <i style="background:#3D6B8F"></i>FLOODED &nbsp;<i style="background:#8F2222"></i>COLLAPSED<br>
+  <i style="background:#B4741A"></i>SALVAGE &nbsp;<i style="background:#5A5852"></i>SEALED<br>
+  <i style="background:#2C2C2A"></i>STANDING &nbsp;<i style="background:#3F6B3A"></i>OCCUPIED
+  <b>ON THE SHEET</b>
+  <span style="display:inline-block;width:11px;text-align:center;margin-right:6px">◎</span>
+    RINGED · STREET-VIEW PLATE<br>
+  <i style="background:#7A3E8F"></i>YOUR DROPPED MARKS<br>
+  <span style="display:inline-block;width:11px;text-align:center;margin-right:6px;
+    color:#7A3E8F">★</span>YOUR BOOKMARKS
+  <b>KEYS</b>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>
+  IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
+</div>
+
+<div class="sheet" id="sheet">
+  <button class="x" id="closeSheet" aria-label="Close">&times;</button>
+  <p class="nm" id="sNm"></p>
+  <p class="meta" id="sMeta"></p>
+  <span class="code" id="sCode"></span>
+  <p class="note" id="sNote"></p>
+  <div class="acts" id="sActs"></div>
+</div>
+
+<div class="ctl">
+  <button id="keyBtn" class="sm" aria-pressed="false" aria-label="Toggle key">KEY</button>
+  <button id="covBtn" class="sm" aria-pressed="true" aria-label="Toggle survey coverage">CVRG</button>
+  <button id="thruBtn" class="sm" aria-pressed="true" aria-label="Toggle named thoroughfares">THRU</button>
+  <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
+  <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
+    class="badge" id="pinCount">0</span></button>
+  <button id="zin" aria-label="Zoom in">+</button>
+  <button id="zout" aria-label="Zoom out">&minus;</button>
+  <button id="rst" class="sm" aria-label="Reset view">RST</button>
+</div>
+
+<div class="drawer" id="drawer">
+  <header>
+    <h2 id="drawerTitle">Street-view plates</h2>
+    <button id="drawerClose" aria-label="Close panel">&times;</button>
+  </header>
+  <div class="tabs">
+    <button id="tabViews" aria-selected="true">PLATES</button>
+    <button id="tabMarks" aria-selected="false">MY MARKS</button>
+  </div>
+  <div class="body" id="drawerBody"></div>
+  <div class="foot" id="drawerFoot" style="display:none">
+    <button id="mkCopy">COPY</button>
+    <button id="mkPaste">IMPORT</button>
+    <button id="mkClear">CLEAR</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="editor" id="editor">
+  <h3 id="edTitle">New mark</h3>
+  <p class="loc" id="edLoc"></p>
+  <label for="edName">NAME</label>
+  <input id="edName" maxlength="60" placeholder="Water point, cache, route east…">
+  <label for="edNote">NOTE</label>
+  <textarea id="edNote" maxlength="600" placeholder="What you want to remember about this spot."></textarea>
+  <div class="btns">
+    <button id="edSave" class="pri">SAVE</button>
+    <button id="edCancel">CANCEL</button>
+    <button id="edDel" class="del">DELETE</button>
+  </div>
+</div>
+
+<div class="sv" id="sv">
+  <div class="frame" id="svFrame">
+    <svg id="svCanvas" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice"
+      xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="bar">
+      <div class="t">
+        <h2 id="svName"></h2>
+        <p id="svSub"></p>
+      </div>
+      <button class="close" id="svClose" aria-label="Leave street view">&times;</button>
+    </div>
+    <div class="era" id="svEra">2050 — AS SURVEYED</div>
+    <div class="cap">
+      <span class="disp" id="svDisp"></span>
+      <div id="svCap"></div>
+    </div>
+    <div class="nav">
+      <button id="svPrev">&#9664; PREV</button>
+      <button id="svEraBtn">SHOW BEFORE</button>
+      <div class="route" id="svRoute"></div>
+      <button id="svMark" class="wide">&#9734; BOOKMARK</button>
+      <button id="svMap" class="wide">SHOW ON MAP</button>
+      <button id="svNext">NEXT &#9654;</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================================
+   NYC 2050 — SURVEY DATA
+   All coordinates are in GRID SPACE, the survey's working frame:
+     x  ... cross-island, 5th Avenue = 0, east positive. 1 unit ~ 33 ft.
+     y  ... along-island, Houston St = 0, north positive. 1 street = 8 units.
+   map.js projects grid space to screen space (the Manhattan grid runs 29 deg
+   east of north, so the whole frame is rotated on draw).
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC = window.NYC = window.NYC || {};
+
+/* ---- shorelines: [y, x] sampled south to north ------------------------------------ */
+const WEST=[[-352,10],[-330,-30],[-300,-52],[-260,-66],[-210,-80],[-160,-95],[-110,-114],
+  [-60,-130],[0,-146],[112,-158],[272,-168],[472,-172],[752,-168],[1000,-160],[1240,-150],
+  [1440,-140],[1600,-125],[1690,-104],[1740,-80]];
+const EAST=[[-352,10],[-330,48],[-300,72],[-260,92],[-210,112],[-160,132],[-110,152],
+  [-60,186],[0,210],[112,222],[272,210],[472,175],[752,136],[1000,110],[1240,60],
+  [1440,20],[1600,-22],[1690,-56],[1740,-80]];
+
+function shore(tbl,y){
+  if(y<=tbl[0][0])return tbl[0][1];
+  if(y>=tbl[tbl.length-1][0])return tbl[tbl.length-1][1];
+  for(let i=1;i<tbl.length;i++){
+    if(y<=tbl[i][0]){const a=tbl[i-1],b=tbl[i];
+      return b[1]+(a[1]-b[1])*(b[0]-y)/(b[0]-a[0]);}
+  }
+  return 0;
+}
+const WX=y=>shore(WEST,y), EX=y=>shore(EAST,y);
+
+/* ---- habitability bands (grid y) --------------------------------------------------- */
+const BANDS=[[-352,-190,"#8F2222","INUNDATED"],[-190,112,"#C4472A","CRITICAL"],
+  [112,472,"#E08A24","SEVERE"],[472,1240,"#F2C572","DEGRADED"],[1240,1740,"#E8E3C8","MARGINAL"]];
+
+/* ---- avenues: [label, x, yStart, yEnd, tier] --------------------------------------- */
+const AVES=[
+ ["12 Av",-168,130,500,3],["11 Av",-144,110,470,3],["West End",-144,472,880,3],
+ ["10 Av",-120,110,470,3],["Amsterdam",-120,472,1400,2],
+ ["9 Av",-96,100,470,3],["Columbus",-96,472,880,2],
+ ["8 Av",-72,96,472,2],["Central Pk W",-72,472,880,2],["Fred Douglass",-72,880,1240,3],
+ ["7 Av",-48,0,472,2],["A C Powell",-48,880,1240,3],
+ ["6 Av",-24,-40,472,2],["Malcolm X",-24,880,1240,3],
+ ["5 Av",0,64,1140,1],
+ ["Madison",14,184,1104,3],["Park",28,120,1056,2],["Lexington",42,168,1040,3],
+ ["3 Av",60,-40,1040,2],["2 Av",84,0,1040,3],["1 Av",108,0,1020,3],
+ ["Av A",132,0,112,3],["Av B",156,0,112,3],["Av C",180,0,112,3],["Av D",204,0,112,3],
+ /* added on the second sheet — uptown and east-side avenues */
+ ["York Av",128,472,744,3],["Sutton Pl",124,400,472,3],
+ ["Convent Av",-104,1080,1256,3],["Edgecombe",-88,1128,1320,3],
+ ["Fort Washington",-128,1352,1608,3],["Wadsworth",-112,1400,1576,3],
+ ["Pleasant Av",104,904,1000,3],["Manhattan Av",-52,824,880,3]
+];
+
+/* ---- Broadway: the one street that ignores the grid -------------------------------- */
+const BROADWAY=[[10,-352],[-4,-280],[-10,-200],[-15,-120],[-16,-60],[-14,0],[-8,64],
+  [0,184],[-24,272],[-48,360],[-72,472],[-96,600],[-112,720],[-120,880],[-135,1080],
+  [-150,1240],[-145,1440],[-130,1600],[-105,1720]];
+
+/* ---- crosstown streets carried at name, not number: [street no, label, tier] ------- */
+const CROSSTOWN=[
+ [14,"14 St",2],[23,"23 St",2],[34,"34 St",1],[42,"42 St",1],[57,"57 St",2],
+ [59,"Central Park S",2],[72,"72 St",2],[79,"79 St",3],[86,"86 St",2],[96,"96 St",3],
+ [110,"Cathedral Pkwy",2],[116,"116 St",3],[125,"M L King Jr Blvd",1],[135,"135 St",3],
+ [145,"145 St",2],[155,"155 St",3],[181,"181 St",2],[207,"Dyckman St",3]
+];
+
+/* ---- named thoroughfares: [label, [[x,y]...], tier, kind, borough] ------------------
+   kind: ave | st | pkwy | hwy | walk  — drawn with different weight and casing.      */
+const THRU=[
+ /* --- Manhattan, below Houston: the pre-grid streets ---------------------------- */
+ ["Houston St",[[-146,0],[-60,-2],[20,-4],[120,-5],[210,-6]],1,"st","MN"],
+ ["Canal St",[[-116,-112],[-60,-106],[-4,-101],[60,-96],[152,-92]],1,"st","MN"],
+ ["Chambers St",[[-88,-196],[-30,-192],[20,-190],[104,-186]],2,"st","MN"],
+ ["Fulton St",[[-62,-258],[-14,-256],[40,-252],[88,-250]],2,"st","MN"],
+ ["Wall St",[[-30,-302],[10,-300],[48,-297],[76,-296]],2,"st","MN"],
+ ["Delancey St",[[-6,-58],[60,-52],[130,-46],[176,-42]],2,"st","MN"],
+ ["Grand St",[[-52,-70],[10,-64],[80,-58],[150,-52]],3,"st","MN"],
+ ["Bleecker St",[[-96,26],[-40,20],[10,14],[50,8]],3,"st","MN"],
+ ["Bowery",[[52,-104],[50,-70],[48,-30],[46,10],[44,44]],2,"ave","MN"],
+ ["W Broadway",[[-62,-190],[-56,-130],[-50,-70],[-44,-20]],3,"st","MN"],
+ ["Park Row",[[8,-198],[40,-176],[58,-150],[62,-120]],3,"st","MN"],
+ ["Lafayette St",[[8,-192],[13,-140],[18,-88],[24,-38],[30,4]],3,"st","MN"],
+ ["Church St",[[-32,-250],[-28,-190],[-24,-130],[-21,-78]],3,"st","MN"],
+ ["Varick St",[[-50,-124],[-55,-74],[-60,-24],[-64,18]],3,"st","MN"],
+ ["Hudson St",[[-74,-104],[-80,-44],[-86,16],[-92,68]],3,"st","MN"],
+ ["Greenwich St",[[-84,-262],[-92,-192],[-100,-112],[-108,-32]],3,"st","MN"],
+ ["Water St",[[44,-332],[68,-302],[90,-272],[110,-242]],3,"st","MN"],
+ ["Pearl St",[[28,-336],[50,-308],[72,-278],[90,-248]],3,"st","MN"],
+ ["South St",[[62,-340],[88,-306],[110,-274],[128,-244]],3,"st","MN"],
+ ["Allen St",[[86,-96],[88,-58],[90,-20],[92,10]],3,"st","MN"],
+ ["Orchard St",[[96,-92],[98,-54],[100,-16]],3,"st","MN"],
+ ["Essex St",[[106,-90],[108,-52],[110,-14]],3,"st","MN"],
+ ["Rivington St",[[52,-32],[104,-27],[152,-22]],3,"st","MN"],
+ ["Prince St",[[-70,-20],[-20,-16],[30,-13]],3,"st","MN"],
+ ["Spring St",[[-86,-42],[-30,-38],[26,-34]],3,"st","MN"],
+ ["Worth St",[[-70,-176],[-24,-172],[24,-168]],3,"st","MN"],
+ ["Maiden Ln",[[-6,-278],[36,-274],[72,-270]],3,"st","MN"],
+ ["Christopher St",[[-118,52],[-90,48],[-62,44]],3,"st","MN"],
+ ["St Marks Pl",[[36,74],[70,78],[104,82]],3,"st","MN"],
+ /* --- Manhattan, the water's-edge roads and the uptown diagonals ----------------- */
+ ["FDR Dr",[[118,-200],[168,-120],[206,-30],[222,90],[214,240],[186,440],[146,720],
+   [126,880],[108,1000]],2,"hwy","MN"],
+ ["West St",[[-70,-260],[-92,-190],[-116,-110],[-140,-20],[-152,96]],2,"hwy","MN"],
+ ["Henry Hudson Pkwy",[[-156,120],[-164,260],[-170,420],[-173,600],[-172,780],
+   [-163,1000],[-154,1240],[-146,1440],[-138,1600]],2,"hwy","MN"],
+ ["Riverside Dr",[[-160,592],[-158,760],[-152,1000],[-144,1240],[-138,1400]],2,"ave","MN"],
+ ["St Nicholas Av",[[-30,872],[-48,962],[-64,1060],[-78,1160],[-92,1268],[-104,1358]],
+   2,"ave","MN"],
+ ["Harlem River Dr",[[104,1000],[86,1122],[66,1240],[38,1362],[14,1452]],3,"hwy","MN"],
+ ["The High Line",[[-128,96],[-136,152],[-142,208],[-146,258]],3,"walk","MN"],
+ /* --- Brooklyn ------------------------------------------------------------------- */
+ ["Flatbush Av",[[188,-190],[206,-178],[222,-170],[234,-172],[246,-198],[258,-236],
+   [286,-248],[310,-266],[318,-300],[326,-344]],1,"ave","BK"],
+ ["Atlantic Av",[[196,-196],[216,-182],[234,-172],[268,-164],[312,-156],[364,-148],
+   [420,-140],[470,-134]],1,"ave","BK"],
+ ["Fulton St",[[208,-172],[238,-152],[278,-142],[326,-134],[380,-126],[428,-120]],
+   2,"st","BK"],
+ ["4 Av",[[230,-176],[220,-214],[212,-256],[206,-300],[200,-344],[196,-386]],2,"ave","BK"],
+ ["Eastern Pkwy",[[262,-242],[292,-234],[330,-226],[376,-218],[420,-210],[462,-204]],
+   1,"pkwy","BK"],
+ ["Ocean Pkwy",[[276,-304],[268,-346],[261,-388],[255,-418]],2,"pkwy","BK"],
+ ["Prospect Park W",[[259,-246],[263,-272],[267,-296]],3,"ave","BK"],
+ ["Bedford Av",[[268,-30],[257,-78],[262,-124],[280,-168],[300,-208],[316,-250],
+   [326,-300],[332,-350]],2,"ave","BK"],
+ ["Kent Av",[[240,-44],[229,-88],[219,-124]],3,"ave","BK"],
+ ["Myrtle Av",[[264,-96],[292,-104],[330,-112],[380,-120],[430,-128]],2,"ave","BK"],
+ ["Bushwick Av",[[268,-70],[292,-100],[316,-134],[336,-170]],3,"ave","BK"],
+ ["Brooklyn–Queens Expwy",[[214,-208],[240,-150],[262,-92],[276,-30],[268,40],
+   [254,120],[248,220],[252,300]],2,"hwy","BK"],
+ /* --- Queens --------------------------------------------------------------------- */
+ ["Queens Blvd",[[268,286],[300,272],[344,258],[396,244],[448,232],[496,222]],1,"ave","QN"],
+ ["Northern Blvd",[[282,396],[330,392],[386,388],[440,384],[492,380]],1,"ave","QN"],
+ ["Roosevelt Av",[[300,330],[352,322],[408,314],[462,306],[510,300]],2,"ave","QN"],
+ ["Astoria Blvd",[[288,436],[330,442],[380,450],[430,458]],2,"ave","QN"],
+ ["Vernon Blvd",[[254,300],[266,364],[278,420],[288,470]],3,"ave","QN"],
+ ["Jackson Av",[[250,318],[268,300],[286,286]],3,"ave","QN"],
+ ["Grand Central Pkwy",[[300,472],[356,462],[420,432],[470,382],[500,322],[520,262]],
+   2,"pkwy","QN"],
+ /* --- The Bronx ------------------------------------------------------------------ */
+ ["Grand Concourse",[[246,1080],[250,1162],[252,1250],[248,1340],[240,1430]],1,"ave","BX"],
+ ["Fordham Rd",[[196,1300],[248,1306],[306,1312],[364,1318],[414,1322]],2,"st","BX"],
+ ["Bruckner Blvd",[[268,1062],[330,1080],[392,1098],[452,1114],[506,1128]],2,"hwy","BX"],
+ ["Southern Blvd",[[300,1120],[312,1200],[322,1280],[330,1360]],3,"ave","BX"]
+];
+
+/* ---- landmasses (grid space) ------------------------------------------------------ */
+const NJ=[[-190,-420],[-215,-260],[-235,-100],[-252,60],[-262,240],[-268,460],[-262,700],
+  [-250,980],[-236,1240],[-224,1500],[-214,1800],[-560,1800],[-560,-420]];
+const BKQN=[[130,-420],[168,-330],[196,-262],[214,-206],[236,-160],[252,-120],[266,-70],
+  [278,-16],[292,60],[300,150],[292,250],[276,340],[262,430],[252,520],[262,600],[300,660],
+  [420,700],[620,700],[620,-420]];
+const BRONX=[[236,1060],[210,1160],[176,1240],[140,1320],[120,1420],[300,1520],[620,1520],
+  [620,900],[380,900],[300,980]];
+const ROOSEVELT=[[196,352],[206,400],[212,470],[214,530],[204,560],[196,530],[192,466],[190,400]];
+const CPARK=[[-72,472],[0,472],[0,880],[-72,880]];
+const RANDALLS=[[210,1000],[268,1010],[280,1080],[224,1078]];
+/* harbour islands — added to the sheet when the survey crossed the Upper Bay */
+const LIBERTY=[[-132,-484],[-108,-480],[-104,-462],[-126,-458]];
+const ELLIS=[[-146,-436],[-120,-432],[-118,-416],[-144,-419]];
+const GOVERNORS=[[46,-436],[92,-430],[98,-402],[52,-400]];
+
+/* ---- severed crossings: [x1,y1,x2,y2,label] --------------------------------------- */
+const CROSS=[
+ [-146,-24,-232,-16,"Holland Tunnel"],[-160,236,-244,244,"Lincoln Tunnel"],
+ [-142,1432,-220,1444,"George Washington Br"],
+ [116,-206,180,-232,"Brooklyn Bridge"],[128,-176,196,-196,"Manhattan Bridge"],
+ [150,-118,214,-130,"Williamsburg Bridge"],[196,72,262,64,"Queens–Midtown Tunnel"],
+ [178,296,266,286,"Queensboro Bridge"],[124,1150,214,1140,"Harlem River spans"]
+];
+
+/* ---- survey coverage: the sheet's documented y-ranges; the rest is hatched -------- */
+const GAPS=[[200,250],[1080,1740]];
+
+/* ---- landmarks: [name, x, y, category, disposition, tier, note] ------------------ */
+const D=[
+/* --- Financial District / Battery : INUNDATED --- */
+["The Battery",4,-346,"Park","FLOODED",2,"Landfill over the original shoreline. Nothing here is above the waterline at high tide."],
+["National Museum of the American Indian",2,-336,"Civic","FLOODED",2,"The Custom House rotunda holds water year-round. Upper galleries were emptied early."],
+["Cunard Building",6,-326,"Landmark","SALVAGE",3,""],
+["One New York Plaza",26,-336,"Tower","FLOODED",3,""],
+["Robert F. Wagner Jr. Park",-24,-324,"Park","FLOODED",3,""],
+["The Dead Rabbit",54,-314,"Trade","FLOODED",3,""],
+["New York Stock Exchange",14,-301,"Landmark","SEALED",1,"Trading floor sits below the current mean tide. Sealed at the Broad Street doors."],
+["120 Wall Street",74,-298,"Tower","FLOODED",3,""],
+["Battery Park City",-52,-292,"District","FLOODED",2,"Entirely fill. The first ground the survey wrote off."],
+["Metropolitan College",-40,-292,"Civic","FLOODED",3,""],
+["Financial District",26,-284,"District","FLOODED",1,"Below Chambers the streets are channels. Movement here is by boat at all tides."],
+["The Cloud One Hotel",-26,-272,"Trade","SALVAGE",3,""],
+["South Street Seaport",84,-268,"District","FLOODED",2,""],
+["IPIC Theaters",70,-263,"Trade","FLOODED",3,""],
+["St Paul's Chapel",-10,-262,"Landmark","STANDING",2,"Highest dry ground below Chambers. Survey party used the churchyard as a landing."],
+["Mercer Labs",-18,-258,"Civic","FLOODED",3,""],
+["9/11 Memorial & Museum",-46,-250,"Landmark","FLOODED",2,"The reflecting pools no longer drain. They are simply part of the harbor now."],
+["One World Trade Center",-58,-244,"Tower","SEALED",1,"Structurally sound above the podium. No water, no lift, no way up past floor six."],
+["Nobu Downtown",-12,-238,"Trade","FLOODED",3,""],
+["Leon's Bagels",4,-240,"Trade","FLOODED",3,""],
+["NY-Presbyterian Lower Manhattan",30,-216,"Medical","SEALED",2,"Stripped of everything portable in the first year. Generators gone."],
+["Alfred E. Smith Playground",68,-214,"Park","FLOODED",3,""],
+/* --- Civic Center / Tribeca / Chinatown : CRITICAL --- */
+["New York City Hall",0,-201,"Civic","STANDING",1,"On the ridge. Dry, intact, and the highest-value shelter below Canal Street."],
+["Target",-70,-200,"Trade","SALVAGE",3,""],
+["Pace University",24,-198,"Civic","SALVAGE",3,""],
+["Brooklyn Bridge–City Hall",18,-192,"Transit","FLOODED",2,"Platform level is permanently submerged. The 4, 5, 6 tubes flooded from here south."],
+["The Sun Building",-15,-190,"Landmark","STANDING",3,""],
+["Surrogate's Court",5,-186,"Civic","STANDING",3,""],
+["The Django",-32,-185,"Trade","SEALED",3,""],
+["Gibney Dance",-2,-180,"Civic","SALVAGE",3,""],
+["Tribeca",-56,-176,"District","SALVAGE",1,"Cast-iron lofts on made ground. Ground floors wet, upper floors picked over."],
+["Scalini Fedeli",-62,-173,"Trade","SALVAGE",3,""],
+["James Madison Plaza",44,-171,"Park","STANDING",3,""],
+["Thurgood Marshall Courthouse",18,-169,"Civic","SEALED",2,"Granite, elevated, defensible. Marked as a fallback shelter on the second sheet."],
+["Federal Bureau of Investigation",-8,-163,"Civic","SEALED",3,""],
+["Thomas Paine Park",-4,-172,"Park","STANDING",3,""],
+["Bar Oliver",62,-166,"Trade","COLLAPSED",3,""],
+["Franklin St",-45,-161,"Transit","FLOODED",3,""],
+["Playground One",52,-158,"Park","STANDING",3,""],
+["Buddha Bodai",42,-141,"Trade","STANDING",3,""],
+["Paros Tribeca",-40,-140,"Trade","SALVAGE",3,""],
+["Todd Snyder",-38,-129,"Trade","SALVAGE",3,""],
+["Joe's Shanghai",48,-126,"Trade","STANDING",3,""],
+["Mei Lai Wah Bakery",46,-119,"Trade","OCCUPIED",3,"Coal-fired ovens still functional. One of four working bakeries logged on the island."],
+["Chinatown",46,-118,"District","OCCUPIED",1,"Highest ground below Houston and the last part of Lower Manhattan with a standing population."],
+["Battery Dance",-15,-116,"Civic","SALVAGE",3,""],
+["Soho Grand Hotel",-52,-113,"Trade","SEALED",3,""],
+["Jing Fong Restaurant",28,-109,"Trade","STANDING",3,""],
+["Bowery Savings Bank",58,-106,"Landmark","SEALED",3,""],
+["Canal St",10,-104,"Transit","FLOODED",1,"The name is literal again. Canal is the tideline on all but the driest weeks."],
+["Origins NYC",-8,-101,"Trade","SALVAGE",3,""],
+["McDonald's",6,-100,"Trade","SALVAGE",3,""],
+["Quest Diagnostics",5,-99,"Medical","SALVAGE",3,""],
+["Chinatown Street Market",24,-96,"Trade","OCCUPIED",2,"Reconstituted. The only regular exchange point logged south of Houston."],
+["Duane Reade",8,-95,"Medical","SALVAGE",3,"Pharmacy stripped in week two. Listed for the shelving, not the stock."],
+["401 Broadway",-8,-93,"Tower","SEALED",3,""],
+["Telfar",-4,-88,"Trade","SALVAGE",3,""],
+["La Mercerie",-14,-79,"Trade","SALVAGE",3,""],
+["Macao Trading Co",-58,-78,"Trade","COLLAPSED",3,""],
+["Mixue",-16,-71,"Trade","SALVAGE",3,""],
+["Walgreens",-12,-63,"Medical","SALVAGE",2,"Cross-referenced against the Duane Reade at Canal. Both empty."],
+["Catbird",-2,-53,"Trade","SALVAGE",3,""],
+["Steve Madden",-12,-49,"Trade","SALVAGE",3,""],
+["Mod Ref",-5,-50,"Trade","SALVAGE",3,""],
+["Dolce Vita",-8,-51,"Trade","SALVAGE",3,""],
+["Eataly",2,-46,"Trade","SALVAGE",3,""],
+["Black Tap",-46,-48,"Trade","SEALED",3,""],
+["SoHo",-30,-44,"District","SALVAGE",1,"Cast-iron frames outlast their floors. Several buildings are facade and nothing behind it."],
+["Little Italy",25,-57,"District","OCCUPIED",2,""],
+["maman",0,-41,"Trade","SALVAGE",3,""],
+["Live by the Sword Tattoo",-16,-42,"Trade","SEALED",3,""],
+["Nolita",16,-32,"District","OCCUPIED",2,""],
+["Levi's",-30,-33,"Trade","SALVAGE",3,""],
+["2nd Street",-8,-31,"Trade","SALVAGE",3,""],
+["Museum of Ice Cream",-22,-28,"Civic","COLLAPSED",3,""],
+["Caffe Paradiso",25,-26,"Trade","OCCUPIED",3,""],
+["Trader Joe's",-58,-25,"Trade","SALVAGE",2,"Emptied inside eleven days. The loading dock is still the neighborhood's dry entrance."],
+["Brandy Melville",-26,-24,"Trade","SALVAGE",3,""],
+["Blank Street",-14,-26,"Trade","SALVAGE",3,""],
+["Uniqlo",-20,-22,"Trade","SALVAGE",3,"Textile recovery site. Priority listing — clothing, not food."],
+["New York or Nowhere",-10,-20,"Trade","SALVAGE",3,""],
+["Madhappy",-8,-18,"Trade","SALVAGE",3,""],
+["Leon's Bagels SoHo",-2,-16,"Trade","SALVAGE",3,""],
+["NYU Lafayette Hall",-2,-14,"Civic","SEALED",3,""],
+["Gay Activists Alliance Firehouse",-32,-8,"Landmark","STANDING",3,""],
+["Houston Hall",-78,8,"Trade","SEALED",3,""],
+["Broadway–Lafayette St",0,-6,"Transit","FLOODED",2,""],
+["NoHo",8,7,"District","SALVAGE",2,""],
+["Mimi's",-52,-8,"Trade","SEALED",3,""],
+/* --- Village / East Village --- */
+["W 4 St–Wash Sq",-52,26,"Transit","FLOODED",2,"Four levels of platform. The lower mezzanine took water in the first winter."],
+["Comedy Cellar",-48,25,"Trade","FLOODED",3,"Basement room. Below the water table now."],
+["Washington Square Arch",-38,32,"Landmark","STANDING",1,"Intact. The park is under cultivation — the largest worked soil below 59th Street."],
+["New York University",-24,32,"Civic","SEALED",2,"Campus buildings sealed floor by floor. Library holdings moved north."],
+["The Commerce Inn",-90,30,"Trade","STANDING",3,""],
+["L'industrie Pizzeria",-88,40,"Trade","OCCUPIED",3,""],
+["West Village",-95,52,"District","OCCUPIED",2,"Low-rise, walkable, above the tideline. The most viable residential fabric below 14th."],
+["Greenwich Village",-62,52,"District","OCCUPIED",1,""],
+["8 St–NYU",8,64,"Transit","FLOODED",3,""],
+["Astor Pl",32,68,"Transit","FLOODED",3,""],
+["Cooper Square",42,62,"Civic","STANDING",3,""],
+["McSorley's Old Ale House",52,58,"Trade","OCCUPIED",3,"Sawdust floor, no electricity required, never had any. Still serving."],
+["Jefferson Market Library",-58,76,"Civic","STANDING",3,""],
+["Ippudo",28,82,"Trade","SEALED",3,""],
+["Webster Hall",48,90,"Civic","SEALED",3,""],
+["North Coast University",0,96,"Civic","SEALED",3,""],
+["East Village",92,60,"District","OCCUPIED",1,"Tenement stock, five floors, walk-up by design. Functions without power."],
+["Forbidden Planet",6,104,"Trade","SALVAGE",3,""],
+["Palladium",44,110,"Civic","COLLAPSED",3,""],
+["Union Square",14,113,"Park","OCCUPIED",1,"Market ground again. The greenmarket outlasted the grid that killed the city around it."],
+["14 St–Union Sq",22,112,"Transit","FLOODED",1,"Deep station, four lines. Pump failure here took the whole Lexington trunk."],
+["Sephora",16,117,"Trade","SALVAGE",3,""],
+["Xavier High School",-52,126,"Civic","SEALED",3,""],
+["14 St",-26,112,"Transit","FLOODED",3,""],
+["Stuyvesant Square",68,124,"Park","OCCUPIED",3,""],
+/* --- Flatiron / Gramercy --- */
+["Barnes & Noble",2,137,"Trade","SALVAGE",3,"Paper recovery. Listed under fuel, not literature."],
+["Gramercy Park",34,160,"Park","OCCUPIED",2,"Still locked. The keys turned out to mean something after all."],
+["Flatiron",-2,177,"District","SEALED",2,""],
+["Bathhouse Flatiron",-14,178,"Trade","FLOODED",3,""],
+["Flatiron Building",2,184,"Landmark","STANDING",1,"Narrow floor plate, masonry bearing walls, twenty-two storeys of nothing usable above six."],
+["Shake Shack",14,190,"Trade","SALVAGE",3,""],
+["Museum of Sex",6,216,"Civic","SEALED",3,""],
+["Rose Hill",30,216,"District","SEALED",3,""],
+/* --- Midtown : SEVERE --- */
+["Penn Station",-50,264,"Transit","FLOODED",1,"North River tunnels flooded from the Jersey side. The station is the sump they drain into."],
+["Empire State Building",2,272,"Tower","SEALED",1,"Eighty-six floors of dry, unreachable space. Survey used the mast as a sightline, nothing more."],
+["Macy's",-24,272,"Trade","SALVAGE",2,""],
+["Morgan Library",14,288,"Civic","SEALED",3,"Collection intact behind bronze. Flagged for recovery, not yet attempted."],
+["Joe's Pizza",-44,320,"Trade","SALVAGE",3,""],
+["Bryant Park",-18,328,"Park","OCCUPIED",2,"Under cultivation. The reservoir it was built on is being reopened by hand."],
+["New York Public Library",2,328,"Civic","SEALED",1,"Stacks are dry. The building is the single highest recovery priority above 14th Street."],
+["Summit One Vanderbilt",22,340,"Tower","SEALED",3,""],
+["Grand Central Terminal",28,336,"Transit","FLOODED",1,"Lower loops took water within a week of the pumps stopping. Concourse remains dry."],
+["42 St–Port Authority",-72,336,"Transit","FLOODED",2,""],
+["Los Tacos No. 1",-60,344,"Trade","SALVAGE",3,""],
+["Tony's Di Napoli",-52,348,"Trade","SEALED",3,""],
+["Times Square",-48,360,"Landmark","STANDING",1,"Dark. The survey notes it is quieter than any other point logged on the island."],
+["Becco",-84,368,"Trade","SEALED",3,""],
+["Rockefeller Center",-12,392,"Landmark","SEALED",1,"Steam plant ruptured under the plaza. The concourse is unenterable — heat, then collapse."],
+["47–50 Sts / Rockefeller Ctr",-16,388,"Transit","FLOODED",3,""],
+["M&M'S",-30,384,"Trade","SALVAGE",3,""],
+["49 St",-44,392,"Transit","FLOODED",3,""],
+["50 St",-70,400,"Transit","FLOODED",3,""],
+["St. Patrick's Cathedral",4,408,"Landmark","STANDING",1,"Stone, unpowered by design, and the largest intact interior volume in Midtown."],
+["5 Av–53 St",0,424,"Transit","FLOODED",3,""],
+["Museum of Modern Art",-12,424,"Civic","SEALED",2,"Climate control failed in the first week. Contents presumed lost to damp."],
+["Hotel Riu",-56,432,"Trade","SEALED",3,""],
+["SPYSCAPE",-70,440,"Civic","SALVAGE",3,""],
+["Din Tai Fung",-62,448,"Trade","SEALED",3,""],
+["Trump Tower",4,448,"Tower","SEALED",3,""],
+["Nike",-4,456,"Trade","SALVAGE",3,""],
+["Carnegie Hall",-48,456,"Landmark","STANDING",2,"Acoustically intact and structurally sound. Used as an assembly hall."],
+["Blank Street Midtown",-40,440,"Trade","SALVAGE",3,""],
+["7-Eleven",-70,452,"Trade","SALVAGE",3,""],
+["57 St–7 Av",-48,456,"Transit","FLOODED",3,""],
+["Hell's Kitchen",-95,380,"District","OCCUPIED",2,"Tenement scale again. Low buildings, shallow basements, walkable to the Hudson."],
+["Planet Fitness",-92,440,"Trade","SALVAGE",3,""],
+/* --- Columbus Circle / Lincoln Center : DEGRADED --- */
+["59 St–Columbus Circle",-72,472,"Transit","FLOODED",1,"Junction of four trunk lines. Flooded from the Broadway tube in under a fortnight."],
+["Mount Sinai West",-118,474,"Medical","SEALED",2,"Last hospital south of 110th to hold a working theatre. Closed when the oxygen ran out."],
+["Fordham University",-95,496,"Civic","SEALED",3,""],
+["Lincoln Center",-104,512,"Landmark","STANDING",1,"Travertine plaza above street grade, dry throughout. Designated northern muster point."],
+["Metropolitan Opera",-108,510,"Landmark","SEALED",3,""],
+["66 St–Lincoln Center",-96,512,"Transit","FLOODED",3,""],
+["Dairy Visitor Center",-40,520,"Park","STANDING",3,""],
+["Central Park",-36,676,"Park","OCCUPIED",1,"Eight hundred and forty acres of soil, standing water, and the only fuel wood on the island."],
+/* --- unsurveyed anchors --- */
+["Harlem",-16,1004,"District","UNSURVEYED",2,"Beyond the survey line. High ground, mainland-adjacent, presumed populated."],
+["Washington Heights",-100,1440,"District","UNSURVEYED",1,"Schist at the surface, real elevation, short spans to the mainland. The likely remnant settlement."],
+["Inwood",-108,1660,"District","UNSURVEYED",2,""],
+/* --- Brooklyn --- */
+["Brooklyn Navy Yard",290,-58,"Industry","OCCUPIED",1,"Walled yard, dry docks, machine shops, and its own generation. The strongest asset in the region."],
+["Navy Yard Basin",278,-38,"Water","OCCUPIED",3,""],
+["Wegmans Food Markets",270,-70,"Trade","OCCUPIED",2,"Distribution point. Supplied overland from Long Island, not from the island."],
+["Pratt Institute",300,-104,"Civic","OCCUPIED",3,"Foundries and kilns intact. Metalwork and ceramics run out of the campus shops."],
+["Commodore Barry Park",255,-86,"Park","OCCUPIED",3,""],
+["Gotham Health, Cumberland",262,-105,"Medical","OCCUPIED",2,""],
+["Fort Greene Park",248,-120,"Park","OCCUPIED",1,"High ground with a working well. The settlement's centre of gravity."],
+["The Brooklyn Hospital Center",228,-126,"Medical","OCCUPIED",1,"The nearest functioning hospital to Manhattan. Everything from the island comes here."],
+["Brooklyn Technical High School",245,-141,"Civic","OCCUPIED",2,""],
+["Lafayette Av",262,-168,"Transit","STANDING",3,""],
+["Fulton St",250,-158,"Transit","STANDING",3,""],
+["Clinton–Washington Avs",285,-140,"Transit","STANDING",3,""],
+["Atlantic Terminal",232,-165,"Transit","OCCUPIED",1,"The mainland connection. Rail east to Long Island is the region's supply artery."],
+["Atlantic Av–Barclays Ctr",225,-173,"Transit","OCCUPIED",2,""],
+["Nevins St",210,-160,"Transit","STANDING",3,""],
+["Prospect Heights",290,-180,"District","OCCUPIED",2,""],
+["Union St",222,-215,"Transit","STANDING",3,""],
+["Gowanus",200,-236,"District","FLOODED",1,"A Superfund canal in a bowl below the Slope. Every outfall in the district drains to it."],
+["Whole Foods Market",195,-250,"Trade","SALVAGE",3,""],
+["Home Depot",185,-300,"Trade","OCCUPIED",2,"Timber and hardware. Rationed and guarded."],
+["4 Av–9 St",205,-262,"Transit","STANDING",3,""],
+["9 St",212,-267,"Transit","STANDING",3,""],
+["Park Slope",240,-262,"District","OCCUPIED",1,"Brownstone rows on the ridge, above the canal and below the park. Intact and inhabited."],
+["7 Av",255,-250,"Transit","STANDING",3,""],
+["EV Charging Station",250,-286,"Industry","SEALED",3,""],
+["South Slope",232,-300,"District","OCCUPIED",2,""],
+["Prospect Ave",215,-306,"Transit","STANDING",3,""],
+["Windsor Terrace",258,-312,"District","OCCUPIED",3,""],
+["Prospect Park",282,-272,"Park","OCCUPIED",1,"Five hundred acres, a working lake, and the region's principal cultivated ground."],
+["25 St",205,-330,"Transit","STANDING",3,""],
+["Green-Wood Cemetery",225,-346,"Park","OCCUPIED",2,"Highest point in Brooklyn. Signal station and lookout."],
+/* --- Queens --- */
+["Long Island City",250,340,"District","OCCUPIED",2,""],
+["Hoyt Playground",270,426,"Park","OCCUPIED",3,""],
+["Astoria Blvd",300,430,"Transit","OCCUPIED",3,""],
+["Astoria",305,456,"District","OCCUPIED",1,"Adjacent to the generating complex. The most reliably powered ground in the five boroughs."],
+["Steinway St",320,460,"Transit","OCCUPIED",3,""],
+["Blend Astoria",312,470,"Trade","OCCUPIED",3,""],
+["Mount Sinai Queens",330,406,"Medical","OCCUPIED",2,""],
+["Planet Fitness Astoria",340,490,"Trade","SALVAGE",3,""],
+/* --- infrastructure lifelines --- */
+["Hillview / Aqueduct Terminus",180,1560,"Lifeline","SEALED",1,"Nine-tenths of the city's water arrived here by gravity. No local substitute exists."],
+["Hunts Point Market",320,1080,"Lifeline","OCCUPIED",1,"Produce, meat and fish for the whole region. The reason the outer boroughs held."],
+["Astoria Generating Station",286,520,"Lifeline","OCCUPIED",1,"Largest concentration of generation in the city. Running on barged fuel."],
+["East River Station",180,300,"Lifeline","SEALED",1,"Waterfront siting put it inside the surge zone. Steam loop under Midtown ruptured from here."],
+["Newtown Creek Works",268,180,"Lifeline","SEALED",1,"The largest wastewater plant in the city. When it stopped, the outfalls became inflows."],
+["Holland Tunnel Vent Shaft",-140,-30,"Lifeline","FLOODED",2,"The shafts failed before the tubes did. Ventilation loss sealed the crossing, not water."],
+["Lincoln Tunnel Vent Shaft",-160,232,"Lifeline","FLOODED",2,""],
+/* --- New Jersey --- */
+["Hoboken",-232,60,"District","OCCUPIED",2,""],
+["Jersey City",-248,-140,"District","OCCUPIED",2,""]
+,
+/* ================== SECOND SHEET: additions north of the old survey line ==========
+   The survey line was moved from 66 St to 135 St in the second season. Everything
+   below is new ground, plus the harbour islands and the outer-borough anchors. ==== */
+/* --- Upper West Side --- */
+["American Museum of Natural History",-84,632,"Civic","SEALED",1,"Four city blocks of collection under one roof. Sealed at every door; the survey did not attempt entry."],
+["Beresford Apartments",-76,648,"Landmark","SALVAGE",3,""],
+["79 St Rotunda",-166,632,"Transit","FLOODED",3,""],
+["The Dakota",-74,576,"Landmark","OCCUPIED",2,"Courtyard building, one gate, its own well. Held continuously since the second winter."],
+["72 St",-70,576,"Transit","FLOODED",3,""],
+["Beacon Theatre",-104,592,"Civic","SEALED",3,""],
+["Zabar's",-118,632,"Trade","SALVAGE",3,""],
+["Cathedral of St John the Divine",-116,896,"Landmark","OCCUPIED",1,"Unfinished for a century and a half and still the largest roofed room north of 42nd. Now a granary."],
+["Columbia University",-134,928,"Civic","OCCUPIED",1,"Walled campus on the Morningside ridge. Library, workshops, and the only working press logged."],
+["Grant's Tomb",-156,976,"Landmark","STANDING",2,"Granite drum, no contents worth taking. Used as a river lookout."],
+["Riverside Church",-152,968,"Landmark","STANDING",2,"Carillon tower intact. The bells are rung at dusk and carry to Harlem."],
+["Morningside Park",-92,904,"Park","OCCUPIED",3,""],
+/* --- Museum Mile / Upper East Side --- */
+["Solomon R. Guggenheim Museum",-8,712,"Landmark","SEALED",1,"The ramp is a single continuous floor with no landings — nothing to seal but the door, so the door was sealed. Skylight cracked; the spiral takes rain."],
+["Metropolitan Museum of Art",-18,656,"Civic","SEALED",1,"Largest holding on the island. Roof failures logged over the European wing; the rest is dry and unentered."],
+["Museum Mile",-6,720,"District","SEALED",2,"Nine institutions in twenty-three blocks, every one shut on the same week. The survey walked it end to end in an afternoon."],
+["Neue Galerie",-6,700,"Civic","SEALED",3,""],
+["Cooper Hewitt",-6,728,"Civic","SEALED",3,""],
+["Jewish Museum",-6,736,"Civic","SEALED",3,""],
+["Museum of the City of New York",-4,808,"Civic","SALVAGE",2,"Records recovered. The city's own archive is now the survey's reference set."],
+["El Museo del Barrio",-4,832,"Civic","SEALED",3,""],
+["The Frick Collection",-6,560,"Civic","SEALED",3,""],
+["Central Park Reservoir",-36,750,"Water","OCCUPIED",1,"A billion gallons of standing water in the middle of the island. Untreated, and drunk anyway."],
+["The Great Lawn",-36,676,"Park","OCCUPIED",2,"Under the plough. Thirteen acres of it, worked by hand from the 85th Street transverse."],
+["Belvedere Castle",-40,632,"Landmark","OCCUPIED",2,"Weather station again, as it was built to be. Readings logged twice daily."],
+["Mount Sinai Hospital",-8,792,"Medical","OCCUPIED",1,"The furthest north of the island's hospitals and the only one still admitting."],
+["86 St",-8,688,"Transit","FLOODED",3,""],
+["Carl Schurz Park",112,704,"Park","OCCUPIED",3,""],
+["Gracie Mansion",114,712,"Landmark","OCCUPIED",2,"Wood frame, 1799, no services and never needed any. Occupied, though not by the city."],
+/* --- Harlem --- */
+["Apollo Theater",-62,1000,"Landmark","OCCUPIED",1,"Marquee dark, house intact, stage in nightly use. The survey logged four hundred people inside it."],
+["Studio Museum in Harlem",-30,1000,"Civic","SALVAGE",3,""],
+["Marcus Garvey Park",-18,960,"Park","OCCUPIED",2,""],
+["Harlem Hospital Center",-38,1080,"Medical","OCCUPIED",1,"Running on Hunts Point supply and Harlem River barge fuel. The northern anchor of the medical net."],
+["Abyssinian Baptist Church",-46,1016,"Landmark","OCCUPIED",2,""],
+["City College of New York",-100,1160,"Civic","OCCUPIED",2,"Neo-Gothic quadrangle on the ridge. Engineering shops running."],
+["125 St",-56,1000,"Transit","STANDING",2,"Above ground, above the tideline, and the only station on the island still taking passengers."],
+["Hamilton Grange",-90,1112,"Landmark","STANDING",3,""],
+/* --- Washington Heights / Inwood --- */
+["The Met Cloisters",-140,1608,"Civic","SEALED",1,"Highest and driest institution on the island. Contents intact. The survey recommends it as the archive of record."],
+["Fort Tryon Park",-134,1592,"Park","OCCUPIED",2,""],
+["NY-Presbyterian Columbia",-124,1352,"Medical","OCCUPIED",1,"The largest working hospital in the five boroughs. Everything north of 96th routes here."],
+["Highbridge Water Tower",-72,1352,"Lifeline","STANDING",1,"Gravity tower on the Manhattan side of the old aqueduct. Refilled by hand; it still holds pressure."],
+["United Palace",-104,1400,"Landmark","OCCUPIED",3,""],
+["Inwood Hill Park",-124,1688,"Park","OCCUPIED",2,"The last old-growth forest on the island. Cut under licence, one stand at a time."],
+/* --- Hudson Yards / Chelsea / Meatpacking --- */
+["Whitney Museum",-124,100,"Civic","SEALED",2,"Terraces stripped by wind. Galleries dry to the fourth floor, flooded below."],
+["The High Line",-140,180,"Park","OCCUPIED",1,"An elevated railway that became a park and is now a road again — the only dry route from Gansevoort to 34th."],
+["Chelsea Market",-116,124,"Trade","OCCUPIED",2,"Brick, thick floors, cold cellars. The largest indoor market below 59th Street."],
+["Little Island",-152,110,"Park","FLOODED",3,""],
+["Hudson Yards",-140,268,"District","SEALED",2,"Built on a rail deck over water. The deck is holding; nothing on it is."],
+["Vessel",-138,268,"Landmark","STANDING",3,""],
+["Javits Center",-146,236,"Civic","SEALED",2,"Glass envelope, no glass. Used as covered ground for barge cargo."],
+["Moynihan Train Hall",-56,264,"Transit","FLOODED",2,""],
+/* --- Lower Manhattan additions --- */
+["Trinity Church",-8,-282,"Landmark","STANDING",2,"Churchyard is the highest unbuilt ground on Wall Street. Burials have resumed."],
+["Woolworth Building",-14,-196,"Landmark","SEALED",2,"Terracotta shedding from the tower. The survey marks a fall zone of sixty feet around the base."],
+["Manhattan Municipal Building",12,-196,"Civic","SALVAGE",3,""],
+["Fraunces Tavern",30,-330,"Landmark","FLOODED",3,""],
+["Tenement Museum",100,-58,"Civic","STANDING",3,"Preserved as a record of how people lived without services. Read differently now."],
+["Katz's Delicatessen",92,2,"Trade","OCCUPIED",3,"Smokehouse in the cellar, still curing. Trades by weight, not by coin."],
+["New Museum",52,-14,"Civic","SALVAGE",1,"Seven stacked boxes in aluminium mesh. The mesh has peeled from the upper three; the lowest is a warehouse now."],
+["Bowery Ballroom",58,-32,"Civic","OCCUPIED",3,""],
+["The Strand",-4,98,"Trade","SALVAGE",2,"Eighteen miles of shelving. Listed twice — once for the books, once for the timber."],
+["Governors Island",70,-418,"District","OCCUPIED",2,"Ferry-dependent, defensible, and above the surge on the southern hills. Quarantine ground."],
+["Statue of Liberty",-118,-470,"Landmark","STANDING",1,"Copper on an iron frame, on a granite fort, on a rock. The torch is dark and the pedestal takes water at spring tide. Otherwise unchanged."],
+["Ellis Island",-132,-424,"Civic","FLOODED",2,"Ground floor lost. The registry hall above it is dry and empty."],
+/* --- Brooklyn additions --- */
+["Grand Army Plaza",258,-240,"Landmark","OCCUPIED",1,"The plaza is the settlement's forum — market on the oval, notices nailed to the arch."],
+["Soldiers' and Sailors' Memorial Arch",258,-238,"Landmark","STANDING",1,"Granite arch, bronze quadriga. One horse has come off the attic and lies where it fell in the roadway."],
+["Brooklyn Museum",300,-250,"Civic","SEALED",1,"Beaux-Arts block, skylights blown, upper galleries wet. Egyptian holdings moved to the cellar and sealed."],
+["Brooklyn Botanic Garden",304,-262,"Park","OCCUPIED",1,"Seed bank. The single most valuable asset logged in the borough."],
+["Brooklyn Public Library",290,-244,"Civic","OCCUPIED",2,"Doors open daily. Lending resumed against a deposit of food."],
+["Barclays Center",228,-176,"Civic","SALVAGE",2,"Weathering steel over a bowl. Rainwater is collected off the roof and piped to Atlantic Terminal."],
+["Brooklyn Heights Promenade",190,-206,"Park","OCCUPIED",2,"Cantilevered over a dead expressway. The best view of a dark island in the region."],
+["Brooklyn Bridge",148,-218,"Landmark","STANDING",1,"Towers sound, cables sound, deck breached at the Manhattan approach. Crossed on foot at low wind, one at a time."],
+["DUMBO",210,-146,"District","OCCUPIED",2,""],
+["Williamsburg",246,-118,"District","OCCUPIED",1,"Bridge-side and mainland-fed. The densest occupied ground in the region."],
+["Greenpoint",270,-34,"District","OCCUPIED",2,""],
+["Bushwick",316,-136,"District","OCCUPIED",2,""],
+["Bedford–Stuyvesant",296,-186,"District","OCCUPIED",1,"Brownstone rows, low, dry, and continuously occupied. No part of it was ever evacuated."],
+["Crown Heights",316,-232,"District","OCCUPIED",2,""],
+["Coney Island Creek Pumps",236,-410,"Lifeline","SEALED",3,""],
+/* --- Queens / Bronx additions --- */
+["Unisphere",470,232,"Landmark","STANDING",2,"Twelve storeys of stainless steel with nothing to corrode. It will outlast every building around it."],
+["Flushing Meadows",466,240,"Park","OCCUPIED",1,"Fairground twice over, farmland now. The largest cultivated ground in Queens."],
+["Citi Field",480,272,"Civic","SALVAGE",3,""],
+["Flushing",506,296,"District","OCCUPIED",1,"Mainland-connected, market-fed, and the largest continuously trading district in the city."],
+["Jackson Heights",408,314,"District","OCCUPIED",2,""],
+["Elmhurst Hospital Center",396,272,"Medical","OCCUPIED",1,""],
+["Sunnyside Yard",300,300,"Industry","SALVAGE",2,"Forty acres of track. The rail out of the region begins here or it does not begin."],
+["Yankee Stadium",216,1120,"Civic","OCCUPIED",2,"Field under cultivation, stands used as housing. The Bronx's largest single shelter."],
+["Bronx Zoo",330,1240,"Park","OCCUPIED",2,"Livestock now, of a kind. The collection that could be fed was kept."],
+["New York Botanical Garden",338,1300,"Park","OCCUPIED",1,"Herbarium and seed store intact — the northern counterpart to the Brooklyn bank."],
+["The Bronx",280,1180,"District","OCCUPIED",1,"Mainland. Every route out of the city that still works runs through it."]
+];
+
+/* ---- scenes: landmark name -> street-view scene id -------------------------------- */
+const SCENE_OF={
+ "Soldiers' and Sailors' Memorial Arch":"arch-brooklyn",
+ "Grand Army Plaza":"arch-brooklyn",
+ "New Museum":"new-museum",
+ "Solomon R. Guggenheim Museum":"guggenheim",
+ "Empire State Building":"empire-34th",
+ "Flatiron Building":"flatiron",
+ "Washington Square Arch":"washington-arch",
+ "Grand Central Terminal":"grand-central",
+ "Times Square":"times-square",
+ "Brooklyn Bridge":"brooklyn-bridge",
+ "St. Patrick's Cathedral":"st-patricks",
+ "New York Public Library":"nypl",
+ "Statue of Liberty":"liberty",
+ "Apollo Theater":"apollo"
+};
+
+NYC.data={WEST,EAST,shore,WX,EX,BANDS,AVES,BROADWAY,CROSSTOWN,THRU,
+  NJ,BKQN,BRONX,ROOSEVELT,CPARK,RANDALLS,LIBERTY,ELLIS,GOVERNORS,
+  CROSS,GAPS,LANDMARKS:D,SCENE_OF};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — map renderer. Builds the survey sheet in SVG and owns the view state
+   (pan, zoom, fly-to), the projection, and the place-naming used everywhere else.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{}, D=NYC.data;
+const SVGNS="http://www.w3.org/2000/svg";
+
+/* ---- projection: the Manhattan grid runs 29 deg east of north --------------------- */
+const A=29*Math.PI/180, CA=Math.cos(A), SA=Math.sin(A);
+const PX=(x,y)=>x*CA+y*SA, PY=(x,y)=>x*SA-y*CA;
+const P=(x,y)=>[PX(x,y),PY(x,y)];
+/* inverse, for turning a click back into grid space */
+const INV=(px,py)=>[px*CA+py*SA, px*SA-py*CA];
+
+const el=(t,a)=>{const n=document.createElementNS(SVGNS,t);
+  for(const k in a) if(a[k]!=null) n.setAttribute(k,a[k]); return n;};
+const poly=pts=>pts.map(p=>P(p[0],p[1]).join(",")).join(" ");
+const pathOf=pts=>pts.map((p,i)=>(i?"L":"M")+P(p[0],p[1]).join(" ")).join("");
+
+const DISP={FLOODED:"#3D6B8F",COLLAPSED:"#8F2222",SALVAGE:"#B4741A",SEALED:"#5A5852",
+  STANDING:"#2C2C2A",OCCUPIED:"#3F6B3A",UNSURVEYED:"#8A8880"};
+const BIG=new Set(["District","Lifeline","Park"]);
+const MAJOR=new Set([14,23,34,42,57,59,72,86,96,110,125,145,155,168,181,190,207]);
+
+/* ---- place naming ----------------------------------------------------------------- */
+function inPoly(x,y,pts){
+  let hit=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if((yi>y)!==(yj>y) && x < (xj-xi)*(y-yi)/(yj-yi)+xi) hit=!hit;
+  }
+  return hit;
+}
+function onManhattan(x,y){ return y>=-352&&y<=1740 && x>=D.WX(y)&&x<=D.EX(y); }
+function nearestAve(x,y){
+  let best=null,bd=1e9;
+  for(const a of D.AVES){ if(y<a[2]||y>a[3])continue;
+    const d=Math.abs(x-a[1]); if(d<bd){bd=d;best=a[0];} }
+  return bd<40?best:null;
+}
+function nearestThru(x,y,boro){
+  let best=null,bd=1e9;
+  for(const t of D.THRU){ if(boro&&t[4]!==boro)continue;
+    for(const p of t[1]){ const d=Math.hypot(p[0]-x,p[1]-y); if(d<bd){bd=d;best=t[0];} }
+  }
+  return bd<70?best:null;
+}
+/* returns a short survey-style location string for any grid point */
+function describe(x,y){
+  x=+x; y=+y;
+  if(onManhattan(x,y)){
+    const s=Math.round(y/8);
+    let street = y>=4 ? (x<0?"W ":"E ")+s+" ST" : null;
+    if(!street){ const near=nearestThru(x,y,"MN"); street=near?near.toUpperCase():"BELOW HOUSTON"; }
+    const av=nearestAve(x,y);
+    return "MANHATTAN · "+street+(av?" nr "+av.toUpperCase():"");
+  }
+  if(inPoly(x,y,D.BKQN)){
+    const boro = y<150 ? "BROOKLYN" : "QUEENS";
+    const t=nearestThru(x,y,boro==="BROOKLYN"?"BK":"QN");
+    return boro+(t?" · nr "+t.toUpperCase():"");
+  }
+  if(inPoly(x,y,D.BRONX)){
+    const t=nearestThru(x,y,"BX");
+    return "THE BRONX"+(t?" · nr "+t.toUpperCase():"");
+  }
+  if(inPoly(x,y,D.NJ)) return "NEW JERSEY · FAR SHORE";
+  if(inPoly(x,y,D.ROOSEVELT)) return "ROOSEVELT ISLAND";
+  if(inPoly(x,y,D.RANDALLS)) return "RANDALL'S ISLAND";
+  if(inPoly(x,y,D.LIBERTY)) return "LIBERTY ISLAND";
+  if(inPoly(x,y,D.ELLIS)) return "ELLIS ISLAND";
+  if(inPoly(x,y,D.GOVERNORS)) return "GOVERNORS ISLAND";
+  if(y<-360) return "UPPER BAY · OPEN WATER";
+  if(y>1100&&x>0) return "HARLEM RIVER";
+  return x<0 ? "HUDSON RIVER" : "EAST RIVER";
+}
+function bandOf(y){ for(const b of D.BANDS) if(y>=b[0]&&y<b[1]) return b[3]; return "OUTER"; }
+/* the sheet's own grid reference, printed on every pin */
+function gridRef(x,y){
+  const ns=(y<0?"S":"N")+String(Math.abs(Math.round(y))).padStart(4,"0");
+  const ew=(x<0?"W":"E")+String(Math.abs(Math.round(x))).padStart(3,"0");
+  return "GR "+ew+"/"+ns;
+}
+
+/* =================================================================================== */
+function init(opts){
+  const svg=opts.svg, stage=opts.stage;
+  const gRoot=el("g",{}); svg.appendChild(gRoot);
+  const L={};
+  ["sea","land","band","cover","park","grid","thru","bway","shore","cross","thrulab",
+   "pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
+
+  const defs=el("defs",{});
+  defs.innerHTML='<pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" '+
+   'patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" stroke="#2C2C2A" '+
+   'stroke-width="1" stroke-opacity="0.13"/></pattern>'+
+   '<pattern id="flood" width="8" height="8" patternUnits="userSpaceOnUse" '+
+   'patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#F7D9D9" '+
+   'stroke-width="1" stroke-opacity="0.42"/></pattern>';
+  svg.insertBefore(defs,gRoot);
+
+  /* --- water and the far landmasses --- */
+  L.sea.appendChild(el("rect",{x:-4000,y:-4000,width:8000,height:8000,fill:"var(--water)"}));
+  [[D.NJ,"var(--far)"],[D.BKQN,"var(--land)"],[D.BRONX,"var(--land)"],[D.RANDALLS,"var(--land)"],
+   [D.ROOSEVELT,"var(--land)"],[D.LIBERTY,"var(--land)"],[D.ELLIS,"var(--land)"],
+   [D.GOVERNORS,"var(--land)"]].forEach(([p,f])=>
+    L.land.appendChild(el("polygon",{points:poly(p),fill:f,stroke:"#82807A","stroke-width":.8})));
+
+  /* --- Manhattan outline and the habitability bands --- */
+  function islandPts(y0,y1){
+    const pts=[],step=12;
+    for(let y=y0;y<=y1;y+=step) pts.push([D.WX(y),y]);
+    pts.push([D.WX(y1),y1]);
+    for(let y=y1;y>=y0;y-=step) pts.push([D.EX(y),y]);
+    pts.push([D.EX(y0),y0]);
+    return pts;
+  }
+  D.BANDS.forEach(b=>{
+    const p=islandPts(b[0],b[1]);
+    L.band.appendChild(el("polygon",{points:poly(p),fill:b[2]}));
+    if(b[3]==="INUNDATED") L.band.appendChild(el("polygon",{points:poly(p),fill:"url(#flood)"}));
+  });
+  L.park.appendChild(el("polygon",{points:poly(D.CPARK),fill:"var(--park)",
+    stroke:"#33482350","stroke-width":.8}));
+  /* outer-borough green: Prospect, Green-Wood, Fort Greene, Astoria, Flushing Meadows,
+     Bronx Park, Inwood Hill, Morningside, Van Cortlandt */
+  [[[262,-244],[306,-250],[314,-300],[266,-296]],
+   [[210,-330],[248,-338],[252,-368],[212,-360]],
+   [[238,-108],[262,-112],[266,-134],[240,-130]],
+   [[262,404],[286,400],[290,438],[264,442]],
+   [[440,200],[498,208],[492,268],[436,262]],
+   [[312,1210],[364,1224],[356,1330],[306,1316]],
+   [[-138,1650],[-108,1660],[-116,1720],[-146,1706]],
+   [[-100,890],[-78,896],[-84,932],[-106,926]],
+   [[240,1420],[300,1436],[292,1516],[236,1500]]].forEach(p=>
+    L.park.appendChild(el("polygon",{points:poly(p),fill:"var(--park)",
+      stroke:"#33482350","stroke-width":.8})));
+
+  /* --- undocumented ground --- */
+  D.GAPS.forEach(g=>L.cover.appendChild(el("polygon",
+    {points:poly(islandPts(g[0],g[1])),fill:"url(#hatch)"})));
+
+  /* --- the numbered grid --- */
+  function line(x1,y1,x2,y2,cls,w,op){
+    const a=P(x1,y1),b=P(x2,y2);
+    return el("line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],class:cls,
+      stroke:"#2C2C2A","stroke-width":w||.7,"stroke-opacity":op||.28,"stroke-linecap":"round"});
+  }
+  for(let s=1;s<=218;s++){
+    const y=s*8; if(y>1735) break;
+    const w=D.WX(y),e=D.EX(y);
+    if(y>=472&&y<=880){
+      L.grid.appendChild(line(w,y,-72,y,"g3",.6,.24));
+      L.grid.appendChild(line(0,y,e,y,"g3",.6,.24));
+    } else {
+      const cls=MAJOR.has(s)?"g1":(s%10===0?"g2":"g3");
+      L.grid.appendChild(line(w,y,e,y,cls,MAJOR.has(s)?1.1:.6,MAJOR.has(s)?.4:.24));
+    }
+  }
+  D.AVES.forEach(a=>L.grid.appendChild(
+    line(a[1],a[2],a[1],a[3],"g"+a[4],a[4]===1?1.2:.8,a[4]===1?.42:.3)));
+
+  /* --- named thoroughfares, drawn as paths so their names can ride them --- */
+  const KIND={ave:{w:1.15,op:.42,c:"#2C2C2A"}, st:{w:.85,op:.34,c:"#2C2C2A"},
+    pkwy:{w:1.2,op:.4,c:"#3A4A32"}, hwy:{w:1.35,op:.38,c:"#4A4842",dash:"none"},
+    walk:{w:.9,op:.5,c:"#4E6B3A",dash:"3 3"}};
+  D.THRU.forEach((t,i)=>{
+    const [nm,pts,tier,kind]=t, k=KIND[kind]||KIND.st;
+    /* keep every label reading left to right in projected space */
+    const a=P(pts[0][0],pts[0][1]), b=P(pts[pts.length-1][0],pts[pts.length-1][1]);
+    const ordered = a[0]<=b[0] ? pts : pts.slice().reverse();
+    const id="thru"+i, d=pathOf(ordered);
+    L.thru.appendChild(el("path",{d:d,fill:"none",stroke:k.c,
+      "stroke-width":tier===1?k.w*1.35:k.w,"stroke-opacity":tier===1?k.op*1.15:k.op,
+      "stroke-linejoin":"round","stroke-linecap":"round",
+      "stroke-dasharray":k.dash&&k.dash!=="none"?k.dash:null,
+      class:"g"+tier}));
+    defs.appendChild(el("path",{id:id,d:d,fill:"none"}));
+    const tp=document.createElementNS(SVGNS,"textPath");
+    tp.setAttribute("href","#"+id);
+    tp.setAttributeNS("http://www.w3.org/1999/xlink","xlink:href","#"+id);
+    tp.setAttribute("startOffset","50%");
+    tp.setAttribute("text-anchor","middle");
+    tp.textContent=nm.toUpperCase();
+    const txt=el("text",{"font-size":(tier===1?1.13:1)+"em",dy:"-0.34em",
+      class:"tlab g"+tier});
+    txt.appendChild(tp);
+    L.thrulab.appendChild(txt);
+  });
+  /* Broadway keeps its own weight */
+  L.bway.appendChild(el("polyline",{points:D.BROADWAY.map(p=>P(p[0],p[1]).join(",")).join(" "),
+    fill:"none",stroke:"#2C2C2A","stroke-width":1.5,"stroke-opacity":.5,
+    "stroke-linejoin":"round","stroke-linecap":"round"}));
+
+  L.shore.appendChild(el("polygon",{points:poly(islandPts(-352,1740)),fill:"none",
+    stroke:"#4A4842","stroke-width":1.4}));
+
+  D.CROSS.forEach(c=>{
+    const a=P(c[0],c[1]),b=P(c[2],c[3]);
+    L.cross.appendChild(el("line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],
+      stroke:"#F2EFE6","stroke-width":1.8,"stroke-dasharray":"6 7","stroke-opacity":.9}));
+  });
+
+  /* --- landmarks --- */
+  const marks=D.LANDMARKS.map((d,i)=>({
+    i, name:d[0], x:d[1], y:d[2], cat:d[3], disp:d[4], tier:d[5], note:d[6]||"",
+    scene:D.SCENE_OF[d[0]]||null
+  }));
+  const nodes=new Map();
+  marks.forEach(m=>{
+    const [px,py]=P(m.x,m.y);
+    const c=DISP[m.disp]||"#2C2C2A";
+    const g=el("g",{class:"pin t"+m.tier,style:"cursor:pointer"});
+    const sym=el("g",{class:"sym"});
+    const r=m.cat==="Lifeline"?5.6:BIG.has(m.cat)?4.4:3.2;
+    if(m.cat==="Lifeline"){
+      sym.appendChild(el("rect",{x:px-r,y:py-r,width:r*2,height:r*2,
+        transform:`rotate(45 ${px} ${py})`,fill:c,stroke:"#FAF9F5","stroke-width":1.1}));
+    } else {
+      sym.appendChild(el("circle",{cx:px,cy:py,r:r,fill:c,stroke:"#FAF9F5","stroke-width":1}));
+    }
+    if(m.scene){ /* a site with a street-view plate carries a ring */
+      sym.appendChild(el("circle",{cx:px,cy:py,r:r+2.6,fill:"none",stroke:c,
+        "stroke-width":.9,"stroke-opacity":.85}));
+    }
+    sym.appendChild(el("circle",{cx:px,cy:py,r:13,fill:"transparent"}));
+    g.appendChild(sym);
+    const t=el("text",{x:px,y:py,dx:(m.cat==="District"?.62:.82)+"em",dy:".38em",
+      "font-size":(m.cat==="District"?1.22:1)+"em",
+      class:"mlab"+(m.cat==="District"?" dist":"")});
+    t.textContent=m.cat==="District"?m.name.toUpperCase():m.name;
+    g.appendChild(t);
+    g.addEventListener("click",e=>{e.stopPropagation(); opts.onMark&&opts.onMark(m);});
+    L.pin.appendChild(g);
+    nodes.set(m.name,g);
+  });
+
+  /* --- street and avenue labels --- */
+  const LABBASE=8;
+  function lab(txt,x,y,size,cls,layer){
+    const [px,py]=P(x,y);
+    const t=el("text",{x:px,y:py,"font-size":(size/LABBASE)+"em",
+      class:"slab "+(cls||""),"text-anchor":"middle"});
+    t.textContent=txt; (layer||L.lab).appendChild(t); return t;
+  }
+  const named=new Map(D.CROSSTOWN.map(c=>[c[0],c]));
+  for(let s=5;s<=215;s+=5){
+    const y=s*8; if(y>1720) break;
+    const n=named.get(s);
+    lab(n?n[1].toUpperCase():(s+(s%10===0?" ST":"")), D.WX(y)+(n?22:13), y,
+      n?7.2:6.4, n?("g"+n[2]):(MAJOR.has(s)?"g2":"g3"));
+  }
+  /* the named crosstown streets again, out in the middle of the island, so a reader
+     zoomed into Midtown can still tell which street they are standing on */
+  D.CROSSTOWN.forEach(c=>{
+    if(c[2]>2) return;
+    const y=c[0]*8, mid=(D.WX(y)+D.EX(y))/2;
+    lab(c[1].toUpperCase(), mid, y-3, c[2]===1?7.4:6.8, "g"+(c[2]+1));
+  });
+  D.AVES.forEach(a=>{
+    if(a[4]>2) return;
+    const y=Math.min(a[3]-40,Math.max(a[2]+60,240));
+    lab(a[0].toUpperCase(),a[1],y,6.6,"g2");
+  });
+  lab("BROADWAY",-30,300,6.8,"g2");
+  lab("HUDSON RIVER",-230,700,12,"g1");
+  lab("EAST RIVER",250,560,11,"g1");
+  lab("UPPER BAY",60,-460,11,"g1");
+  lab("HARLEM RIVER",120,1300,8,"g2");
+  lab("NEWTOWN CREEK",258,150,7,"g2");
+  lab("GOWANUS CANAL",196,-244,6.6,"g3");
+  D.CROSS.forEach(c=>lab(c[4].toUpperCase(),(c[0]+c[2])/2,(c[1]+c[3])/2-14,6.2,"g3"));
+  lab("SURVEY LINE — NO DATA NORTH",-30,1096,9,"g1");
+  lab("UNSURVEYED",-70,1420,15,"g1");
+
+  /* =========================== view state ========================================= */
+  let sc=1,tx=0,ty=0;
+  function apply(){
+    gRoot.setAttribute("transform",`translate(${tx} ${ty}) scale(${sc})`);
+    /* labels are laid out in map space but sized in screen space, so a zoom moves
+       them without inflating them */
+    svg.style.setProperty("--symk",(1/sc).toFixed(3));
+    L.pin.style.fontSize=(8.6/sc)+"px";
+    L.upin.style.fontSize=(9/sc)+"px";
+    L.lab.style.fontSize=(8/sc)+"px";
+    L.thrulab.style.fontSize=(6/sc)+"px";
+    document.querySelectorAll(".g1,.g2,.g3,.t1,.t2,.t3").forEach(n=>{
+      const c=n.classList; let show=true;
+      if(c.contains("g3")||c.contains("t3")) show=sc>=2.1;
+      else if(c.contains("g2")||c.contains("t2")) show=sc>=0.9;
+      n.style.display=show?"":"none";
+    });
+  }
+  function bounds(){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(let y=-352;y<=1740;y+=40){[D.WX(y),D.EX(y)].forEach(x=>{
+      const [a,b]=P(x,y); x0=Math.min(x0,a);x1=Math.max(x1,a);y0=Math.min(y0,b);y1=Math.max(y1,b);});}
+    return [x0,y0,x1,y1];
+  }
+  function fit(){
+    const w=svg.clientWidth||innerWidth, h=svg.clientHeight||innerHeight;
+    const [x0,y0,x1,y1]=bounds(), pad=70;
+    sc=Math.min((w-pad*2)/(x1-x0),(h-pad*2-60)/(y1-y0));
+    sc=Math.max(0.3,Math.min(sc,1.4));
+    tx=w/2-(x0+x1)/2*sc; ty=(h+40)/2-(y0+y1)/2*sc;
+    apply();
+  }
+  function zoomAt(f,cx,cy){
+    const ns=Math.max(0.3,Math.min(8,sc*f));
+    const k=ns/sc; tx=cx-(cx-tx)*k; ty=cy-(cy-ty)*k; sc=ns; apply();
+  }
+  /* screen point -> grid point */
+  function toGrid(clientX,clientY){
+    const r=svg.getBoundingClientRect();
+    const mx=(clientX-r.left-tx)/sc, my=(clientY-r.top-ty)/sc;
+    return INV(mx,my);
+  }
+  function toScreen(x,y){
+    const [a,b]=P(x,y), r=svg.getBoundingClientRect();
+    return [a*sc+tx+r.left, b*sc+ty+r.top];
+  }
+  let anim=null;
+  function flyTo(x,y,target){
+    const w=svg.clientWidth||innerWidth, h=svg.clientHeight||innerHeight;
+    const [a,b]=P(x,y);
+    const ns=target||Math.max(sc,2.6);
+    const nx=w/2-a*ns, ny=h/2-b*ns;
+    const s0=sc,x0=tx,y0=ty,t0=performance.now(),dur=520;
+    if(anim) cancelAnimationFrame(anim);
+    (function step(t){
+      const k=Math.min(1,(t-t0)/dur), e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+      sc=s0+(ns-s0)*e; tx=x0+(nx-x0)*e; ty=y0+(ny-y0)*e; apply();
+      if(k<1) anim=requestAnimationFrame(step);
+    })(t0);
+  }
+
+  /* --- selection halo --- */
+  let halo=null;
+  function highlight(x,y){
+    const [px,py]=P(x,y);
+    if(!halo){ halo=el("circle",{r:11,fill:"none",stroke:"#C4472A","stroke-width":1.6,
+      "stroke-opacity":.9}); L.halo.appendChild(halo); }
+    halo.setAttribute("cx",px); halo.setAttribute("cy",py);
+    halo.style.display="";
+  }
+  function clearHighlight(){ if(halo) halo.style.display="none"; }
+
+  /* --- user pins ------------------------------------------------------------------ */
+  function renderPins(pins,starred){
+    while(L.upin.firstChild) L.upin.removeChild(L.upin.firstChild);
+    (pins||[]).forEach(p=>{
+      const [px,py]=P(p.x,p.y);
+      const g=el("g",{style:"cursor:pointer"});
+      const sym=el("g",{class:"usym"});
+      /* a dropped-pin teardrop, drawn upright regardless of the sheet rotation */
+      sym.appendChild(el("path",{d:`M${px} ${py} l-4.6 -7.4 a5.4 5.4 0 1 1 9.2 0 Z`,
+        fill:"var(--mark)",stroke:"#FAF9F5","stroke-width":1.1,"stroke-linejoin":"round"}));
+      sym.appendChild(el("circle",{cx:px,cy:py-9.4,r:1.9,fill:"#FAF9F5"}));
+      sym.appendChild(el("circle",{cx:px,cy:py-6,r:13,fill:"transparent"}));
+      g.appendChild(sym);
+      const t=el("text",{x:px,y:py,dx:".8em",dy:"-0.9em",class:"ulab"});
+      t.textContent=p.name;
+      g.appendChild(t);
+      g.addEventListener("click",e=>{e.stopPropagation(); opts.onPin&&opts.onPin(p);});
+      L.upin.appendChild(g);
+    });
+    /* a star on any bookmarked landmark */
+    (starred||[]).forEach(nm=>{
+      const m=marks.find(m=>m.name===nm); if(!m) return;
+      const [px,py]=P(m.x,m.y);
+      const s=el("text",{x:px,y:py,dx:"-0.5em",dy:"-0.6em",class:"star"});
+      s.textContent="★";
+      L.upin.appendChild(s);
+    });
+  }
+
+  /* --- pointer: pan, pinch, wheel -------------------------------------------------- */
+  const ptrs=new Map(); let last=null,pd=0,moved=0;
+  stage.addEventListener("pointerdown",e=>{
+    stage.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    stage.classList.add("drag"); moved=0;
+    if(ptrs.size===1) last={x:e.clientX,y:e.clientY};
+    if(ptrs.size===2){const[a,b]=[...ptrs.values()];pd=Math.hypot(a.x-b.x,a.y-b.y);}
+  });
+  stage.addEventListener("pointermove",e=>{
+    if(!ptrs.has(e.pointerId))return;
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1&&last){
+      const dx=e.clientX-last.x, dy=e.clientY-last.y;
+      moved+=Math.abs(dx)+Math.abs(dy);
+      tx+=dx; ty+=dy; last={x:e.clientX,y:e.clientY}; apply();
+    } else if(ptrs.size===2){
+      const [a,b]=[...ptrs.values()], nd=Math.hypot(a.x-b.x,a.y-b.y);
+      if(pd>0) zoomAt(nd/pd,(a.x+b.x)/2,(a.y+b.y)/2);
+      pd=nd; moved+=6;
+    }
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(ev=>
+    stage.addEventListener(ev,e=>{ptrs.delete(e.pointerId);
+      if(ptrs.size<2)pd=0; if(ptrs.size===0){last=null;stage.classList.remove("drag");}}));
+  stage.addEventListener("wheel",e=>{e.preventDefault();
+    zoomAt(Math.pow(0.9986,e.deltaY),e.clientX,e.clientY);},{passive:false});
+  stage.addEventListener("click",e=>{
+    if(moved>6) return;                 /* a drag is not a click */
+    opts.onGround&&opts.onGround(toGrid(e.clientX,e.clientY),e);
+  });
+  addEventListener("resize",fit);
+
+  const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
+    renderPins, highlight, clearHighlight, project:P,
+    get scale(){return sc;},
+    setCoverage(on){ L.cover.style.display=on?"":"none"; },
+    setThoroughfares(on){ L.thru.style.display=L.thrulab.style.display=on?"":"none"; },
+    markByName(n){ return marks.find(m=>m.name===n); },
+    node(n){ return nodes.get(n); }
+  };
+  fit();
+  return api;
+}
+
+NYC.map={init,describe,bandOf,gridRef,DISP,project:P,inPoly};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — street-view drawing kit.
+   Every plate is procedural SVG: no photographs, no external assets. Elements that
+   belong to the collapse go in <g class="decay">; elements that only existed before
+   it go in <g class="intact">. The viewer's THEN/NOW switch cross-fades the two.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+/* ---- markup helpers --------------------------------------------------------------- */
+const A=o=>Object.keys(o||{}).filter(k=>o[k]!=null&&o[k]!==false)
+  .map(k=>' '+k+'="'+o[k]+'"').join("");
+const T=(n,a,inner)=> "<"+n+A(a)+(inner==null?"/>":">"+inner+"</"+n+">");
+const G=(inner,a)=>T("g",a,inner);
+const R=(x,y,w,h,fill,a)=>T("rect",Object.assign({x:r2(x),y:r2(y),width:r2(w),
+  height:r2(h),fill:fill},a));
+const PT=(d,a)=>T("path",Object.assign({d:d},a));
+const PG=(pts,a)=>T("polygon",Object.assign({points:pts.map(p=>r2(p[0])+","+r2(p[1])).join(" ")},a));
+const LN=(x1,y1,x2,y2,a)=>T("line",Object.assign({x1:r2(x1),y1:r2(y1),x2:r2(x2),y2:r2(y2)},a));
+const EL=(cx,cy,rx,ry,a)=>T("ellipse",Object.assign({cx:r2(cx),cy:r2(cy),rx:r2(rx),ry:r2(ry)},a));
+const TX=(x,y,s,a)=>T("text",Object.assign({x:r2(x),y:r2(y)},a),s);
+function r2(n){ return Math.round(n*100)/100; }
+
+/* deterministic noise so a plate looks the same every time it is opened */
+function rng(seed){
+  let a=seed>>>0;
+  return function(){ a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296; };
+}
+const pick=(rand,arr)=>arr[Math.floor(rand()*arr.length)];
+const between=(rand,a,b)=>a+rand()*(b-a);
+
+/* ---- palette ---------------------------------------------------------------------- */
+const C={
+  skyTop:"#8E9AA0", skyMid:"#AEB4B2", skyLow:"#CFC9B8",
+  far:"#7F888C", far2:"#8E9599", mid:"#7A776E",
+  stoneL:"#D2CCBC", stone:"#BAB3A2", stoneD:"#948D7C", stoneX:"#6E6858",
+  brickL:"#9E7B68", brick:"#87614F", brickD:"#6A4A3C",
+  metal:"#A9AEB0", metalD:"#7C8285", glass:"#93A3A8", dark:"#1B1E22", dark2:"#2A2E33",
+  ink:"#20211F", green:"#4E6B3A", green2:"#63804A", green3:"#3A5430",
+  water:"#5A707A", waterL:"#7E939A", rust:"#8A5A2B", patina:"#4F7D6B",
+  paper:"#EDE9DC", warm:"#E8A54B"
+};
+
+/* ---- sky, haze, ground ------------------------------------------------------------ */
+function sky(o){
+  o=o||{};
+  return R(0,0,1200,700,"url(#svSky)")+
+   (o.rain?rain(o.seed||1):"")+
+   G(clouds(o.seed||7),{opacity:o.cloud==null?.5:o.cloud});
+}
+function clouds(seed){
+  const rand=rng(seed); let s="";
+  for(let i=0;i<7;i++){
+    const x=between(rand,-60,1200), y=between(rand,20,220),
+      w=between(rand,140,340), h=between(rand,18,46);
+    s+=EL(x,y,w,h,{fill:"#E6E2D6",opacity:r2(between(rand,.18,.42))});
+  }
+  return s;
+}
+function rain(seed){
+  const rand=rng(seed); let s="";
+  for(let i=0;i<140;i++){
+    const x=between(rand,-40,1240), y=between(rand,0,700), l=between(rand,10,26);
+    s+=LN(x,y,x-l*.28,y+l,{stroke:"#D8DCDB","stroke-width":.7,opacity:r2(between(rand,.1,.3))});
+  }
+  return s;
+}
+/* a receding row of dead towers on the horizon */
+function skyline(seed,o){
+  o=o||{}; const rand=rng(seed);
+  const base=o.base||470, fill=o.fill||C.far, n=o.count||14;
+  const x0=o.x0==null?-40:o.x0, x1=o.x1==null?1240:o.x1;
+  let s="",x=x0;
+  while(x<x1){
+    const w=between(rand,26,86), h=between(rand,40,o.max||220);
+    const top=base-h;
+    let d="M"+r2(x)+" "+r2(base)+"L"+r2(x)+" "+r2(top);
+    if(rand()<.3){ /* a broken crown */
+      const b=between(rand,8,26);
+      d+="L"+r2(x+w*.3)+" "+r2(top+b)+"L"+r2(x+w*.55)+" "+r2(top-b*.5)+
+         "L"+r2(x+w*.8)+" "+r2(top+b*1.4)+"L"+r2(x+w)+" "+r2(top+b*.4);
+    } else d+="L"+r2(x+w)+" "+r2(top);
+    d+="L"+r2(x+w)+" "+r2(base)+"Z";
+    s+=PT(d,{fill:fill,opacity:r2(between(rand,.5,.95))});
+    if(rand()<.5&&h>90)
+      s+=R(x+w*.4,top-between(rand,8,26),2,between(rand,8,26),fill,{opacity:.8});
+    x+=w*between(rand,.6,1.05);
+  }
+  return s;
+}
+/* asphalt plane with a vanishing point, cracks and standing water */
+function ground(o){
+  o=o||{}; const rand=rng(o.seed||3);
+  const hz=o.horizon||470, vp=o.vp==null?600:o.vp, col=o.fill||"#6E6C66";
+  let s=R(0,hz,1200,700-hz,col);
+  s+=R(0,hz,1200,26,"#5E5C57",{opacity:.55});
+  /* perspective lines */
+  let lines="";
+  for(let i=-6;i<=6;i++){
+    const bx=vp+i*230;
+    lines+=LN(vp,hz,bx,700,{stroke:"#8A887F","stroke-width":.8,opacity:.2});
+  }
+  s+=lines;
+  /* transverse joints */
+  for(let i=1;i<=8;i++){
+    const y=hz+Math.pow(i/8,2.1)*(700-hz);
+    s+=LN(0,y,1200,y,{stroke:"#8A887F","stroke-width":.7,opacity:.13});
+  }
+  s+=G(cracksField(o.seed||3,0,hz+14,1200,700-hz-14,o.cracks||22)+
+       potholes(o.seed||3,hz,o.pot||9)+
+       (o.weeds===false?"":weedLine(o.seed||3,hz+6,26)),{class:"decay"});
+  return s;
+}
+function potholes(seed,hz,n){
+  const rand=rng(seed+11); let s="";
+  for(let i=0;i<n;i++){
+    const y=hz+Math.pow(rand(),1.7)*(700-hz)+8, x=between(rand,-20,1220);
+    const w=between(rand,18,70)*(y-hz)/(700-hz)+8;
+    s+=EL(x,y,w,w*.32,{fill:"#4C4A46",opacity:.7});
+    s+=EL(x,y,w*.72,w*.22,{fill:C.water,opacity:.5});
+  }
+  return s;
+}
+function cracksField(seed,x,y,w,h,n){
+  const rand=rng(seed+3); let s="";
+  for(let i=0;i<n;i++) s+=crack(between(rand,x,x+w),between(rand,y,y+h),
+    between(rand,20,120),rand,{stroke:"#4A4844","stroke-width":between(rand,.5,1.3),
+    opacity:r2(between(rand,.25,.6))});
+  return s;
+}
+/* one jagged fissure */
+function crack(x,y,len,rand,a){
+  let d="M"+r2(x)+" "+r2(y), px=x,py=y,ang=between(rand,-Math.PI,Math.PI);
+  const steps=Math.max(3,Math.round(len/12));
+  for(let i=0;i<steps;i++){
+    ang+=between(rand,-.8,.8);
+    px+=Math.cos(ang)*len/steps; py+=Math.sin(ang)*len/steps*.55;
+    d+="L"+r2(px)+" "+r2(py);
+    if(rand()<.25){ /* a branch */
+      const bx=px+Math.cos(ang+1.1)*len/steps*1.2, by=py+Math.sin(ang+1.1)*len/steps*.6;
+      d+="M"+r2(px)+" "+r2(py)+"L"+r2(bx)+" "+r2(by)+"M"+r2(px)+" "+r2(py);
+    }
+  }
+  return PT(d,Object.assign({fill:"none","stroke-linecap":"round"},a));
+}
+function cracksOn(x,y,w,h,seed,n,col){
+  const rand=rng(seed+29); let s="";
+  for(let i=0;i<(n||6);i++)
+    s+=crack(between(rand,x,x+w),between(rand,y,y+h),between(rand,30,h*.8+40),rand,
+      {stroke:col||"#6B6558","stroke-width":between(rand,.5,1.2),opacity:.5});
+  return s;
+}
+
+/* ---- masonry ---------------------------------------------------------------------- */
+function stone(x,y,w,h,tone,o){
+  o=o||{};
+  let s=R(x,y,w,h,tone||C.stone,{stroke:o.stroke||"none"});
+  if(o.course!==false){
+    for(let cy=y+ (o.course||14); cy<y+h; cy+=(o.course||14))
+      s+=LN(x,cy,x+w,cy,{stroke:"#00000018","stroke-width":.7});
+  }
+  if(o.shade) s+=R(x+w*.66,y,w*.34,h,"#00000012");
+  return s;
+}
+/* soot and rain-streaking down a facade */
+function streaks(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+5); let s="";
+  for(let i=0;i<(o.n||14);i++){
+    const sx=between(rand,x,x+w), sw=between(rand,1.5,7), sh=between(rand,h*.2,h);
+    s+=R(sx,y,sw,sh,o.col||"#3E3B33",{opacity:r2(between(rand,.05,.16))});
+  }
+  return s;
+}
+function column(x,base,top,w,o){
+  o=o||{}; const tone=o.tone||C.stoneL;
+  let s=R(x-w/2,top+6,w,base-top-10,tone,{stroke:"none"});
+  for(let i=1;i<4;i++) s+=LN(x-w/2+w*i/4,top+8,x-w/2+w*i/4,base-6,
+    {stroke:"#00000014","stroke-width":.8});
+  s+=R(x-w*.72,top,w*1.44,7,o.capTone||C.stoneL);         /* capital */
+  s+=R(x-w*.66,base-6,w*1.32,7,o.capTone||C.stoneL);      /* base */
+  s+=R(x+w*.2,top+6,w*.3,base-top-10,"#00000012");
+  return s;
+}
+function colonnade(x0,x1,base,top,n,w,o){
+  let s=""; for(let i=0;i<n;i++) s+=column(x0+(x1-x0)*(n===1?.5:i/(n-1)),base,top,w,o);
+  return s;
+}
+function cornice(x,y,w,h,tone){
+  return R(x,y,w,h,tone||C.stoneL)+R(x-4,y+h-3,w+8,4,tone||C.stoneL)+
+    R(x,y+h-1,w,2,"#00000018");
+}
+/* a round-headed opening */
+function archPath(cx,spring,r,bottom){
+  return "M"+r2(cx-r)+" "+r2(bottom)+"L"+r2(cx-r)+" "+r2(spring)+
+    "A"+r2(r)+" "+r2(r)+" 0 0 1 "+r2(cx+r)+" "+r2(spring)+"L"+r2(cx+r)+" "+r2(bottom)+"Z";
+}
+/* voussoirs around an arch */
+function voussoirs(cx,spring,r,n,tone){
+  let s="";
+  for(let i=0;i<=n;i++){
+    const a=Math.PI+ (i/n)*Math.PI;
+    const x1=cx+Math.cos(a)*r, y1=spring+Math.sin(a)*r;
+    const x2=cx+Math.cos(a)*(r+11), y2=spring+Math.sin(a)*(r+11);
+    s+=LN(x1,y1,x2,y2,{stroke:"#00000020","stroke-width":.9});
+  }
+  s+=PT("M"+r2(cx-r-11)+" "+r2(spring)+"A"+r2(r+11)+" "+r2(r+11)+" 0 0 1 "+
+    r2(cx+r+11)+" "+r2(spring),{fill:"none",stroke:tone||"#00000018","stroke-width":1});
+  return s;
+}
+
+/* ---- windows ---------------------------------------------------------------------- */
+/* dark openings now; glass restored in the THEN layer */
+function windows(x,y,w,h,cols,rows,seed,o){
+  o=o||{}; const rand=rng(seed+17);
+  const gx=o.gx==null?.34:o.gx, gy=o.gy==null?.38:o.gy;
+  const cw=w/cols, ch=h/rows, ww=cw*(1-gx), wh=ch*(1-gy);
+  let now="",then="",dec="";
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const wx=x+c*cw+(cw-ww)/2, wy=y+r*ch+(ch-wh)/2;
+    if(ww<.7||wh<.7) continue;
+    now+=R(wx,wy,ww,wh,o.dark||C.dark,{opacity:r2(between(rand,.72,.95))});
+    then+=R(wx,wy,ww,wh,o.glass||C.glass,{opacity:r2(between(rand,.55,.85))});
+    const q=rand();
+    if(q<(o.broken==null?.3:o.broken)&&ww>3&&wh>3){
+      dec+=PG([[wx,wy],[wx+ww*.6,wy],[wx,wy+wh*.55]],{fill:"#5A5F63",opacity:.5});
+      dec+=PG([[wx+ww,wy+wh],[wx+ww*.45,wy+wh],[wx+ww,wy+wh*.4]],{fill:"#4A4F53",opacity:.4});
+    } else if(q>.94&&o.lit){
+      dec+=R(wx,wy,ww,wh,o.lit,{opacity:r2(between(rand,.35,.8))});
+    }
+  }
+  return now+G(then,{class:"intact"})+G(dec,{class:"decay"});
+}
+/* a single tall shopfront */
+function shopfront(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+41);
+  let s=R(x,y,w,h,"#2A2C30");
+  s+=G(R(x,y,w,h,"#9FB0B4",{opacity:.5}),{class:"intact"});
+  let dec="";
+  for(let i=0;i<5;i++){
+    const bx=between(rand,x,x+w);
+    dec+=PG([[bx,y],[bx+between(rand,10,40),y],[bx+between(rand,-16,16),y+h]],
+      {fill:"#1A1C1F",opacity:.55});
+  }
+  dec+=R(x,y+h-4,w,4,"#3B3E42");
+  s+=G(dec,{class:"decay"});
+  if(o.awning) s+=G(PG([[x,y],[x+w,y],[x+w-14,y+20],[x+14,y+20]],
+    {fill:o.awning,opacity:.9}),{class:"intact"});
+  return s;
+}
+function fireEscape(x,y,w,floors,o){
+  let s="";
+  for(let i=0;i<floors;i++){
+    const fy=y+i*(o&&o.step||46);
+    s+=R(x,fy,w,2.4,C.metalD,{opacity:.85});
+    for(let j=0;j<=6;j++) s+=LN(x+j*w/6,fy-14,x+j*w/6,fy,{stroke:C.metalD,
+      "stroke-width":.8,opacity:.75});
+    s+=LN(x,fy-14,x+w,fy-14,{stroke:C.metalD,"stroke-width":1,opacity:.75});
+    s+=LN(x+w*.62,fy,x+w*.9,fy+(o&&o.step||46),{stroke:C.metalD,"stroke-width":1.4,
+      opacity:.8,"stroke-dasharray":"3 3"});
+  }
+  return s;
+}
+
+/* ---- growth ----------------------------------------------------------------------- */
+function ivy(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+23); const n=o.n||9; let s="";
+  for(let i=0;i<n;i++){
+    let px=between(rand,x,x+w), py=y+h;
+    const pts=[[px,py]], climb=between(rand,h*.3,h*1.02), steps=9;
+    let d="M"+r2(px)+" "+r2(py);
+    for(let k=0;k<steps;k++){
+      px+=between(rand,-11,11); py-=climb/steps;
+      pts.push([px,py]); d+="L"+r2(px)+" "+r2(py);
+    }
+    s+=PT(d,{fill:"none",stroke:C.green3,"stroke-width":r2(between(rand,.9,2)),
+      opacity:.8,"stroke-linecap":"round"});
+    pts.forEach(p=>{
+      const leaves=1+Math.floor(rand()*3);
+      for(let k=0;k<leaves;k++)
+        s+=EL(p[0]+between(rand,-7,7),p[1]+between(rand,-5,5),
+          between(rand,2.4,5.2),between(rand,1.8,3.6),
+          {fill:pick(rand,[C.green,C.green2,C.green3]),opacity:r2(between(rand,.55,.92))});
+    });
+  }
+  return s;
+}
+function sapling(x,y,scale,seed){
+  const rand=rng(seed+31); const h=34*scale; let s="";
+  s+=PT("M"+r2(x)+" "+r2(y)+"q"+r2(between(rand,-4,4))+" "+r2(-h*.6)+" "+
+    r2(between(rand,-6,6))+" "+r2(-h),{fill:"none",stroke:"#54443A",
+    "stroke-width":r2(1.4*scale),"stroke-linecap":"round"});
+  for(let i=0;i<7;i++){
+    const t=between(rand,.35,1);
+    s+=EL(x+between(rand,-13,13)*scale, y-h*t, between(rand,4,10)*scale,
+      between(rand,3,7)*scale,{fill:pick(rand,[C.green,C.green2,C.green3]),
+      opacity:r2(between(rand,.6,.92))});
+  }
+  return s;
+}
+function treeMass(x,y,w,h,seed,o){
+  const rand=rng(seed+37); let s="";
+  for(let i=0;i<(o&&o.n||16);i++){
+    s+=EL(between(rand,x,x+w),between(rand,y,y+h),between(rand,18,52),
+      between(rand,14,34),{fill:pick(rand,[C.green,C.green2,C.green3,"#44603A"]),
+      opacity:r2(between(rand,.6,.95))});
+  }
+  return s;
+}
+function weedLine(seed,y,n){
+  const rand=rng(seed+43); let s="";
+  for(let i=0;i<n;i++){
+    const x=between(rand,-20,1220), sc=between(rand,.25,.8);
+    s+=grass(x,y+between(rand,-6,90),sc,rand);
+  }
+  return s;
+}
+function grass(x,y,scale,rand){
+  let s="";
+  for(let i=0;i<6;i++){
+    const h=between(rand,10,26)*scale, lean=between(rand,-8,8)*scale;
+    s+=PT("M"+r2(x+i*2*scale)+" "+r2(y)+"q"+r2(lean/2)+" "+r2(-h*.7)+" "+r2(lean)+" "+r2(-h),
+      {fill:"none",stroke:pick(rand,[C.green2,C.green,"#6F8A4E"]),
+      "stroke-width":r2(1*scale),opacity:.8,"stroke-linecap":"round"});
+  }
+  return s;
+}
+
+/* ---- water ------------------------------------------------------------------------ */
+function flood(level,seed,o){
+  o=o||{}; const rand=rng(seed+53);
+  let s=R(0,level,1200,700-level,C.water,{opacity:o.opacity||.86});
+  s+=R(0,level,1200,3,C.waterL,{opacity:.5});
+  for(let i=0;i<40;i++){
+    const y=level+Math.pow(rand(),1.6)*(700-level), w=between(rand,20,180);
+    s+=R(between(rand,-40,1180),y,w,between(rand,.8,2.4),C.waterL,
+      {opacity:r2(between(rand,.1,.4))});
+  }
+  if(o.reflect) s+=R(0,level,1200,(700-level)*.5,"#FFFFFF",{opacity:.05});
+  return s;
+}
+
+/* ---- objects ---------------------------------------------------------------------- */
+function car(x,y,scale,seed,o){
+  o=o||{}; const rand=rng(seed+59), s=scale, body=o.col||
+    pick(rand,["#6E6A63","#5C5F63","#7A5B4A","#4F5A5E","#8A8377"]);
+  const P0=(a,b)=>[x+a*s,y+b*s];
+  const shell=[[0,-10],[2,-26],[16,-30],[30,-48],[64,-48],[78,-30],[96,-26],[98,-12],
+    [96,-4],[0,-4]].map(p=>P0(p[0],p[1]));
+  let g=EL(x+48*s,y+1,52*s,5*s,{fill:"#00000026"});
+  g+=PG(shell,{fill:body});
+  g+=PG([[34,-44],[62,-44],[72,-30],[24,-30]].map(p=>P0(p[0],p[1])),
+    {fill:"#23272B",opacity:.9});
+  g+=PG([[0,-10],[96,-6],[96,-4],[0,-4]].map(p=>P0(p[0],p[1])),{fill:"#000",opacity:.22});
+  [[24,-6],[74,-6]].forEach(w=>{
+    g+=EL(x+w[0]*s,y+w[1]*s,11*s,11*s,{fill:"#2A2C2E"});
+    g+=EL(x+w[0]*s,y+w[1]*s,5*s,5*s,{fill:"#4A4C4E"});
+  });
+  g+=G(streaks(x,y-46*s,96*s,42*s,seed,{col:C.rust,n:7})+
+    grass(x+8*s,y+1,s*.7,rand)+grass(x+88*s,y+1,s*.6,rand),{class:"decay"});
+  return G(g);
+}
+function busWreck(x,y,scale,seed){
+  const rand=rng(seed+61), s=scale, w=220*s, h=64*s;
+  let g=EL(x+w/2,y+2,w*.52,6*s,{fill:"#00000026"});
+  g+=PT("M"+r2(x)+" "+r2(y-8*s)+"L"+r2(x)+" "+r2(y-h+8*s)+
+    "q0 "+r2(-8*s)+" "+r2(10*s)+" "+r2(-8*s)+"L"+r2(x+w-10*s)+" "+r2(y-h)+
+    "q"+r2(10*s)+" 0 "+r2(10*s)+" "+r2(8*s)+"L"+r2(x+w)+" "+r2(y-8*s)+"Z",{fill:"#9A9184"});
+  g+=R(x+6*s,y-h+12*s,w-12*s,h*.34,"#23272B",{opacity:.88});
+  for(let i=1;i<6;i++) g+=LN(x+i*(w/6),y-h+12*s,x+i*(w/6),y-h+12*s+h*.34,
+    {stroke:"#9A9184","stroke-width":2.4*s});
+  g+=R(x,y-16*s,w,4*s,"#7E7568");
+  [[40,-8],[168,-8]].forEach(p=>{
+    g+=EL(x+p[0]*s,y+p[1]*s,13*s,13*s,{fill:"#2A2C2E"});
+    g+=EL(x+p[0]*s,y+p[1]*s,6*s,6*s,{fill:"#4A4C4E"});
+  });
+  g+=G(streaks(x,y-h,w,h,seed,{col:C.rust,n:11})+ivy(x,y-h,w,h,seed,{n:3})+
+    grass(x+w*.5,y+1,s*.8,rand),{class:"decay"});
+  return G(g);
+}
+function rubble(x,y,w,seed,o){
+  const rand=rng(seed+67); let s="";
+  const n=(o&&o.n)||28;
+  for(let i=0;i<n;i++){
+    const bx=x+between(rand,-w/2,w/2), by=y-Math.abs(between(rand,0,1))*(o&&o.h||26)*
+      (1-Math.abs(bx-x)/(w*.6));
+    const sz=between(rand,3,13);
+    s+=PG([[bx,by],[bx+sz,by-sz*.5],[bx+sz*1.3,by+sz*.4],[bx+sz*.4,by+sz*.7]],
+      {fill:pick(rand,[C.stone,C.stoneD,C.stoneL,"#A79F8C"]),opacity:r2(between(rand,.7,1))});
+  }
+  s+=EL(x,y+2,w*.55,5,{fill:"#00000018"});
+  return s;
+}
+function trafficSignal(x,y,scale,seed,o){
+  const h=110*scale;
+  let s=R(x-2*scale,y-h,4*scale,h,C.metalD,{opacity:.9});
+  s+=PT("M"+r2(x)+" "+r2(y-h)+"q"+r2(30*scale)+" 0 "+r2(46*scale)+" "+r2(14*scale),
+    {fill:"none",stroke:C.metalD,"stroke-width":r2(3*scale),opacity:.9});
+  const gx=x+46*scale, gy=y-h+14*scale;
+  s+=G(R(gx-6*scale,gy,12*scale,30*scale,"#2E3236")+
+    EL(gx,gy+7*scale,3*scale,3*scale,{fill:"#5A4038"})+
+    EL(gx,gy+15*scale,3*scale,3*scale,{fill:"#5A5238"})+
+    EL(gx,gy+23*scale,3*scale,3*scale,{fill:"#38503E"}),
+    {transform:o&&o.hang?"rotate(24 "+r2(gx)+" "+r2(gy)+")":null});
+  return s;
+}
+function lamp(x,y,scale,lean){
+  const h=150*scale;
+  return G(R(x-2*scale,y-h,4*scale,h,C.metalD,{opacity:.9})+
+    PT("M"+r2(x)+" "+r2(y-h)+"q"+r2(16*scale)+" "+r2(-8*scale)+" "+r2(30*scale)+" "+r2(4*scale),
+      {fill:"none",stroke:C.metalD,"stroke-width":r2(3*scale)})+
+    EL(x+30*scale,y-h+8*scale,6*scale,3*scale,{fill:"#4A4F52"}),
+    {transform:lean?"rotate("+lean+" "+r2(x)+" "+r2(y)+")":null});
+}
+function figure(x,y,scale,o){
+  o=o||{}; const h=54*scale, col=o.col||"#3A3B38";
+  return G(EL(x,y-h,4.4*scale,5*scale,{fill:col})+
+    R(x-4.6*scale,y-h+5*scale,9.2*scale,h*.42,col)+
+    R(x-4*scale,y-h*.52,3.4*scale,h*.5,col)+
+    R(x+.8*scale,y-h*.52,3.4*scale,h*.5,col)+
+    EL(x,y+1,7*scale,2*scale,{fill:"#00000022"}));
+}
+function birds(x,y,spread,n,seed,scale){
+  const rand=rng(seed+71); let s="";
+  for(let i=0;i<n;i++){
+    const bx=x+between(rand,-spread,spread), by=y+between(rand,-spread*.4,spread*.4),
+      w=between(rand,4,9)*(scale||1);
+    s+=PT("M"+r2(bx-w)+" "+r2(by)+"q"+r2(w*.5)+" "+r2(-w*.6)+" "+r2(w)+" 0"+
+      "q"+r2(w*.5)+" "+r2(-w*.6)+" "+r2(w)+" 0",
+      {fill:"none",stroke:"#2E3134","stroke-width":.9,opacity:r2(between(rand,.35,.8))});
+  }
+  return s;
+}
+function scaffold(x,y,w,h,seed){
+  const rand=rng(seed+73); let s="";
+  for(let i=0;i<=Math.round(w/40);i++) s+=LN(x+i*40,y,x+i*40,y+h,
+    {stroke:C.metalD,"stroke-width":1.6,opacity:.7});
+  for(let j=0;j<=Math.round(h/50);j++) s+=LN(x,y+j*50,x+w,y+j*50,
+    {stroke:C.metalD,"stroke-width":1.3,opacity:.7});
+  s+=PG([[x,y+h*.3],[x+w*.5,y+h*.2],[x+w*.55,y+h*.6],[x+w*.05,y+h*.7]],
+    {fill:"#7E8072",opacity:.35});
+  return s;
+}
+/* a painted-out sign board, the ghost of whatever it advertised */
+function deadSign(x,y,w,h,seed,label){
+  const rand=rng(seed+79);
+  let s=R(x,y,w,h,"#2E3236")+R(x,y,w,h,"#000",{opacity:.25});
+  for(let i=0;i<6;i++) s+=R(x+between(rand,0,w*.8),y+between(rand,0,h*.8),
+    between(rand,8,w*.3),between(rand,4,h*.3),"#3D4247",{opacity:.6});
+  if(label) s+=TX(x+w/2,y+h/2+4,label,{"text-anchor":"middle","font-size":Math.min(h*.5,18),
+    fill:"#575C61","font-family":"var(--mono)","letter-spacing":".16em",opacity:.7});
+  s+=R(x-3,y-3,w+6,h+6,"none",{stroke:C.metalD,"stroke-width":2,opacity:.55});
+  return s;
+}
+
+/* ---- atmosphere ------------------------------------------------------------------- */
+function defs(o){
+  o=o||{};
+  return T("defs",null,
+    T("linearGradient",{id:"svSky",x1:0,y1:0,x2:0,y2:1},
+      T("stop",{offset:"0%","stop-color":o.skyTop||C.skyTop})+
+      T("stop",{offset:"52%","stop-color":o.skyMid||C.skyMid})+
+      T("stop",{offset:"100%","stop-color":o.skyLow||C.skyLow}))+
+    T("radialGradient",{id:"svVig",cx:"50%",cy:"46%",r:"72%"},
+      T("stop",{offset:"58%","stop-color":"#000","stop-opacity":"0"})+
+      T("stop",{offset:"100%","stop-color":"#000","stop-opacity":"0.42"}))+
+    T("linearGradient",{id:"svHaze",x1:0,y1:0,x2:0,y2:1},
+      T("stop",{offset:"0%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0"})+
+      T("stop",{offset:"42%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0.6"})+
+      T("stop",{offset:"100%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0"}))+
+    T("filter",{id:"svGrain"},
+      T("feTurbulence",{type:"fractalNoise",baseFrequency:"0.85",numOctaves:"3",result:"n"})+
+      T("feColorMatrix",{type:"saturate",values:"0"})+
+      T("feComponentTransfer",null,T("feFuncA",{type:"linear",slope:"0.16"}))));
+}
+function haze(y,h){ return R(0,y,1200,h,"url(#svHaze)",{opacity:.75}); }
+function finish(){
+  return R(0,0,1200,700,"url(#svVig)")+
+    R(0,0,1200,700,"#B9B2A0",{opacity:.05,filter:"url(#svGrain)"});
+}
+
+NYC.svkit={T,G,R,PT,PG,LN,EL,TX,A,r2,rng,pick,between,C,
+  sky,clouds,rain,skyline,ground,potholes,cracksField,crack,cracksOn,
+  stone,streaks,column,colonnade,cornice,archPath,voussoirs,
+  windows,shopfront,fireEscape,
+  ivy,sapling,treeMass,weedLine,grass,
+  flood,car,busWreck,rubble,trafficSignal,lamp,figure,birds,scaffold,deadSign,
+  defs,haze,finish};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — street-view plates.
+   Each scene is a hand-built procedural elevation of a real place as the survey
+   found it. 1200 x 700 units; the ground plane sits near y = 470.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{}, K=NYC.svkit, C=K.C;
+const {T,G,R,PT,PG,LN,EL,TX,r2,rng,pick,between}=K;
+
+/* ---- shared shapes ---------------------------------------------------------------- */
+/* bilinear patch, used for anything drawn in perspective */
+function pt(q,u,v){
+  const a=q[0],b=q[1],c=q[2],d=q[3];
+  return [ (1-u)*(1-v)*a[0]+u*(1-v)*b[0]+u*v*c[0]+(1-u)*v*d[0],
+           (1-u)*(1-v)*a[1]+u*(1-v)*b[1]+u*v*c[1]+(1-u)*v*d[1] ];
+}
+/* windows laid on a receding facade; ratio = near height / far height */
+function quadGrid(q,cols,rows,seed,o){
+  o=o||{}; const rand=rng(seed+13);
+  const h0=Math.abs(q[3][1]-q[0][1]), h1=Math.abs(q[2][1]-q[1][1]);
+  const ratio=o.ratio|| (h1>0?h0/h1:1);
+  const U=s=> ratio===1?s : s*1/(ratio-s*(ratio-1))*1;  /* even spacing in world */
+  const gx=o.gx==null?.36:o.gx, gy=o.gy==null?.4:o.gy;
+  let now="",then="",dec="";
+  for(let c=0;c<cols;c++){
+    const u0=U((c+gx/2)/cols), u1=U((c+1-gx/2)/cols);
+    for(let r=0;r<rows;r++){
+      const v0=(r+gy/2)/rows, v1=(r+1-gy/2)/rows;
+      const p=[pt(q,u0,v0),pt(q,u1,v0),pt(q,u1,v1),pt(q,u0,v1)];
+      if(Math.abs(p[1][0]-p[0][0])<1.1) continue;
+      now+=PG(p,{fill:o.dark||C.dark,opacity:r2(between(rand,.7,.95))});
+      then+=PG(p,{fill:o.glass||C.glass,opacity:r2(between(rand,.5,.8))});
+      const t=rand();
+      if(t<(o.broken==null?.3:o.broken))
+        dec+=PG([p[0],[(p[0][0]+p[1][0])/2,p[0][1]],p[3]],{fill:"#565B5F",opacity:.42});
+      else if(t>.95&&o.lit) dec+=PG(p,{fill:o.lit,opacity:r2(between(rand,.3,.7))});
+    }
+  }
+  return now+G(then,{class:"intact"})+G(dec,{class:"decay"});
+}
+/* a canyon of buildings receding to the vanishing point */
+function corridor(seed,o){
+  o=o||{}; const rand=rng(seed+101);
+  const hz=o.hz||470, vp=o.vp==null?600:o.vp, n=o.n||5, f=o.f||.6;
+  const W0=o.w||520, H0=o.h||430, B0=o.b||150;
+  let back="",front="";
+  [-1,1].forEach(side=>{
+    let x=vp+side*W0, h=H0, b=B0;
+    for(let i=0;i<n;i++){
+      const nx=vp+side*W0*Math.pow(f,i+1), nh=H0*Math.pow(f,i+1), nb=B0*Math.pow(f,i+1);
+      const q=[[x,hz-h],[nx,hz-nh],[nx,hz+nb],[x,hz+b]];
+      const tone=pick(rand,[C.brickD,"#6E695E","#7A736A","#5F5A52","#877E70"]);
+      let s=PG(q,{fill:tone});
+      s+=PG(q,{fill:"#000",opacity:side<0?.1:.2});
+      s+=quadGrid(q,Math.max(2,7-i),Math.max(2,9-i*2),seed+i*7+(side>0?50:0),
+        {ratio:h/nh,broken:.34,lit:o.lit});
+      /* cornice */
+      s+=PG([[x,hz-h],[nx,hz-nh],[nx,hz-nh-6],[x,hz-h-9]],{fill:C.stoneD,opacity:.8});
+      /* ground floor: shopfronts gone dark */
+      const gq=[[x,hz+b*.1],[nx,hz+nb*.1],[nx,hz+nb],[x,hz+b]];
+      s+=PG(gq,{fill:"#26292C",opacity:.85});
+      s+=G(K.streaks(Math.min(x,nx),hz-h,Math.abs(nx-x),h,seed+i,{n:7})+
+           K.ivy(Math.min(x,nx),hz-h*.4,Math.abs(nx-x),h*.4,seed+i*3,{n:2}),{class:"decay"});
+      if(i>=n-2) back+=s; else front+=s;
+      x=nx; h=nh; b=nb;
+    }
+  });
+  return back+front;
+}
+/* a horse, in bronze, seen from the side */
+function horse(x,y,s,o){
+  o=o||{}; const d=o.flip?-1:1, col=o.col||C.patina;
+  const X=a=>x+a*s*d, Y=b=>y+b*s;
+  let g="";
+  g+=EL(X(-2),Y(-34),25*s,13*s,{fill:col});                    /* barrel */
+  g+=EL(X(-21),Y(-35),14*s,14*s,{fill:col});                   /* hindquarters */
+  g+=EL(X(17),Y(-37),12*s,12*s,{fill:col});                    /* shoulder */
+  g+=PG([[X(12),Y(-44)],[X(24),Y(-47)],[X(41),Y(-72)],[X(30),Y(-74)]],{fill:col});
+  g+=PG([[X(30),Y(-74)],[X(41),Y(-72)],[X(54),Y(-76)],[X(52),Y(-84)],[X(35),Y(-83)]],
+    {fill:col});                                               /* head */
+  g+=PG([[X(34),Y(-83)],[X(35),Y(-92)],[X(40),Y(-82)]],{fill:col});   /* ear */
+  g+=PT("M"+X(28)+" "+Y(-76)+"Q"+X(20)+" "+Y(-88)+" "+X(10)+" "+Y(-84),
+    {fill:"none",stroke:col,"stroke-width":r2(4*s),"stroke-linecap":"round"});  /* mane */
+  [[16,-3],[21,3],[-16,-3],[-23,3]].forEach(l=>{
+    g+=PT("M"+X(l[0])+" "+Y(-30)+"q"+r2(l[1]*s*d)+" "+r2(14*s)+" "+r2(l[1]*.4*s*d)+" "+r2(30*s),
+      {fill:"none",stroke:col,"stroke-width":r2(5*s),"stroke-linecap":"round"});
+  });
+  g+=PT("M"+X(-33)+" "+Y(-42)+"q"+r2(-12*s*d)+" "+r2(14*s)+" "+r2(-6*s*d)+" "+r2(30*s),
+    {fill:"none",stroke:col,"stroke-width":r2(4.5*s),"stroke-linecap":"round"});  /* tail */
+  return G(g,o.rear?{transform:"rotate("+(-34*d)+" "+r2(X(-21))+" "+r2(y)+")"}:null);
+}
+/* a standing winged figure — Victory, Fame, whichever the sculptor called her */
+function winged(x,y,s,o){
+  o=o||{}; const col=o.col||C.patina;
+  let g=EL(x,y-54*s,7*s,8*s,{fill:col});
+  g+=PT("M"+r2(x-8*s)+" "+r2(y-46*s)+"q"+r2(8*s)+" "+r2(-6*s)+" "+r2(16*s)+" 0"+
+    "l"+r2(4*s)+" "+r2(30*s)+"q"+r2(-12*s)+" "+r2(6*s)+" "+r2(-24*s)+" 0Z",{fill:col});
+  g+=R(x-8*s,y-16*s,7*s,18*s,col);
+  g+=R(x+1*s,y-16*s,7*s,18*s,col);
+  /* wings */
+  g+=PT("M"+r2(x-6*s)+" "+r2(y-44*s)+"q"+r2(-20*s)+" "+r2(-14*s)+" "+r2(-26*s)+" "+r2(-30*s)+
+    "q"+r2(4*s)+" "+r2(20*s)+" "+r2(22*s)+" "+r2(28*s)+"Z",{fill:col,opacity:.94});
+  g+=PT("M"+r2(x+6*s)+" "+r2(y-44*s)+"q"+r2(20*s)+" "+r2(-14*s)+" "+r2(26*s)+" "+r2(-30*s)+
+    "q"+r2(-4*s)+" "+r2(20*s)+" "+r2(-22*s)+" "+r2(28*s)+"Z",{fill:col,opacity:.94});
+  if(o.arm) g+=LN(x+6*s,y-46*s,x+22*s,y-72*s,{stroke:col,"stroke-width":r2(4.5*s),
+    "stroke-linecap":"round"});
+  return G(g);
+}
+/* verdigris running out of a bronze onto the stone below */
+function bleed(x,y,w,h,seed){
+  const rand=rng(seed+17); let s="";
+  for(let i=0;i<10;i++){
+    const bx=between(rand,x,x+w);
+    s+=R(bx,y,between(rand,2,9),between(rand,h*.3,h),C.patina,
+      {opacity:r2(between(rand,.1,.32))});
+  }
+  return s;
+}
+
+const SCENES={};
+
+/* =================================================================================== */
+/* 1. SOLDIERS' AND SAILORS' MEMORIAL ARCH — GRAND ARMY PLAZA, BROOKLYN               */
+/* =================================================================================== */
+SCENES["arch-brooklyn"]={
+  name:"Soldiers' and Sailors' Memorial Arch",
+  sub:"GRAND ARMY PLAZA · PROSPECT PARK W AT FLATBUSH AV · BROOKLYN",
+  mark:"Soldiers' and Sailors' Memorial Arch", disp:"STANDING",
+  cap:"Granite, eighty feet, and no reason for anyone to pull it down. The bronze quadriga "+
+      "lost a horse in the third winter; it lies where it landed, on the oval, and the plaza "+
+      "has grown up around it. Notices are nailed to the north pier.",
+  draw(){
+    const hz=474, S=[];
+    S.push(K.sky({seed:4,cloud:.62}));
+    S.push(K.skyline(21,{base:hz-6,max:120,fill:"#8B9296",count:12}));
+    S.push(G(K.treeMass(-40,360,420,120,9,{n:22})+K.treeMass(820,356,440,124,12,{n:22}),
+      {opacity:.95}));
+    S.push(K.haze(300,190));
+    S.push(K.ground({horizon:hz,vp:600,seed:5,fill:"#726F66",cracks:26,pot:7}));
+
+    /* --- the arch ---------------------------------------------------------------- */
+    const a=[];
+    /* stepped plinth */
+    a.push(K.stone(372,440,456,36,C.stoneD,{course:false}));
+    a.push(K.stone(382,428,436,14,C.stone,{course:false}));
+    /* piers */
+    a.push(K.stone(396,250,132,182,C.stoneL,{course:16,shade:true}));
+    a.push(K.stone(672,250,132,182,C.stoneL,{course:16,shade:true}));
+    /* the opening */
+    a.push(PT(K.archPath(600,332,72,440),{fill:"#26282A"}));
+    a.push(PT(K.archPath(600,332,72,440),{fill:"#000",opacity:.35}));
+    /* coffered soffit, just visible */
+    for(let i=0;i<6;i++) a.push(LN(534,352+i*16,666,352+i*16,{stroke:"#3A3D40",
+      "stroke-width":1,opacity:.6}));
+    a.push(K.voussoirs(600,332,72,13));
+    /* spandrel medallions */
+    a.push(EL(524,290,15,15,{fill:C.stone,stroke:"#00000022","stroke-width":1}));
+    a.push(EL(676,290,15,15,{fill:C.stone,stroke:"#00000022","stroke-width":1}));
+    /* column clusters at plaza level, as built */
+    a.push(K.colonnade(410,510,432,336,4,15,{tone:C.stone,capTone:C.stoneL}));
+    a.push(K.colonnade(690,790,432,336,4,15,{tone:C.stone,capTone:C.stoneL}));
+    /* bronze relief groups on the pier faces */
+    [[404,258],[688,258]].forEach((p,i)=>{
+      a.push(R(p[0],p[1],108,72,C.patina,{opacity:.92}));
+      a.push(G(horse(p[0]+30,p[1]+66,.62,{flip:i===1,col:"#3F6A5B"})+
+        winged(p[0]+72,p[1]+64,.72,{col:"#3F6A5B",arm:true})+
+        K.figure(p[0]+16,p[1]+68,.7,{col:"#3F6A5B"}),{opacity:.95}));
+      a.push(R(p[0],p[1],108,72,"#000",{opacity:.12}));
+    });
+    /* attic and cornice */
+    a.push(K.cornice(364,236,472,16,C.stoneL));
+    a.push(K.stone(378,176,444,60,C.stoneL,{course:20}));
+    a.push(TX(600,214,"TO THE DEFENDERS OF THE UNION",{"text-anchor":"middle",
+      "font-size":15,fill:"#8E8877","font-family":"var(--mono)","letter-spacing":".14em",
+      opacity:.75}));
+    a.push(K.cornice(360,160,480,18,C.stoneL));
+    S.push(G(a.join("")));
+
+    /* --- the quadriga, one horse short ------------------------------------------- */
+    const q=[];
+    q.push(R(452,150,306,12,"#4E7F6F",{opacity:.95}));      /* the plinth it stands on */
+    q.push(horse(508,150,.95,{rear:true,col:"#4A7C6C"}));
+    q.push(horse(556,150,.95,{col:"#57897A"}));
+    q.push(G(horse(694,150,.95,{flip:true,col:"#57897A"}),{class:"intact"}));
+    q.push(horse(742,150,.95,{rear:true,flip:true,col:"#4A7C6C"}));
+    q.push(winged(626,150,1.25,{col:C.patina,arm:true}));
+    S.push(G(q.join("")));
+
+    /* --- what a hundred years of neglect did ------------------------------------- */
+    const d=[];
+    d.push(K.streaks(378,176,444,60,7,{n:16}));
+    d.push(bleed(404,330,108,110,3)); d.push(bleed(688,330,108,110,8));
+    d.push(K.cracksOn(396,250,132,182,11,7));
+    d.push(K.cracksOn(672,250,132,182,15,7));
+    d.push(K.ivy(396,250,132,182,19,{n:7}));
+    d.push(K.ivy(690,300,110,132,23,{n:4}));
+    /* a bite out of the north cornice, and its rubble */
+    d.push(PG([[742,160],[840,160],[840,178],[788,178],[762,170]],{fill:"#8E9296",opacity:.001}));
+    d.push(PG([[760,160],[820,160],[818,180],[772,182]],{fill:C.skyMid,opacity:1}));
+    d.push(K.rubble(806,476,120,29,{n:34,h:26}));
+    /* the fallen horse, on the oval where it landed */
+    d.push(G(horse(1010,588,1.35,{col:"#3F6A5B"}),
+      {transform:"rotate(-98 1010 588)",opacity:.96}));
+    d.push(K.rubble(1010,596,150,31,{n:14,h:10}));
+    d.push(TX(890,624,"BRONZE — DO NOT CUT",{"font-size":11,fill:"#E8E3D4",
+      "font-family":"var(--mono)","letter-spacing":".1em",opacity:.55}));
+    /* growth through the plaza */
+    d.push(K.sapling(452,470,1.5,33)); d.push(K.sapling(836,472,1.2,37));
+    d.push(K.sapling(600,452,.7,41));
+    d.push(K.grass(560,470,1,rng(45))); d.push(K.grass(660,472,1.1,rng(47)));
+    /* notices nailed to the pier */
+    for(let i=0;i<7;i++) d.push(R(416+ (i%3)*22, 372+Math.floor(i/3)*24, 18,15,"#D8D2C0",
+      {opacity:.8,transform:"rotate("+((i%5)-2)*3+" "+(425+(i%3)*22)+" "+(380+Math.floor(i/3)*24)+")"}));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- lamps, flagpoles, people ------------------------------------------------ */
+    S.push(K.lamp(268,478,1.1,-7));
+    S.push(K.lamp(942,478,1.1,4));
+    S.push(R(1004,214,3,266,C.metalD,{opacity:.85}));
+    S.push(G(PG([[1007,214],[1064,226],[1007,238]],{fill:"#8A8377",opacity:.7}),{class:"decay"}));
+    S.push(K.figure(880,500,1.1,{col:"#33352F"}));
+    S.push(K.figure(908,502,1,{col:"#3A3B36"}));
+    S.push(G(K.birds(760,180,120,9,53,1)+K.birds(420,140,90,5,57,.8),{class:"decay"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 2. THE NEW MUSEUM — 235 BOWERY                                                     */
+/* =================================================================================== */
+SCENES["new-museum"]={
+  name:"New Museum",
+  sub:"235 BOWERY AT PRINCE ST · MANHATTAN · LOOKING EAST",
+  mark:"New Museum", disp:"SALVAGE",
+  cap:"Seven boxes stacked off-centre, wrapped in anodised mesh. The mesh has come away "+
+      "from the top three and hangs in sheets over Prince Street. The ground floor is dry "+
+      "and in use as a store; everything above the fourth box is open to the weather.",
+  draw(){
+    const hz=478, S=[];
+    S.push(K.sky({seed:9,cloud:.5}));
+    S.push(K.skyline(31,{base:hz-40,max:200,fill:"#868E92",count:11}));
+    S.push(K.haze(280,200));
+    S.push(K.ground({horizon:hz,vp:600,seed:11,fill:"#67655F",cracks:22,pot:8}));
+    S.push(K.busWreck(90,588,1.05,103));
+    /* flanking Bowery fabric: a tenement left, a cast-iron loft right */
+    const L=[];
+    L.push(R(60,206,300,272,C.brickD));
+    L.push(K.windows(76,222,268,236,4,6,63,{broken:.4}));
+    L.push(K.cornice(52,192,316,16,"#6A4A3C"));
+    L.push(G(K.fireEscape(120,262,120,4,{step:52}),{}));
+    L.push(K.shopfront(74,404,270,74,67,{}));
+    S.push(G(L.join("")));
+    const Rt=[];
+    Rt.push(R(958,166,262,312,"#7A5F52"));
+    Rt.push(K.windows(974,182,230,272,4,7,71,{broken:.36}));
+    Rt.push(K.cornice(948,152,282,16,"#5F4A40"));
+    Rt.push(K.shopfront(974,404,230,74,73,{}));
+    S.push(G(Rt.join("")));
+
+    /* --- the stack ---------------------------------------------------------------- */
+    const boxes=[[430,398,272,80],[452,320,272,78],[416,250,272,70],
+                 [446,184,272,66],[428,124,272,60],[458,66,250,58]];
+    const b=[];
+    boxes.forEach((bx,i)=>{
+      const [x,y,w,h]=bx;
+      b.push(R(x,y,w,h,i%2?"#B9BDBC":"#C6CAC8"));
+      /* the mesh: a fine grid, self-shading */
+      for(let gx=x+3;gx<x+w;gx+=5) b.push(LN(gx,y,gx,y+h,{stroke:"#9CA2A2",
+        "stroke-width":.7,opacity:.55}));
+      for(let gy=y+3;gy<y+h;gy+=5) b.push(LN(x,gy,x+w,gy,{stroke:"#A8ADAC",
+        "stroke-width":.6,opacity:.4}));
+      b.push(R(x,y,w,h,"#000",{opacity:i%2?.06:.02}));
+      b.push(R(x,y+h-3,w,3,"#8A8F8E",{opacity:.8}));       /* the shadow line */
+      /* the one strip window each box was given */
+      if(i===1) b.push(R(x+18,y+22,140,10,C.dark,{opacity:.85}));
+      if(i===3) b.push(R(x+130,y+18,110,9,C.dark,{opacity:.85}));
+    });
+    S.push(G(b.join("")));
+    /* the later extension, folded and faceted, to the south */
+    const e=[];
+    e.push(PG([[730,158],[928,226],[928,478],[730,478]],{fill:"#A7ADAC"}));
+    e.push(PG([[730,158],[928,226],[928,282],[730,222]],{fill:"#8F9695"}));
+    e.push(PG([[752,250],[906,298],[906,322],[752,278]],{fill:C.dark,opacity:.85}));
+    e.push(PG([[824,196],[884,218],[884,244],[824,224]],{fill:"#6E2A30",opacity:.92}));
+    for(let gy=300;gy<478;gy+=26) e.push(LN(730,gy,928,gy,{stroke:"#8C9392",
+      "stroke-width":.8,opacity:.6}));
+    for(let gx=744;gx<928;gx+=26) e.push(LN(gx,282+ (gx-730)*.29,gx,478,
+      {stroke:"#8C9392","stroke-width":.8,opacity:.5}));
+    S.push(G(e.join("")));
+    /* ground floor glazing */
+    S.push(K.shopfront(430,404,272,74,77,{}));
+
+    /* --- decay -------------------------------------------------------------------- */
+    const d=[];
+    /* mesh torn away from the upper boxes */
+    d.push(PG([[458,66],[708,66],[708,124],[600,110],[540,124],[458,112]],
+      {fill:"#4A4E50",opacity:.92}));
+    d.push(PG([[428,124],[700,124],[700,150],[560,140],[428,152]],
+      {fill:"#54585A",opacity:.75}));
+    d.push(PG([[416,250],[470,250],[452,320],[402,318]],{fill:"#5A5E60",opacity:.6}));
+    /* a sheet of it hanging over the street */
+    d.push(PG([[704,124],[730,134],[746,244],[708,230]],{fill:"#C2C7C6",opacity:.92}));
+    d.push(PG([[704,124],[730,134],[734,186],[706,176]],{fill:"#000",opacity:.12}));
+    d.push(K.streaks(430,124,272,354,81,{n:20,col:"#4A4438"}));
+    d.push(K.streaks(730,226,198,252,83,{n:12,col:C.rust}));
+    d.push(K.ivy(430,398,272,80,87,{n:5}));
+    d.push(K.ivy(958,300,262,178,89,{n:6}));
+    d.push(K.cracksOn(60,206,300,272,91,6,"#4A3A30"));
+    d.push(K.sapling(392,480,1.3,93));
+    d.push(K.sapling(898,482,1,97));
+    d.push(K.birds(560,90,140,7,101,.9));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- the street --------------------------------------------------------------- */
+    S.push(K.car(760,556,1.15,107,{}));
+    S.push(K.car(1000,620,1.5,109,{}));
+    S.push(K.lamp(354,506,1.15,-9));
+    S.push(K.trafficSignal(940,500,1,111,{hang:true}));
+    S.push(G(K.figure(520,540,1.25,{col:"#33352F"})+K.figure(548,546,1.15,{col:"#3E3F39"}),{}));
+    S.push(G(TX(468,462,"STORE — WEIGH IN",{"font-size":12,fill:"#D8D2C0",
+      "font-family":"var(--mono)","letter-spacing":".12em",opacity:.55}),{class:"decay"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 3. THE GUGGENHEIM — FIFTH AVENUE AT 89TH STREET                                    */
+/* =================================================================================== */
+SCENES["guggenheim"]={
+  name:"Solomon R. Guggenheim Museum",
+  sub:"1071 FIFTH AV AT E 89 ST · MANHATTAN · LOOKING WEST",
+  mark:"Solomon R. Guggenheim Museum", disp:"SEALED",
+  cap:"One room, a quarter of a mile long, wound six times around a well of air. The "+
+      "skylight went first and the rain has been falling down the middle of it ever since. "+
+      "The ramp is silted to the second turn. The doors are welded and the survey left them so.",
+  draw(){
+    const hz=478, cx=648, S=[];
+    S.push(K.sky({seed:14,cloud:.62}));
+    S.push(K.skyline(41,{base:hz-40,max:170,fill:"#8A9195",count:9,x0:820}));
+    S.push(K.haze(300,200));
+    S.push(K.ground({horizon:hz,vp:520,seed:19,fill:"#6B695F",cracks:24,pot:10}));
+    S.push(K.car(120,556,1.15,131,{}));
+    /* the park, gone to woodland, on the near side of Fifth */
+    S.push(G(K.treeMass(-70,318,300,170,43,{n:26}),{opacity:.96}));
+
+    /* --- the rectangular block to the north --------------------------------------- */
+    const m=[];
+    m.push(R(186,150,168,328,"#C4BFB2"));
+    m.push(R(186,150,58,328,"#000",{opacity:.05}));
+    m.push(R(186,142,168,12,"#CFCABC"));
+    for(let i=0;i<5;i++) m.push(R(226+i*22,196,9,104,C.dark,{opacity:.8}));
+    m.push(R(210,392,120,86,"#BAB5A8"));
+    S.push(G(m.join("")));
+
+    /* --- the rotunda: four turns of one continuous floor -------------------------- */
+    const bands=[[148,372,478],[165,288,372],[182,206,288],[200,122,206]];
+    const g=[];
+    bands.forEach((bd,i)=>{
+      const rx=bd[0], ytop=bd[1], ybot=bd[2], ry=Math.max(11,rx*.115);
+      const tone=i%2?"#D2CDBF":"#D9D4C6";
+      g.push(EL(cx,ybot,rx,ry,{fill:"#A29B8B"}));                 /* the overhang, from below */
+      g.push(EL(cx,ybot,rx,ry*.62,{fill:"#8F8878",opacity:.55}));
+      g.push(R(cx-rx,ytop,rx*2,ybot-ytop,tone));                  /* the drum */
+      g.push(EL(cx,ytop,rx,ry,{fill:i%2?"#DCD7C9":"#E2DDCF"}));   /* the rim */
+      g.push(R(cx-rx,ytop,rx*.3,ybot-ytop,"#000",{opacity:.05}));
+      g.push(R(cx+rx*.44,ytop,rx*.56,ybot-ytop,"#000",{opacity:.11}));
+      /* the ribbon of glass under each parapet */
+      g.push(EL(cx,ytop+34,rx*.97,ry,{fill:"#5E6468",opacity:.62}));
+      g.push(EL(cx,ytop+24,rx*.97,ry,{fill:tone}));
+    });
+    /* the glass dome over the well */
+    g.push(EL(cx,122,200,23,{fill:"#C6C1B3"}));
+    g.push(G(EL(cx,118,182,19,{fill:"#9FB2B6",opacity:.8}),{class:"intact"}));
+    g.push(G(EL(cx,120,178,17,{fill:"#1E2226",opacity:.92})+
+      PT("M"+(cx-178)+" 120 L"+(cx-90)+" 108 L"+cx+" 128 L"+(cx+86)+" 110 L"+(cx+178)+" 122",
+        {fill:"none",stroke:"#8E9498","stroke-width":2,opacity:.7}),{class:"decay"}));
+    S.push(G(g.join("")));
+
+    /* --- the entrance wing, welded shut ------------------------------------------- */
+    const e=[];
+    e.push(R(846,398,190,80,"#CBC6B8"));
+    e.push(R(846,390,190,12,"#D6D1C3"));
+    e.push(R(884,420,114,58,"#3A3E42"));
+    S.push(G(e.join("")));
+
+    /* --- decay -------------------------------------------------------------------- */
+    const d=[];
+    d.push(K.streaks(cx-200,140,400,338,113,{n:28,col:"#5A5346"}));
+    d.push(K.cracksOn(cx-190,220,380,250,117,10,"#8A8272"));
+    [[520,330],[742,262],[566,420],[720,376]].forEach(pp=>{
+      d.push(PG([[pp[0],pp[1]],[pp[0]+26,pp[1]-5],[pp[0]+33,pp[1]+11],[pp[0]+6,pp[1]+16]],
+        {fill:"#B6AC98",opacity:.6}));
+      d.push(LN(pp[0]+4,pp[1]+3,pp[0]+29,pp[1]-1,{stroke:C.rust,"stroke-width":1.1,opacity:.6}));
+      d.push(LN(pp[0]+6,pp[1]+10,pp[0]+31,pp[1]+6,{stroke:C.rust,"stroke-width":1,opacity:.5}));
+    });
+    d.push(K.ivy(cx-148,330,296,148,119,{n:9}));
+    d.push(K.ivy(846,398,190,80,120,{n:3}));
+    d.push(K.sapling(cx+150,206,1.1,121));
+    d.push(K.sapling(220,150,.9,123));
+    d.push(K.streaks(186,150,168,328,127,{n:12}));
+    d.push(R(884,420,114,58,"#4A4F52",{opacity:.95}));
+    d.push(LN(884,438,998,438,{stroke:"#5E6366","stroke-width":3,opacity:.9}));
+    d.push(LN(884,460,998,460,{stroke:"#5E6366","stroke-width":3,opacity:.9}));
+    d.push(TX(941,496,"SEALED · SURVEY 2049",{"text-anchor":"middle","font-size":10,
+      fill:"#D8D2C0","font-family":"var(--mono)","letter-spacing":".1em",opacity:.6}));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- Fifth Avenue ------------------------------------------------------------- */
+    S.push(K.car(880,606,1.35,133,{}));
+    S.push(K.lamp(1096,492,1.2,6));
+    S.push(K.trafficSignal(150,492,1,137,{hang:true}));
+    S.push(G(K.weedLine(139,490,22)+K.birds(860,170,110,8,141,1),{class:"decay"}));
+    S.push(K.figure(1010,540,1.2,{col:"#33352F"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 4. WEST 34TH STREET, LOOKING EAST TO THE EMPIRE STATE BUILDING                     */
+/* =================================================================================== */
+SCENES["empire-34th"]={
+  name:"Empire State Building",
+  sub:"W 34 ST AT SEVENTH AV · MANHATTAN · LOOKING EAST",
+  mark:"Empire State Building", disp:"SEALED",
+  cap:"Thirty-fourth Street holds a foot of standing water from Seventh Avenue to Sixth "+
+      "and drains no further. The building above it is sound, dry, and entirely useless: "+
+      "eighty-six floors, no lift, and a stair that is sealed at the sixth landing.",
+  draw(){
+    const hz=468, vp=612, S=[];
+    S.push(K.sky({seed:23,cloud:.55}));
+    S.push(K.skyline(51,{base:hz-20,max:170,fill:"#8D9498",count:13}));
+
+    /* --- the tower, at the end of the street ------------------------------------- */
+    const t=[];
+    const body="#8E8B80";
+    t.push(R(520,214,186,254,body));                       /* the base block */
+    t.push(R(520,214,186,254,"#000",{opacity:.06}));
+    t.push(R(538,150,150,66,"#96938A"));                   /* first setback */
+    t.push(R(556,96,114,56,"#9C9990"));                    /* the shaft */
+    t.push(R(572,58,82,40,"#A29F96"));
+    t.push(R(586,34,54,26,"#A8A59C"));
+    t.push(R(600,10,26,26,"#B0ADA4"));                     /* the mooring mast */
+    t.push(K.windows(528,224,170,238,11,17,143,{broken:.26,gx:.42,gy:.42}));
+    t.push(K.windows(544,158,138,54,9,4,147,{broken:.26,gx:.42,gy:.42}));
+    t.push(K.windows(562,102,102,46,7,4,149,{broken:.24,gx:.42,gy:.42}));
+    t.push(K.windows(576,62,74,32,5,3,151,{broken:.22,gx:.42,gy:.42}));
+    /* the vertical mullions that make it read as limestone and steel */
+    for(let i=0;i<12;i++) t.push(LN(528+i*15.4,214,528+i*15.4,468,{stroke:"#7E7B72",
+      "stroke-width":1.6,opacity:.5}));
+    t.push(R(516,206,194,10,"#A5A299"));
+    t.push(R(534,144,158,8,"#ABA89F"));
+    S.push(G(t.join("")));
+    const td=[];
+    td.push(K.streaks(520,214,186,254,153,{n:22}));
+    td.push(LN(613,10,626,-16,{stroke:C.metalD,"stroke-width":3,opacity:.9}));
+    td.push(PT("M626 -16 q18 26 4 54",{fill:"none",stroke:"#5E6265","stroke-width":1.2,
+      opacity:.8}));                                        /* a cable, still hanging */
+    td.push(K.ivy(520,380,186,88,157,{n:5}));
+    S.push(G(td.join(""),{class:"decay"}));
+    S.push(K.haze(300,180));
+
+    /* --- the canyon --------------------------------------------------------------- */
+    S.push(corridor(29,{hz:hz,vp:vp,n:5,f:.585,w:560,h:452,b:132}));
+    S.push(K.haze(340,140));
+    S.push(K.ground({horizon:hz,vp:vp,seed:31,fill:"#63615B",cracks:18,pot:12,weeds:false}));
+    S.push(G(K.flood(520,159,{opacity:.72,reflect:true}),{class:"decay"}));
+
+    /* --- the street, under water -------------------------------------------------- */
+    /* traffic left where it stopped */
+    S.push(K.car(190,556,1.35,161,{}));
+    S.push(K.car(360,514,1.05,163,{}));
+    S.push(K.busWreck(830,548,1.2,167));
+    S.push(K.car(1040,600,1.6,169,{}));
+    S.push(K.trafficSignal(300,506,1.15,171,{hang:true}));
+    S.push(K.trafficSignal(950,502,1.1,173,{hang:true}));
+    S.push(K.lamp(120,520,1.4,-6));
+    S.push(G(K.figure(660,506,1.05,{col:"#33352F"}),{}));
+    S.push(G(K.birds(420,120,150,11,177,1)+
+      K.deadSign(96,246,120,60,179,"")+K.deadSign(1030,224,130,64,181,""),{class:"decay"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 5. THE FLATIRON BUILDING — 23RD, FIFTH AND BROADWAY                                */
+/* =================================================================================== */
+SCENES["flatiron"]={
+  name:"Flatiron Building",
+  sub:"175 FIFTH AV AT E 23 ST · MANHATTAN · LOOKING NORTH FROM MADISON SQ",
+  mark:"Flatiron Building", disp:"STANDING",
+  cap:"Six feet wide at the prow and twenty-two storeys tall. The terracotta is coming "+
+      "off the upper floors in sheets and the survey has drawn a fall line across both "+
+      "streets. Nothing above the sixth floor is reachable. Nothing below it is worth reaching.",
+  draw(){
+    const hz=474, S=[];
+    S.push(K.sky({seed:33,cloud:.5}));
+    S.push(K.skyline(61,{base:hz-40,max:210,fill:"#878E92",count:12}));
+    S.push(K.haze(280,200));
+    S.push(K.ground({horizon:hz,vp:600,seed:37,fill:"#6B6960",cracks:24,pot:10}));
+    /* the buildings on either avenue, well behind */
+    S.push(G(R(40,244,300,230,"#7C766C")+K.windows(56,262,268,196,7,8,183,{broken:.4})+
+      K.cornice(30,230,320,16,"#6E6A60"),{opacity:.95}));
+    S.push(G(R(920,222,300,252,"#746E66")+K.windows(936,240,268,218,7,9,187,{broken:.4})+
+      K.cornice(910,208,320,16,"#66625A"),{opacity:.95}));
+
+    /* --- the wedge ---------------------------------------------------------------- */
+    const prowTop=62, prowBase=490, sideTop=150, sideBase=454;
+    const left =[[600,prowTop],[352,sideTop],[352,sideBase],[600,prowBase]];
+    const right=[[600,prowTop],[846,sideTop],[846,sideBase],[600,prowBase]];
+    const f=[];
+    f.push(PG(left,{fill:"#B5A899"}));
+    f.push(PG(right,{fill:"#A2968A"}));
+    f.push(PG(right,{fill:"#000",opacity:.12}));
+    /* floor bands */
+    for(let i=1;i<23;i++){
+      const v=i/23;
+      const a=pt(left,0,v), b=pt(left,1,v), c=pt(right,1,v), e=pt(right,0,v);
+      f.push(LN(a[0],a[1],b[0],b[1],{stroke:"#00000018","stroke-width":.8}));
+      f.push(LN(e[0],e[1],c[0],c[1],{stroke:"#00000018","stroke-width":.8}));
+    }
+    f.push(quadGrid(left,8,22,191,{ratio:(prowBase-prowTop)/(sideBase-sideTop),broken:.34}));
+    f.push(quadGrid(right,8,22,193,{ratio:(prowBase-prowTop)/(sideBase-sideTop),broken:.34}));
+    /* the rounded prow, which is what everyone remembers */
+    f.push(R(590,prowTop,20,prowBase-prowTop,"#C0B3A3"));
+    f.push(R(590,prowTop,20,prowBase-prowTop,"#000",{opacity:.04}));
+    for(let i=1;i<23;i++){
+      const y=prowTop+(prowBase-prowTop)*i/23;
+      f.push(LN(590,y,610,y,{stroke:"#00000020","stroke-width":.8}));
+      f.push(R(594,y-9,12,7,C.dark,{opacity:.8}));
+    }
+    /* the great cornice */
+    f.push(PG([[600,prowTop],[352,sideTop],[352,sideTop-14],[600,prowTop-19]],
+      {fill:"#C6B9A8"}));
+    f.push(PG([[600,prowTop],[846,sideTop],[846,sideTop-14],[600,prowTop-19]],
+      {fill:"#B6A899"}));
+    /* the two-storey base, arcaded */
+    f.push(PG([[600,prowBase-72],[352,sideBase-58],[352,sideBase],[600,prowBase]],
+      {fill:"#8E8478"}));
+    f.push(PG([[600,prowBase-72],[846,sideBase-58],[846,sideBase],[600,prowBase]],
+      {fill:"#807769"}));
+    S.push(G(f.join("")));
+
+    /* --- decay -------------------------------------------------------------------- */
+    const d=[];
+    /* terracotta shed from the top floors, on both faces */
+    d.push(PG([[600,prowTop-19],[506,prowTop-6],[504,118],[600,100]],{fill:"#9C9084",opacity:.9}));
+    d.push(PG([[694,116],[800,140],[798,172],[692,148]],{fill:"#8E8377",opacity:.85}));
+    d.push(K.streaks(352,150,494,304,197,{n:26}));
+    d.push(K.ivy(352,330,248,150,199,{n:7}));
+    d.push(K.ivy(600,340,246,136,211,{n:5}));
+    d.push(K.rubble(452,486,190,213,{n:40,h:32}));
+    d.push(K.rubble(788,472,120,217,{n:22,h:18}));
+    d.push(K.cracksOn(352,180,494,270,223,10,"#7E7466"));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- the street --------------------------------------------------------------- */
+    /* the two roadways splitting round the prow */
+    S.push(LN(600,486,240,700,{stroke:"#83817A","stroke-width":2,opacity:.3}));
+    S.push(LN(600,486,980,700,{stroke:"#83817A","stroke-width":2,opacity:.3}));
+    /* a rank of cabs that never moved */
+    S.push(K.car(150,616,1.5,227,{col:"#8A7238"}));
+    S.push(K.car(320,566,1.2,229,{col:"#8A7238"}));
+    S.push(K.car(452,532,1,231,{col:"#7E6C3E"}));
+    S.push(K.car(900,590,1.4,233,{}));
+    S.push(K.lamp(1010,500,1.3,5));
+    S.push(K.trafficSignal(214,510,1.2,239,{hang:true}));
+    /* Madison Square, gone to scrub */
+    S.push(G(K.treeMass(-40,392,300,110,241,{n:16})+K.sapling(266,500,1.5,243)+
+      K.sapling(1084,512,1.7,247)+K.weedLine(251,492,20),{class:"decay"}));
+    S.push(G(K.figure(700,520,1.15,{col:"#34362F"})+K.figure(726,524,1.05,{col:"#3C3D37"}),{}));
+    S.push(G(K.birds(560,110,160,10,253,1),{class:"decay"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 6. WASHINGTON SQUARE ARCH                                                          */
+/* =================================================================================== */
+SCENES["washington-arch"]={
+  name:"Washington Square Arch",
+  sub:"WASHINGTON SQ N AT FIFTH AV · MANHATTAN · LOOKING NORTH",
+  mark:"Washington Square Arch", disp:"STANDING",
+  cap:"The arch is sound. The park around it is thirteen acres of worked soil — the "+
+      "largest cultivated ground below Fifty-ninth Street — and the fountain basin has "+
+      "been given over to reeds and rainwater. Fifth Avenue begins on the far side and goes nowhere.",
+  draw(){
+    const hz=470, S=[];
+    S.push(K.sky({seed:43,cloud:.45}));
+    S.push(K.skyline(71,{base:hz-30,max:190,fill:"#8B9296",count:12}));
+    S.push(G(K.treeMass(-60,330,300,150,73,{n:20})+K.treeMass(900,326,360,154,79,{n:22})));
+    S.push(K.haze(310,180));
+    S.push(K.ground({horizon:hz,vp:600,seed:41,fill:"#75705F",cracks:14,pot:4,weeds:false}));
+
+    /* --- the arch ----------------------------------------------------------------- */
+    const a=[];
+    a.push(K.stone(452,438,296,32,C.stoneD,{course:false}));
+    a.push(K.stone(462,236,90,206,"#DAD5C6",{course:18}));
+    a.push(K.stone(648,236,90,206,"#DAD5C6",{course:18}));
+    a.push(PT(K.archPath(600,318,46,442),{fill:"#2C2E30"}));
+    a.push(PT(K.archPath(600,318,46,442),{fill:"#000",opacity:.3}));
+    a.push(K.voussoirs(600,318,46,11));
+    /* spandrel figures */
+    a.push(G(winged(536,300,.5,{col:"#B9B2A0"})+winged(664,300,.5,{col:"#B9B2A0"}),
+      {opacity:.85}));
+    /* the two statues in their niches */
+    [[494,438],[706,438]].forEach(p=>{
+      a.push(R(p[0]-22,p[1]-96,44,96,"#C8C2B2"));
+      a.push(R(p[0]-22,p[1]-96,44,10,"#D8D2C2"));
+      a.push(K.figure(p[0],p[1]-8,1.5,{col:"#B4AD9B"}));
+    });
+    a.push(K.cornice(444,220,312,16,"#E0DBCC"));
+    a.push(K.stone(456,172,288,48,"#DAD5C6",{course:20}));
+    a.push(TX(600,204,"LET US RAISE A STANDARD",{"text-anchor":"middle","font-size":11,
+      fill:"#8E8877","font-family":"var(--mono)","letter-spacing":".12em",opacity:.7}));
+    a.push(K.cornice(440,154,320,18,"#E4DFD0"));
+    a.push(K.stone(470,138,260,18,"#D6D1C2",{course:false}));
+    const TR="translate(600 470) scale(1.18) translate(-600 -470)";
+    S.push(G(a.join(""),{transform:TR}));
+
+    const d=[];
+    d.push(K.streaks(456,172,288,268,257,{n:20,col:"#4A4438"}));
+    d.push(K.cracksOn(462,240,90,200,259,6,"#9E9686"));
+    d.push(K.cracksOn(648,240,90,200,263,6,"#9E9686"));
+    d.push(K.ivy(648,300,90,142,269,{n:5}));
+    d.push(PG([[440,154],[510,154],[506,172],[444,172]],{fill:C.skyMid}));
+    d.push(K.rubble(478,470,90,271,{n:20,h:16}));
+    d.push(K.sapling(560,150,.7,277));
+    S.push(G(d.join(""),{class:"decay",transform:TR}));
+
+    /* --- the park under cultivation ----------------------------------------------- */
+    const p=[];
+    for(let i=0;i<9;i++){
+      const y=486+i*22, spread=1+i*.28;
+      p.push(LN(600-360*spread,y+5,600+360*spread,y+5,{stroke:"#5E5442",
+        "stroke-width":3+i*.7,opacity:.5}));
+      p.push(LN(600-360*spread,y,600+360*spread,y,{stroke:"#6E7A4A","stroke-width":2+i*.5,
+        opacity:.6}));
+      for(let j=0;j<26;j++)
+        p.push(K.grass(600-340*spread+j*(680*spread/26),y+2,.4+i*.12,rng(281+i*10+j)));
+    }
+    S.push(G(p.join(""),{class:"decay"}));
+    /* the fountain basin, full of reeds */
+    S.push(EL(600,600,196,54,{fill:"#7E7A6C"}));
+    S.push(EL(600,600,178,44,{fill:C.water,opacity:.85}));
+    S.push(G(K.grass(520,592,1.8,rng(293))+K.grass(600,586,2,rng(297))+
+      K.grass(676,594,1.7,rng(307))+K.grass(560,606,1.5,rng(311)),{class:"decay"}));
+    S.push(K.figure(300,540,1.4,{col:"#33352F"}));
+    S.push(K.figure(332,548,1.3,{col:"#3C3D37"}));
+    S.push(K.figure(958,560,1.5,{col:"#35362F"}));
+    S.push(G(K.birds(760,140,120,7,313,1),{class:"decay"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 7. GRAND CENTRAL TERMINAL — 42ND STREET FACADE                                     */
+/* =================================================================================== */
+SCENES["grand-central"]={
+  name:"Grand Central Terminal",
+  sub:"E 42 ST AT PARK AV · MANHATTAN · LOOKING NORTH",
+  mark:"Grand Central Terminal", disp:"FLOODED",
+  cap:"Water comes out of the terminal, not into it: the lower loops fill from the "+
+      "Lexington trunk and discharge across Forty-second Street at a steady rate the "+
+      "survey has not been able to account for. The concourse above is dry and empty.",
+  draw(){
+    const hz=476, S=[];
+    S.push(K.sky({seed:53,cloud:.5}));
+    /* the tower that was built over the terminal */
+    S.push(R(430,44,340,158,"#7E8286"));
+    S.push(K.windows(444,58,312,130,14,6,317,{broken:.3}));
+    S.push(K.skyline(81,{base:hz-60,max:230,fill:"#868D91",count:12}));
+    S.push(K.haze(260,210));
+
+    /* --- the facade --------------------------------------------------------------- */
+    const f=[];
+    f.push(K.stone(280,200,640,276,"#C2BBA8",{course:22}));
+    /* three great arched windows */
+    [400,600,800].forEach((cx,i)=>{
+      f.push(PT(K.archPath(cx,300,74,418),{fill:"#D0C9B6"}));
+      f.push(PT(K.archPath(cx,304,66,412),{fill:"#23262A"}));
+      /* the steel tracery */
+      for(let j=1;j<6;j++) f.push(LN(cx-66+j*22,238,cx-66+j*22,412,
+        {stroke:"#6E7276","stroke-width":2,opacity:.75}));
+      for(let j=1;j<5;j++) f.push(LN(cx-66,304+j*26,cx+66,304+j*26,
+        {stroke:"#6E7276","stroke-width":1.6,opacity:.7}));
+      f.push(G(PT(K.archPath(cx,304,66,412),{fill:"#9EAFB4",opacity:.55}),{class:"intact"}));
+      f.push(K.voussoirs(cx,300,74,13));
+    });
+    /* the paired columns between them */
+    f.push(K.colonnade(492,516,476,236,2,22,{tone:"#CCC5B2",capTone:"#D8D1BE"}));
+    f.push(K.colonnade(688,712,476,236,2,22,{tone:"#CCC5B2",capTone:"#D8D1BE"}));
+    f.push(K.column(304,476,236,24,{tone:"#CCC5B2"}));
+    f.push(K.column(896,476,236,24,{tone:"#CCC5B2"}));
+    /* attic, and the sculpture group with the clock */
+    f.push(K.cornice(268,178,664,22,"#CEC7B4"));
+    f.push(K.stone(300,140,600,40,"#C6BFAC",{course:false}));
+    const cl=[];
+    cl.push(EL(600,152,44,44,{fill:"#D6CFBC",stroke:"#8E8877","stroke-width":2}));
+    cl.push(EL(600,152,34,34,{fill:"#B9B2A0"}));
+    cl.push(LN(600,152,600,130,{stroke:"#3A3B38","stroke-width":2.4}));
+    cl.push(LN(600,152,616,160,{stroke:"#3A3B38","stroke-width":2}));
+    cl.push(K.figure(548,168,2,{col:"#B4AD9B"}));
+    cl.push(K.figure(654,168,2,{col:"#B4AD9B"}));
+    cl.push(winged(600,118,1,{col:"#BEB7A5",arm:true}));
+    f.push(G(cl.join("")));
+    /* the doors, at street level */
+    for(let i=0;i<5;i++) f.push(R(352+i*112,410,64,66,"#2E3134"));
+    S.push(G(f.join("")));
+
+    const d=[];
+    d.push(K.streaks(280,200,640,276,319,{n:30,col:"#4A4438"}));
+    d.push(K.cracksOn(280,220,640,250,323,12,"#8E8676"));
+    d.push(K.ivy(280,340,640,136,331,{n:11}));
+    d.push(K.sapling(330,178,1,337)); d.push(K.sapling(866,178,1.2,347));
+    /* the clock, cracked */
+    d.push(LN(576,132,624,176,{stroke:"#5E5C56","stroke-width":1.4,opacity:.9}));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- 42nd Street, and the outfall --------------------------------------------- */
+    S.push(K.ground({horizon:hz,vp:600,seed:59,fill:"#63615B",cracks:20,pot:8,weeds:false}));
+    /* the Park Avenue viaduct, one span down */
+    S.push(G(PG([[80,404],[268,404],[268,432],[80,440]],{fill:"#7A756B"})+
+      PG([[932,404],[1128,404],[1128,440],[932,432]],{fill:"#726D64"})+
+      K.column(140,476,432,26,{tone:"#6E6960"})+K.column(1064,476,432,26,{tone:"#6E6960"}),{}));
+    S.push(G(PG([[268,404],[356,414],[352,446],[268,432]],{fill:"#6E6960",opacity:.001})+
+      K.rubble(300,494,180,349,{n:34,h:30})+
+      LN(268,410,344,452,{stroke:C.rust,"stroke-width":2,opacity:.8})+
+      LN(268,420,338,466,{stroke:C.rust,"stroke-width":1.6,opacity:.7}),{class:"decay"}));
+    /* water running out of the doors and down the street */
+    S.push(G(K.flood(534,353,{opacity:.8,reflect:true})+
+      PG([[352,470],[416,470],[470,700],[300,700]],{fill:C.waterL,opacity:.28})+
+      PG([[576,470],[640,470],[700,700],[520,700]],{fill:C.waterL,opacity:.24}),{class:"decay"}));
+    S.push(K.car(1020,600,1.5,359,{}));
+    S.push(K.busWreck(60,560,1.15,367));
+    S.push(K.trafficSignal(960,506,1.15,373,{hang:true}));
+    S.push(K.lamp(200,516,1.3,-5));
+    S.push(G(K.figure(760,512,1.1,{col:"#33352F"})+K.birds(460,120,150,9,379,1),{}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 8. TIMES SQUARE                                                                    */
+/* =================================================================================== */
+SCENES["times-square"]={
+  name:"Times Square",
+  sub:"BROADWAY AT W 45 ST · MANHATTAN · LOOKING SOUTH",
+  mark:"Times Square", disp:"STANDING",
+  cap:"Every surface here was a screen and every screen is out. The survey party recorded "+
+      "the sound level at the centre of the square and noted it as the quietest reading "+
+      "taken anywhere on the island, including the parks.",
+  draw(){
+    const hz=470, vp=596, S=[];
+    S.push(K.sky({seed:63,cloud:.6}));
+    S.push(K.skyline(91,{base:hz-90,max:250,fill:"#828A8E",count:10}));
+    S.push(K.haze(240,220));
+    S.push(K.ground({horizon:hz,vp:vp,seed:71,fill:"#67655F",cracks:26,pot:9}));
+    S.push(corridor(67,{hz:hz,vp:vp,n:5,f:.6,w:600,h:470,b:150}));
+
+    /* --- the wedge at the middle of the square ------------------------------------ */
+    const w=[];
+    w.push(PG([[520,120],[672,120],[672,470],[520,470]],{fill:"#6A665E"}));
+    w.push(PG([[520,120],[672,120],[672,140],[520,140]],{fill:"#7A766C"}));
+    for(let i=0;i<7;i++) w.push(K.deadSign(528,150+i*46,136,38,401+i,""));
+    w.push(R(590,72,8,50,C.metalD,{opacity:.9}));
+    w.push(EL(594,70,20,20,{fill:"#5E6266"}));
+    w.push(G(EL(594,70,20,20,{fill:"#C8CBC4",opacity:.7}),{class:"intact"}));
+    S.push(G(w.join("")));
+
+    /* --- the signage that is left ------------------------------------------------- */
+    const s=[];
+    s.push(K.deadSign(60,150,220,150,411,"")); 
+    s.push(K.deadSign(70,318,190,90,413,""));
+    s.push(K.deadSign(300,206,150,190,417,""));
+    s.push(K.deadSign(760,180,180,210,419,""));
+    s.push(K.deadSign(960,140,220,180,421,""));
+    s.push(K.deadSign(978,340,180,80,431,""));
+    S.push(G(s.join("")));
+    const d=[];
+    d.push(K.scaffold(300,206,150,190,433));
+    d.push(PG([[960,140],[1180,140],[1180,170],[1080,166],[960,182]],{fill:"#4E5256",opacity:.9}));
+    d.push(K.ivy(60,150,220,150,437,{n:5}));
+    d.push(K.ivy(760,180,180,212,439,{n:5}));
+    d.push(K.streaks(520,140,152,330,443,{n:16}));
+    d.push(K.sapling(560,124,1,449));
+    d.push(K.birds(400,110,180,16,457,1.1));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- the ground --------------------------------------------------------------- */
+    /* the red steps, which are still red */
+    S.push(G(PG([[780,470],[1060,470],[1100,560],[800,560]],{fill:"#8E3A34"})+
+      PG([[790,494],[1080,494],[1084,506],[794,506]],{fill:"#7A312C"})+
+      PG([[798,522],[1092,522],[1096,536],[802,536]],{fill:"#6E2C28"}),{}));
+    /* paper, in drifts */
+    const pr=rng(461); let paper="";
+    for(let i=0;i<90;i++){
+      const x=K.between(pr,-20,1220), y=K.between(pr,hz+8,700);
+      paper+=PG([[x,y],[x+K.between(pr,4,14),y-K.between(pr,1,5)],
+        [x+K.between(pr,6,16),y+K.between(pr,2,6)]],
+        {fill:"#D6D2C4",opacity:K.r2(K.between(pr,.2,.7))});
+    }
+    S.push(G(paper,{class:"decay"}));
+    S.push(K.car(120,584,1.4,463,{col:"#8A7238"}));
+    S.push(K.busWreck(360,542,1,467));
+    S.push(K.lamp(700,502,1.2,4));
+    S.push(K.figure(620,516,1.3,{col:"#33352F"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 9. THE BROOKLYN BRIDGE — MANHATTAN APPROACH                                        */
+/* =================================================================================== */
+SCENES["brooklyn-bridge"]={
+  name:"Brooklyn Bridge",
+  sub:"MANHATTAN APPROACH · PARK ROW · LOOKING EAST TO BROOKLYN",
+  mark:"Brooklyn Bridge", disp:"STANDING",
+  cap:"The towers and the main cables are sound. The deck is not: a forty-foot breach "+
+      "opened short of the Manhattan tower and has been bridged with timber and rope. "+
+      "One person at a time, on a still day, is the standing instruction.",
+  draw(){
+    const hz=430, S=[];
+    S.push(K.sky({seed:73,cloud:.55}));
+    S.push(K.skyline(101,{base:hz+6,max:180,fill:"#7F878B",count:14,x0:520}));
+    S.push(K.haze(250,190));
+    /* the river, risen */
+    S.push(K.flood(hz,467,{opacity:.9,reflect:true}));
+
+    /* --- the near tower ----------------------------------------------------------- */
+    function tower(cx,base,top,w,tone){
+      const t=[];
+      const h=base-top;
+      t.push(K.stone(cx-w/2,top,w,h,tone,{course:20}));
+      /* the two pointed openings */
+      [[-w*.24],[w*.24]].forEach(o=>{
+        const ax=cx+o[0], r=w*.16, spring=top+h*.34;
+        t.push(PT("M"+r2(ax-r)+" "+r2(base-8)+"L"+r2(ax-r)+" "+r2(spring)+
+          "L"+r2(ax)+" "+r2(spring-r*1.15)+"L"+r2(ax+r)+" "+r2(spring)+
+          "L"+r2(ax+r)+" "+r2(base-8)+"Z",{fill:"#2A2D30"}));
+      });
+      t.push(PG([[cx-w/2-8,top],[cx+w/2+8,top],[cx+w/2,top-12],[cx-w/2,top-12]],{fill:tone}));
+      return t.join("");
+    }
+    S.push(tower(360,470,84,150,"#A08A78"));
+    S.push(tower(898,432,196,74,"#8E7C6C"));
+    /* the cables */
+    const cab=[];
+    [[-1,0],[1,0]].forEach(()=>{});
+    cab.push(PT("M60 214 Q210 300 360 116",{fill:"none",stroke:"#4A4F52","stroke-width":4}));
+    cab.push(PT("M360 116 Q630 330 898 214",{fill:"none",stroke:"#4A4F52","stroke-width":4}));
+    cab.push(PT("M898 214 Q1050 290 1180 250",{fill:"none",stroke:"#4A4F52","stroke-width":3}));
+    cab.push(PT("M60 244 Q210 324 360 140",{fill:"none",stroke:"#565B5E","stroke-width":2.4}));
+    cab.push(PT("M360 140 Q630 348 898 236",{fill:"none",stroke:"#565B5E","stroke-width":2.4}));
+    /* the diagonal stays that make the web */
+    for(let i=1;i<14;i++){
+      const x=360+i*38;
+      cab.push(LN(360,126+i*4,x,404-i*6,{stroke:"#5A5F62","stroke-width":1,opacity:.6}));
+      cab.push(LN(360,126+i*4,360-i*22,404-i*2,{stroke:"#5A5F62","stroke-width":1,opacity:.5}));
+    }
+    /* suspenders */
+    for(let i=0;i<26;i++){
+      const t=i/26, x=360+t*538;
+      const cy=116+(1-Math.pow(2*t-1,2))*214 + t*98;
+      cab.push(LN(x,cy,x,404-t*4,{stroke:"#63686B","stroke-width":.9,opacity:.75}));
+    }
+    S.push(G(cab.join("")));
+
+    /* --- the deck ----------------------------------------------------------------- */
+    S.push(G(PG([[-20,462],[1220,398],[1220,414],[-20,486]],{fill:"#6E6A62"})+
+      PG([[-20,486],[1220,414],[1220,424],[-20,500]],{fill:"#5A574F"})+
+      /* the promenade rail */
+      LN(-20,452,1220,392,{stroke:"#55595C","stroke-width":2,opacity:.8}),{}));
+    const d=[];
+    /* the breach */
+    d.push(PG([[520,444],[660,436],[662,458],[520,466]],{fill:C.water,opacity:.95}));
+    d.push(LN(520,444,540,470,{stroke:C.rust,"stroke-width":2,opacity:.9}));
+    d.push(LN(560,440,572,468,{stroke:C.rust,"stroke-width":1.6,opacity:.85}));
+    d.push(LN(620,438,634,464,{stroke:C.rust,"stroke-width":1.8,opacity:.85}));
+    /* the timber that was laid across it */
+    d.push(PG([[516,438],[666,430],[666,438],[516,446]],{fill:"#6E5A42"}));
+    d.push(PG([[516,446],[666,438],[666,444],[516,452]],{fill:"#5E4C38"}));
+    for(let i=0;i<8;i++) d.push(LN(524+i*18,432,524+i*18,450,{stroke:"#4E3F2E",
+      "stroke-width":1.2,opacity:.8}));
+    /* snapped suspenders, hanging */
+    d.push(PT("M700 322 q6 44 -14 74",{fill:"none",stroke:"#63686B","stroke-width":1.2}));
+    d.push(PT("M778 344 q10 40 -8 66",{fill:"none",stroke:"#63686B","stroke-width":1.2}));
+    d.push(K.ivy(300,300,120,170,479,{n:5}));
+    d.push(K.sapling(360,84,1,487));
+    d.push(K.streaks(285,84,150,386,491,{n:14}));
+    d.push(K.birds(560,190,220,14,499,1.2));
+    S.push(G(d.join(""),{class:"decay"}));
+    /* a wreck under the span */
+    S.push(G(PG([[120,560],[300,548],[318,592],[104,600]],{fill:"#6E6960",opacity:.9})+
+      R(180,516,70,34,"#7A756B",{opacity:.9})+
+      PT("M250 516 l30 -40",{stroke:"#5A574F","stroke-width":3,fill:"none"}),{class:"decay"}));
+    S.push(K.figure(470,442,1.1,{col:"#33352F"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 10. ST PATRICK'S CATHEDRAL — FIFTH AVENUE                                          */
+/* =================================================================================== */
+SCENES["st-patricks"]={
+  name:"St. Patrick's Cathedral",
+  sub:"FIFTH AV AT E 50 ST · MANHATTAN · LOOKING WEST",
+  mark:"St. Patrick's Cathedral", disp:"STANDING",
+  cap:"The largest intact interior volume in Midtown, built to work without power and "+
+      "still working. The north spire lost its top forty feet and the marble came down "+
+      "across Fifth Avenue, where it remains.",
+  draw(){
+    const hz=474, S=[];
+    S.push(K.sky({seed:83,cloud:.5}));
+    /* the glass slabs of Midtown behind */
+    S.push(G(R(20,120,260,354,"#6E767A")+K.windows(30,132,240,330,10,16,503,{broken:.3})+
+      R(940,86,260,388,"#767E82")+K.windows(950,98,240,364,10,18,509,{broken:.28}),
+      {opacity:.95}));
+    S.push(K.haze(250,200));
+    S.push(K.ground({horizon:hz,vp:600,seed:79,fill:"#6B6960",cracks:20,pot:8}));
+    S.push(K.car(180,596,1.5,577,{}));
+
+    /* --- the cathedral ------------------------------------------------------------ */
+    const c=[];
+    /* nave gable */
+    c.push(PG([[430,470],[430,224],[600,150],[770,224],[770,470]],{fill:"#D6D0C0"}));
+    c.push(PG([[600,150],[770,224],[770,470],[600,470]],{fill:"#000",opacity:.06}));
+    /* rose window */
+    c.push(EL(600,268,54,54,{fill:"#C8C2B2"}));
+    c.push(EL(600,268,46,46,{fill:"#24272B"}));
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;
+      c.push(LN(600,268,600+Math.cos(a)*46,268+Math.sin(a)*46,
+        {stroke:"#7E827E","stroke-width":1.6,opacity:.8}));
+    }
+    c.push(G(EL(600,268,46,46,{fill:"#7E6A72",opacity:.65}),{class:"intact"}));
+    /* the three portals */
+    [[600,96],[494,64],[706,64]].forEach((p,i)=>{
+      const cx=p[0], w=p[1];
+      c.push(PT("M"+r2(cx-w/2)+" 470 L"+r2(cx-w/2)+" 386 L"+r2(cx)+" "+r2(386-w*.55)+
+        " L"+r2(cx+w/2)+" 386 L"+r2(cx+w/2)+" 470 Z",{fill:"#CFC9B9"}));
+      c.push(PT("M"+r2(cx-w/2+9)+" 470 L"+r2(cx-w/2+9)+" 390 L"+r2(cx)+" "+r2(392-w*.48)+
+        " L"+r2(cx+w/2-9)+" 390 L"+r2(cx+w/2-9)+" 470 Z",{fill:"#26292C"}));
+    });
+    /* the towers */
+    function spire(cx,baseY,topY,w,broken){
+      const t=[];
+      t.push(K.stone(cx-w/2,topY+60,w,baseY-topY-60,"#D2CCBC",{course:22}));
+      for(let i=0;i<3;i++) t.push(R(cx-w*.3,topY+96+i*54,w*.16,40,"#2E3134",{opacity:.85}));
+      for(let i=0;i<3;i++) t.push(R(cx+w*.14,topY+96+i*54,w*.16,40,"#2E3134",{opacity:.85}));
+      if(!broken){
+        t.push(PG([[cx-w*.56,topY+60],[cx+w*.56,topY+60],[cx,topY-96]],{fill:"#DAD4C4"}));
+        t.push(PG([[cx,topY+60],[cx+w*.56,topY+60],[cx,topY-96]],{fill:"#000",opacity:.08}));
+      } else {
+        t.push(PG([[cx-w*.56,topY+60],[cx+w*.56,topY+60],[cx+w*.2,topY-6],[cx-w*.28,topY+14]],
+          {fill:"#DAD4C4"}));
+        t.push(PG([[cx-w*.28,topY+14],[cx+w*.2,topY-6],[cx+w*.1,topY+16],[cx-w*.16,topY+30]],
+          {fill:"#9E9686"}));
+      }
+      return t.join("");
+    }
+    c.push(spire(432,470,150,96,false));
+    c.push(G(spire(768,470,150,96,false),{class:"intact"}));
+    c.push(G(spire(768,470,150,96,true),{class:"decay"}));
+    /* buttresses and the aisle roofs */
+    c.push(K.stone(390,330,44,140,"#CBC5B5",{course:24}));
+    c.push(K.stone(766,330,44,140,"#CBC5B5",{course:24}));
+    S.push(G(c.join("")));
+
+    const d=[];
+    d.push(K.streaks(430,224,340,246,521,{n:24,col:"#4A4438"}));
+    d.push(K.streaks(384,150,110,320,523,{n:12,col:"#4A4438"}));
+    d.push(K.cracksOn(430,240,340,220,541,10,"#9A9282"));
+    d.push(K.ivy(430,360,340,110,547,{n:8}));
+    d.push(K.rubble(840,486,220,557,{n:46,h:44}));
+    d.push(K.rubble(900,506,150,563,{n:26,h:26}));
+    d.push(K.sapling(404,332,.9,569));
+    d.push(K.birds(300,140,150,10,571,1));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    S.push(K.lamp(300,504,1.3,-4));
+    S.push(K.trafficSignal(1000,504,1.15,587,{hang:true}));
+    S.push(G(K.figure(600,512,1.2,{col:"#33352F"})+K.figure(636,516,1.1,{col:"#3A3B36"})+
+      K.figure(664,520,1.15,{col:"#35362F"}),{}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 11. NEW YORK PUBLIC LIBRARY — FIFTH AVENUE AT 42ND                                 */
+/* =================================================================================== */
+SCENES["nypl"]={
+  name:"New York Public Library",
+  sub:"FIFTH AV AT W 42 ST · MANHATTAN · LOOKING WEST",
+  mark:"New York Public Library", disp:"SEALED",
+  cap:"The stacks are dry. That single fact makes this building the highest recovery "+
+      "priority on the sheet. The doors are plated, the terrace is fenced, and one of "+
+      "the lions has gone over into the areaway and been left there.",
+  draw(){
+    const hz=478, S=[];
+    S.push(K.sky({seed:97,cloud:.45}));
+    S.push(K.skyline(107,{base:hz-60,max:220,fill:"#858C90",count:12}));
+    /* Bryant Park behind, under crops */
+    S.push(G(K.treeMass(760,300,460,120,109,{n:18}),{opacity:.9}));
+    S.push(K.haze(280,200));
+    S.push(K.ground({horizon:hz,vp:600,seed:89,fill:"#6B6960",cracks:18,pot:6}));
+    S.push(K.car(120,616,1.5,619,{}));
+
+    const b=[];
+    b.push(K.stone(230,196,740,238,"#D4CEBE",{course:22}));
+    /* the portico */
+    b.push(K.stone(360,178,480,20,"#DED8C8",{course:false}));
+    b.push(R(368,198,464,236,"#8E877A"));                       /* the portico, in shadow */
+    b.push(R(368,198,464,26,"#6E6A5E",{opacity:.7}));
+    b.push(K.colonnade(392,808,434,214,6,30,{tone:"#DCD6C6",capTone:"#E8E2D2"}));
+    for(let i=0;i<5;i++) b.push(R(410+i*88,300,52,132,"#2A2D30",{opacity:.9}));
+    b.push(K.cornice(214,158,772,22,"#DED8C8"));
+    b.push(K.stone(250,120,700,38,"#D0CABA",{course:false}));
+    b.push(TX(600,148,"THE CITY OF NEW YORK",{"text-anchor":"middle","font-size":13,
+      fill:"#8E8877","font-family":"var(--mono)","letter-spacing":".18em",opacity:.7}));
+    b.push(K.cornice(240,102,720,18,"#E2DCCC"));
+    /* end pavilions */
+    b.push(K.stone(230,140,130,294,"#CEC8B8",{course:24}));
+    b.push(K.stone(840,140,130,294,"#CEC8B8",{course:24}));
+    b.push(R(266,210,58,120,"#2A2D30",{opacity:.85}));
+    b.push(R(876,210,58,120,"#2A2D30",{opacity:.85}));
+    /* the terrace and its steps */
+    b.push(PG([[180,434],[1020,434],[1060,478],[140,478]],{fill:"#C6C0B0"}));
+    for(let i=1;i<5;i++) b.push(PG([[180-i*8,434+i*9],[1020+i*8,434+i*9],
+      [1020+i*9,438+i*9],[180-i*9,438+i*9]],{fill:"#BAB4A4"}));
+    S.push(G(b.join("")));
+
+    /* --- the lions: one on its pedestal, one in the areaway --------------------- */
+    function lion(x,y,s,o){
+      o=o||{}; const col=o.col||"#9A9280", d=o.flip?-1:1;
+      const X=a=>x+a*s*d, Y=b=>y+b*s;
+      let g=EL(X(-4),Y(-16),30*s,12*s,{fill:col});                /* the couched body */
+      g+=EL(X(-26),Y(-20),16*s,15*s,{fill:col});                  /* haunch */
+      g+=PT("M"+X(-40)+" "+Y(-18)+"q"+r2(-14*s*d)+" "+r2(10*s)+" "+r2(-4*s*d)+" "+r2(18*s),
+        {fill:"none",stroke:col,"stroke-width":r2(3.4*s),"stroke-linecap":"round"});
+      g+=R(X(-6),Y(-8),44*s*d,8*s,col);                           /* forelegs, out front */
+      g+=EL(X(38),Y(-6),8*s,5*s,{fill:col});
+      g+=EL(X(24),Y(-34),16*s,16*s,{fill:col});                   /* mane */
+      for(let i=0;i<9;i++){
+        const ang=i*Math.PI*2/9;
+        g+=EL(X(24+Math.cos(ang)*15),Y(-34+Math.sin(ang)*15),5*s,5*s,{fill:col});
+      }
+      g+=EL(X(34),Y(-36),10*s,8.5*s,{fill:col});                  /* head */
+      g+=PG([[X(30),Y(-45)],[X(33),Y(-52)],[X(37),Y(-44)]],{fill:col});
+      g+=EL(X(42),Y(-32),5*s,4*s,{fill:col});                     /* muzzle */
+      g+=EL(X(37),Y(-38),1.6*s,1.6*s,{fill:"#6E6858"});
+      g+=R(X(-34),Y(-4),74*s*d,5*s,col);                          /* the ledge it lies on */
+      return G(g,o.rot?{transform:"rotate("+o.rot+" "+r2(x)+" "+r2(y)+")"}:null);
+    }
+    S.push(R(232,478,84,48,"#B0A998"));
+    S.push(EL(274,478,34,6,{fill:"#00000026"}));
+    S.push(lion(274,478,1.05,{}));
+    S.push(R(884,478,84,48,"#B0A998"));
+    S.push(G(lion(926,478,1.05,{}),{class:"intact"}));
+    S.push(G(lion(1016,608,1.15,{rot:-74,col:"#8E8674"})+K.rubble(990,616,150,577,{n:22,h:14}),
+      {class:"decay"}));
+
+    const d=[];
+    d.push(K.streaks(230,196,740,238,587,{n:26,col:"#4A4438"}));
+    d.push(K.cracksOn(230,210,740,220,593,10,"#9A9282"));
+    d.push(K.ivy(230,340,740,94,599,{n:12}));
+    /* the doors, plated over */
+    for(let i=0;i<5;i++){
+      d.push(R(410+i*88,300,52,132,"#4A4F52",{opacity:.95}));
+      for(let j=0;j<4;j++) d.push(LN(410+i*88,314+j*34,462+i*88,314+j*34,
+        {stroke:"#5E6366","stroke-width":2,opacity:.9}));
+    }
+    d.push(TX(600,458,"SEALED — RECOVERY PRIORITY 1",{"text-anchor":"middle","font-size":11,
+      fill:"#7E7868","font-family":"var(--mono)","letter-spacing":".12em",opacity:.85}));
+    d.push(K.sapling(340,436,1,601)); d.push(K.sapling(870,438,1.2,607));
+    d.push(K.weedLine(613,480,20));
+    d.push(K.birds(700,150,140,9,617,1));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    S.push(K.lamp(200,520,1.25,-4));
+    S.push(K.figure(560,530,1.25,{col:"#33352F"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 12. LIBERTY ISLAND — UPPER BAY                                                     */
+/* =================================================================================== */
+SCENES["liberty"]={
+  name:"Statue of Liberty",
+  sub:"LIBERTY ISLAND · UPPER BAY · FROM THE WATER, LOOKING NORTH-EAST",
+  mark:"Statue of Liberty", disp:"STANDING",
+  cap:"Copper on an iron frame, on a granite pedestal, on a star fort, on a rock. The "+
+      "fort takes water at every spring tide and the landing stage is gone. The figure "+
+      "itself is exactly as it was. The torch has not been lit in twenty-six years.",
+  draw(){
+    const wl=562, S=[];
+    S.push(K.sky({seed:113,cloud:.45}));
+    S.push(K.skyline(127,{base:wl-16,max:104,fill:"#8A9195",count:16}));
+    S.push(K.haze(400,150));
+
+    /* --- the fort and the pedestal ------------------------------------------------ */
+    const p=[];
+    p.push(PG([[300,wl],[900,wl],[862,500],[338,500]],{fill:"#9E9686"}));
+    p.push(PG([[338,500],[862,500],[834,462],[366,462]],{fill:"#AAA292"}));
+    p.push(K.stone(470,300,260,162,"#B6AE9E",{course:22}));
+    p.push(K.stone(452,276,296,26,"#C0B8A8",{course:false}));
+    p.push(K.stone(486,462,228,38,"#ADA595",{course:false}));
+    for(let i=0;i<4;i++) p.push(K.column(496+i*70,462,318,15,{tone:"#B8B0A0"}));
+    p.push(R(566,414,68,48,"#3A3E42",{opacity:.9}));
+    S.push(G(p.join("")));
+
+    /* --- the figure --------------------------------------------------------------- */
+    const f=[], cu="#5F9080", sh="#4E7C6D", lt="#7EAB9B", bx=600;
+    /* the robe */
+    f.push(PT("M"+(bx-60)+" 300 L"+(bx-44)+" 178 Q"+(bx-42)+" 148 "+(bx-16)+" 142 "+
+      "L"+(bx+18)+" 142 Q"+(bx+42)+" 148 "+(bx+46)+" 178 L"+(bx+64)+" 300 "+
+      "Q"+bx+" 314 "+(bx-60)+" 300 Z",{fill:cu}));
+    f.push(PT("M"+(bx-60)+" 300 L"+(bx-44)+" 178 Q"+(bx-42)+" 148 "+(bx-16)+" 142 "+
+      "L"+(bx-8)+" 142 L"+(bx-22)+" 306 Z",{fill:sh}));
+    for(let i=0;i<8;i++)
+      f.push(PT("M"+(bx-36+i*12)+" 150 q"+((i-4)*2)+" 66 "+((i-4)*4)+" 152",
+        {fill:"none",stroke:sh,"stroke-width":1.7,opacity:.45}));
+    /* the head */
+    f.push(EL(bx+4,118,20,23,{fill:cu}));
+    f.push(EL(bx+12,118,11,20,{fill:lt,opacity:.4}));
+    f.push(R(bx-14,138,36,10,cu));
+    for(let i=0;i<7;i++){
+      const ang=-Math.PI*.95+i*Math.PI*.317;
+      f.push(PG([[bx+4+Math.cos(ang)*17,110+Math.sin(ang)*20],
+        [bx+4+Math.cos(ang)*46,110+Math.sin(ang)*52],
+        [bx+4+Math.cos(ang+.16)*17,110+Math.sin(ang+.16)*20]],{fill:cu}));
+    }
+    /* the raised arm and the torch */
+    f.push(PT("M"+(bx+30)+" 162 L"+(bx+84)+" 104",{stroke:cu,"stroke-width":21,fill:"none",
+      "stroke-linecap":"round"}));
+    f.push(PT("M"+(bx+30)+" 162 L"+(bx+84)+" 104",{stroke:lt,"stroke-width":7,fill:"none",
+      "stroke-linecap":"round",opacity:.4}));
+    f.push(PG([[bx+70,106],[bx+106,106],[bx+100,84],[bx+76,84]],{fill:"#8AA89C"}));
+    f.push(R(bx+76,70,24,16,cu));
+    f.push(G(PT("M"+(bx+88)+" 34 q22 22 12 38 q-12 12 -24 0 q-10 -16 12 -38Z",
+      {fill:"#F0D69A",opacity:.95})+EL(bx+88,62,30,26,{fill:"#F0D69A",opacity:.22}),
+      {class:"intact"}));
+    f.push(G(PT("M"+(bx+88)+" 42 q16 18 9 30 q-9 9 -18 0 q-7 -12 9 -30Z",
+      {fill:"#46524F",opacity:.95}),{class:"decay"}));
+    /* the left arm and the tablet */
+    f.push(PT("M"+(bx-30)+" 160 L"+(bx-40)+" 214",{stroke:cu,"stroke-width":17,fill:"none",
+      "stroke-linecap":"round"}));
+    f.push(PG([[bx-70,186],[bx-24,164],[bx-4,214],[bx-50,238]],{fill:"#7CA396"}));
+    f.push(PG([[bx-70,186],[bx-24,164],[bx-20,172],[bx-66,194]],{fill:lt,opacity:.55}));
+    for(let i=0;i<4;i++) f.push(LN(bx-62+i*4,196+i*10,bx-18+i*4,174+i*10,
+      {stroke:"#5F8A7E","stroke-width":1.2,opacity:.6}));
+    S.push(G(f.join("")));
+
+    const d=[];
+    d.push(K.streaks(470,300,260,162,619,{n:16,col:"#3E5E52"}));
+    d.push(K.streaks(bx-52,150,116,150,623,{n:10,col:"#4E7A6A"}));
+    d.push(K.ivy(300,494,600,68,631,{n:10}));
+    d.push(K.cracksOn(470,316,260,146,641,8,"#8A8272"));
+    d.push(K.birds(780,164,190,18,643,1.1));
+    d.push(K.birds(410,214,120,10,647,.9));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* --- the bay ------------------------------------------------------------------ */
+    S.push(K.flood(wl,653,{opacity:.92,reflect:true}));
+    S.push(G(R(300,wl,600,10,"#4E6570",{opacity:.6})+
+      PG([[276,wl],[320,wl],[312,580],[270,578]],{fill:"#8A8377",opacity:.5}),{class:"decay"}));
+    S.push(G(PG([[900,592],[1130,576],[1142,624],[896,634]],{fill:"#7A756B"})+
+      R(956,542,140,40,"#847E72")+R(966,550,120,16,"#2E3134",{opacity:.8})+
+      PT("M1096 542 l16 -34",{stroke:"#5A574F","stroke-width":4,fill:"none"})+
+      K.streaks(900,542,242,90,659,{col:C.rust,n:14}),{class:"decay"}));
+    S.push(PG([[150,632],[356,622],[344,660],[166,666]],{fill:"#5E5A50"}));
+    S.push(K.figure(226,628,1.25,{col:"#33352F"}));
+    S.push(K.figure(274,626,1.2,{col:"#3C3D37"}));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* =================================================================================== */
+/* 13. THE APOLLO — 125TH STREET                                                      */
+/* =================================================================================== */
+SCENES["apollo"]={
+  name:"Apollo Theater",
+  sub:"253 W 125 ST · HARLEM · LOOKING NORTH · DUSK",
+  mark:"Apollo Theater", disp:"OCCUPIED",
+  cap:"The marquee is dark and will stay dark. The house behind it is not: four hundred "+
+      "people were counted inside on the night the survey passed, by lamplight, and the "+
+      "sound carried to Frederick Douglass Boulevard.",
+  draw(){
+    const hz=474, S=[];
+    S.push(R(0,0,1200,700,"url(#svSky)"));
+    S.push(G(K.clouds(131),{opacity:.4}));
+    S.push(R(0,0,1200,700,"#2B3140",{opacity:.42}));            /* the light going */
+    S.push(R(0,300,1200,200,"#C9834A",{opacity:.16}));
+    S.push(K.skyline(137,{base:hz-40,max:150,fill:"#4E5257",count:14}));
+    S.push(K.haze(300,180));
+    S.push(K.ground({horizon:hz,vp:600,seed:139,fill:"#4E4C48",cracks:20,pot:8}));
+    /* the block: low brick, continuous, occupied */
+    const b=[];
+    b.push(R(0,232,470,242,"#5E4A3E"));
+    b.push(K.windows(16,248,438,206,9,5,653,{broken:.24,lit:"#E8A54B"}));
+    b.push(R(730,214,470,260,"#584438"));
+    b.push(K.windows(746,230,438,222,9,5,659,{broken:.24,lit:"#E8A54B"}));
+    b.push(K.cornice(-10,218,492,16,"#4A392F"));
+    b.push(K.cornice(720,200,492,16,"#463629"));
+    S.push(G(b.join("")));
+
+    /* --- the theatre -------------------------------------------------------------- */
+    const t=[];
+    t.push(R(466,186,270,288,"#6E5A4A"));
+    t.push(K.cornice(452,168,298,20,"#7A6452"));
+    /* the three arched windows over the entrance */
+    [520,600,680].forEach(cx=>{
+      t.push(PT(K.archPath(cx,258,26,326),{fill:"#3A2E26"}));
+      t.push(PT(K.archPath(cx,262,21,320),{fill:"#1E2226"}));
+      t.push(K.voussoirs(cx,258,26,7));
+    });
+    /* the marquee */
+    t.push(PG([[452,352],[750,352],[738,392],[464,392]],{fill:"#3E3A34"}));
+    t.push(PG([[452,352],[750,352],[750,362],[452,362]],{fill:"#4E4A42"}));
+    for(let i=0;i<22;i++) t.push(EL(468+i*13,372,4,4,{fill:"#5A5248"}));
+    t.push(G(""+[...Array(22)].map((_,i)=>EL(468+i*13,372,4.6,4.6,
+      {fill:"#F0D08A",opacity:.9})).join(""),{class:"intact"}));
+    /* the blade sign */
+    t.push(R(742,180,44,190,"#4E3A32"));
+    t.push(R(742,180,44,190,"#000",{opacity:.15}));
+    "APOLLO".split("").forEach((ch,i)=>
+      t.push(TX(764,214+i*28,ch,{"text-anchor":"middle","font-size":24,fill:"#8E7A5C",
+        "font-family":"var(--cond)","font-weight":"700",opacity:.9})));
+    t.push(G("APOLLO".split("").map((ch,i)=>TX(764,214+i*28,ch,{"text-anchor":"middle",
+      "font-size":24,fill:"#F0C46A","font-family":"var(--cond)","font-weight":"700"})).join(""),
+      {class:"intact"}));
+    /* the doors, open, with light behind them */
+    for(let i=0;i<4;i++){
+      t.push(R(500+i*54,398,40,76,"#241E1A"));
+      t.push(G(R(500+i*54,398,40,76,"#E8A54B",{opacity:.5}),{class:"decay"}));
+    }
+    S.push(G(t.join("")));
+
+    const d=[];
+    d.push(K.streaks(466,186,270,288,661,{n:16,col:"#3A2C22"}));
+    d.push(K.ivy(0,340,470,134,673,{n:6}));
+    d.push(K.ivy(730,340,470,134,677,{n:6}));
+    d.push(K.cracksOn(466,200,270,260,683,7,"#4E3E32"));
+    /* light spilling into the street */
+    d.push(PG([[500,398],[700,398],[820,700],[380,700]],{fill:"#E8A54B",opacity:.12}));
+    d.push(K.sapling(430,478,1.2,691));
+    d.push(K.sapling(772,480,1,701));
+    S.push(G(d.join(""),{class:"decay"}));
+
+    /* a crowd, which is the point of the plate */
+    const cr=rng(709); let crowd="";
+    for(let i=0;i<26;i++){
+      const x=K.between(cr,330,880), y=K.between(cr,492,560);
+      crowd+=K.figure(x,y,.9+(y-492)/70,{col:pick(cr,["#2A2C28","#33352F","#26282A"])});
+    }
+    S.push(G(crowd));
+    /* a fire drum */
+    S.push(G(R(940,520,34,44,"#4A423A")+EL(957,520,17,7,{fill:"#E8A54B",opacity:.9})+
+      EL(957,510,11,12,{fill:"#F0C46A",opacity:.6}),{class:"decay"}));
+    S.push(K.car(90,600,1.4,719,{}));
+    S.push(K.lamp(1040,500,1.3,5));
+    S.push(K.finish());
+    return S.join("");
+  }
+};
+
+/* ---- walks: the order the survey party covered them in --------------------------- */
+const ROUTES=[
+ {id:"fifth", name:"FIFTH AVENUE — WASHINGTON SQ TO MUSEUM MILE",
+  scenes:["washington-arch","flatiron","nypl","st-patricks","guggenheim"]},
+ {id:"midtown", name:"MIDTOWN CROSSTOWN — SEVENTH AV TO PARK AV",
+  scenes:["times-square","empire-34th","grand-central"]},
+ {id:"east", name:"THE EAST SIDE & THE BRIDGE — BOWERY TO GRAND ARMY PLAZA",
+  scenes:["new-museum","brooklyn-bridge","arch-brooklyn"]},
+ {id:"edge", name:"THE EDGES — UPPER BAY AND 125TH STREET",
+  scenes:["liberty","apollo"]}
+];
+
+NYC.scenes={SCENES,ROUTES,
+  routeOf(id){ return ROUTES.find(r=>r.scenes.indexOf(id)>=0)||ROUTES[0]; },
+  list(){ return Object.keys(SCENES).map(k=>Object.assign({id:k},SCENES[k])); }};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — the surveyor's own marks: dropped pins and bookmarked sites.
+   Held in localStorage where the browser allows it, in memory where it does not.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+const KEY="nyc2050.marks.v1";
+
+let mem=null, usable=true;
+function read(){
+  if(mem) return mem;
+  let raw=null;
+  try{ raw=localStorage.getItem(KEY); }catch(e){ usable=false; }
+  try{ mem=raw?JSON.parse(raw):null; }catch(e){ mem=null; }
+  if(!mem||typeof mem!=="object") mem={pins:[],stars:[]};
+  if(!Array.isArray(mem.pins)) mem.pins=[];
+  if(!Array.isArray(mem.stars)) mem.stars=[];
+  return mem;
+}
+const subs=[];
+function write(){
+  if(usable){ try{ localStorage.setItem(KEY,JSON.stringify(mem)); }
+    catch(e){ usable=false; } }
+  subs.forEach(f=>{ try{ f(mem); }catch(e){} });
+}
+const uid=()=>"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+const store={
+  get persistent(){ return usable; },
+  pins(){ return read().pins.slice(); },
+  stars(){ return read().stars.slice(); },
+  pin(id){ return read().pins.find(p=>p.id===id)||null; },
+  addPin(p){
+    const d=read();
+    const rec={id:uid(), name:(p.name||"Untitled mark").slice(0,60),
+      note:(p.note||"").slice(0,600), x:+p.x, y:+p.y, ts:Date.now()};
+    d.pins.push(rec); write(); return rec;
+  },
+  updatePin(id,patch){
+    const d=read(), p=d.pins.find(p=>p.id===id);
+    if(!p) return null;
+    if(patch.name!=null) p.name=String(patch.name).slice(0,60)||p.name;
+    if(patch.note!=null) p.note=String(patch.note).slice(0,600);
+    if(patch.x!=null) p.x=+patch.x;
+    if(patch.y!=null) p.y=+patch.y;
+    write(); return p;
+  },
+  removePin(id){
+    const d=read(), i=d.pins.findIndex(p=>p.id===id);
+    if(i<0) return false;
+    d.pins.splice(i,1); write(); return true;
+  },
+  isStarred(name){ return read().stars.indexOf(name)>=0; },
+  toggleStar(name){
+    const d=read(), i=d.stars.indexOf(name);
+    if(i>=0) d.stars.splice(i,1); else d.stars.push(name);
+    write(); return i<0;
+  },
+  clear(){ mem={pins:[],stars:[]}; write(); },
+  toJSON(){ return JSON.stringify(Object.assign({v:1},read()),null,2); },
+  fromJSON(txt){
+    let d; try{ d=JSON.parse(txt); }catch(e){ return {ok:false,err:"not valid JSON"}; }
+    if(!d||typeof d!=="object") return {ok:false,err:"not a mark file"};
+    const pins=Array.isArray(d.pins)?d.pins:[], stars=Array.isArray(d.stars)?d.stars:[];
+    const cur=read(), seen=new Set(cur.pins.map(p=>p.id));
+    let added=0;
+    pins.forEach(p=>{
+      if(typeof p.x!=="number"||typeof p.y!=="number") return;
+      const rec={id:seen.has(p.id)||!p.id?uid():p.id,
+        name:String(p.name||"Untitled mark").slice(0,60),
+        note:String(p.note||"").slice(0,600), x:p.x, y:p.y, ts:p.ts||Date.now()};
+      cur.pins.push(rec); seen.add(rec.id); added++;
+    });
+    stars.forEach(s=>{ if(typeof s==="string"&&cur.stars.indexOf(s)<0) cur.stars.push(s); });
+    write();
+    return {ok:true,added:added,stars:stars.length};
+  },
+  onChange(fn){ subs.push(fn); return ()=>{const i=subs.indexOf(fn); if(i>=0)subs.splice(i,1);}; }
+};
+NYC.store=store;
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — the street-view viewer. Draws a plate, walks the route it belongs to,
+   and cross-fades between the city as surveyed and the city as built.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+let el={}, cur=null, era="now", hooks={};
+
+function q(id){ return document.getElementById(id); }
+
+function init(o){
+  hooks=o||{};
+  el={ root:q("sv"), canvas:q("svCanvas"), name:q("svName"), sub:q("svSub"),
+       cap:q("svCap"), disp:q("svDisp"), route:q("svRoute"), era:q("svEra"),
+       prev:q("svPrev"), next:q("svNext"), eraBtn:q("svEraBtn"),
+       mapBtn:q("svMap"), markBtn:q("svMark"), close:q("svClose") };
+  el.close.onclick=close;
+  el.prev.onclick=()=>step(-1);
+  el.next.onclick=()=>step(1);
+  el.eraBtn.onclick=toggleEra;
+  el.mapBtn.onclick=()=>{ const s=NYC.scenes.SCENES[cur]; close();
+    hooks.onShowOnMap&&hooks.onShowOnMap(s.mark); };
+  el.markBtn.onclick=()=>{ const s=NYC.scenes.SCENES[cur];
+    hooks.onBookmark&&hooks.onBookmark(s.mark); paintMark(); };
+  addEventListener("keydown",e=>{
+    if(!isOpen()) return;
+    if(e.key==="Escape"){ close(); }
+    else if(e.key==="ArrowLeft"){ step(-1); }
+    else if(e.key==="ArrowRight"){ step(1); }
+    else if(e.key==="t"||e.key==="T"){ toggleEra(); }
+  });
+  /* a swipe walks the route on a phone */
+  let sx=null,sy=null;
+  el.canvas.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1) return; sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  },{passive:true});
+  el.canvas.addEventListener("touchend",e=>{
+    if(sx==null||!e.changedTouches.length) return;
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6) step(dx<0?1:-1);
+    sx=sy=null;
+  },{passive:true});
+}
+
+function isOpen(){ return el.root&&el.root.classList.contains("on"); }
+
+function paintMark(){
+  const s=NYC.scenes.SCENES[cur]; if(!s) return;
+  const on=hooks.isStarred&&hooks.isStarred(s.mark);
+  el.markBtn.textContent=on?"★ BOOKMARKED":"☆ BOOKMARK";
+  el.markBtn.classList.toggle("on",!!on);
+}
+
+function open(id){
+  const S=NYC.scenes.SCENES;
+  if(!S[id]) return false;
+  cur=id;
+  const s=S[id], route=NYC.scenes.routeOf(id), i=route.scenes.indexOf(id);
+  el.canvas.innerHTML=NYC.svkit.defs()+s.draw();
+  el.name.textContent=s.name;
+  el.sub.textContent=s.sub;
+  el.cap.textContent=s.cap;
+  el.disp.textContent=s.disp;
+  el.disp.style.background=NYC.map.DISP[s.disp]||"#2C2C2A";
+  el.route.textContent=route.name+"  ·  "+(i+1)+" / "+route.scenes.length;
+  el.prev.disabled=i<=0;
+  el.next.disabled=i>=route.scenes.length-1;
+  el.prev.textContent= i>0 ? "◀ "+S[route.scenes[i-1]].name.toUpperCase().slice(0,18) : "◀ START";
+  el.next.textContent= i<route.scenes.length-1
+    ? S[route.scenes[i+1]].name.toUpperCase().slice(0,18)+" ▶" : "END ▶";
+  paintMark();
+  setEra("now");
+  el.root.classList.add("on");
+  document.body.style.overflow="hidden";
+  return true;
+}
+function step(dir){
+  const route=NYC.scenes.routeOf(cur), i=route.scenes.indexOf(cur)+dir;
+  if(i<0||i>=route.scenes.length) return;
+  open(route.scenes[i]);
+}
+function setEra(e){
+  era=e;
+  el.root.classList.toggle("then",era==="then");
+  el.era.textContent = era==="then" ? "BEFORE — AS BUILT" : "2050 — AS SURVEYED";
+  el.eraBtn.textContent = era==="then" ? "SHOW 2050" : "SHOW BEFORE";
+  el.eraBtn.classList.toggle("on",era==="then");
+}
+function toggleEra(){ setEra(era==="then"?"now":"then"); }
+function close(){
+  el.root.classList.remove("on");
+  document.body.style.overflow="";
+  hooks.onClose&&hooks.onClose();
+}
+
+NYC.streetview={init,open,close,isOpen,step,toggleEra,get current(){return cur;}};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — application wiring: the sheet, the drawer, search, and the pin tools.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{}, S=NYC.store;
+const q=id=>document.getElementById(id);
+
+let map=null, sel=null, selPin=null, pinMode=false, editing=null, tab="views";
+
+/* ---- toast ------------------------------------------------------------------------ */
+let toastT=null;
+function toast(msg){
+  const t=q("toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2200);
+}
+
+/* ---- the info sheet --------------------------------------------------------------- */
+function closeSheet(){ q("sheet").classList.remove("on"); sel=selPin=null;
+  map&&map.clearHighlight(); }
+
+function showMark(m){
+  sel=m; selPin=null;
+  q("sNm").textContent=m.name;
+  const zone=(m.x>150&&m.y<700)||(m.x<-190)?"OUTER BOROUGH":NYC.map.bandOf(m.y);
+  q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y);
+  const c=q("sCode"); c.textContent=m.disp; c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A";
+  q("sNote").textContent=m.note||"No field note recorded.";
+  const acts=q("sActs"); acts.innerHTML="";
+  if(m.scene) acts.appendChild(btn("◉ STREET VIEW","pri",()=>NYC.streetview.open(m.scene)));
+  const starred=S.isStarred(m.name);
+  acts.appendChild(btn((starred?"★":"☆")+" BOOKMARK",starred?"on":"",()=>{
+    const on=S.toggleStar(m.name);
+    toast(on?"Bookmarked "+m.name:"Removed "+m.name);
+    showMark(m); refreshPins();
+  }));
+  acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(m.x,m.y,Math.max(map.scale,3))));
+  q("sheet").classList.add("on");
+  map.highlight(m.x,m.y);
+}
+function showPin(p){
+  selPin=p; sel=null;
+  q("sNm").textContent=p.name;
+  q("sMeta").textContent="DROPPED MARK · "+NYC.map.describe(p.x,p.y)+" · "+
+    NYC.map.gridRef(p.x,p.y);
+  const c=q("sCode"); c.textContent="OWN MARK"; c.style.background="var(--mark)";
+  q("sNote").textContent=p.note||"No note.";
+  const acts=q("sActs"); acts.innerHTML="";
+  acts.appendChild(btn("✎ EDIT","pri",()=>openEditor(p)));
+  acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(p.x,p.y,Math.max(map.scale,3))));
+  acts.appendChild(btn("✕ REMOVE","",()=>{
+    S.removePin(p.id); refreshPins(); closeSheet(); toast("Mark removed");
+  }));
+  q("sheet").classList.add("on");
+  map.highlight(p.x,p.y);
+}
+function btn(label,cls,fn){
+  const b=document.createElement("button");
+  b.textContent=label; if(cls) b.className=cls; b.onclick=fn; return b;
+}
+
+/* ---- the pin editor --------------------------------------------------------------- */
+function openEditor(p){
+  editing=p;
+  q("edTitle").textContent=p.isNew?"New mark":"Edit mark";
+  q("edLoc").textContent=NYC.map.describe(p.x,p.y)+" · "+NYC.map.gridRef(p.x,p.y);
+  q("edName").value=p.isNew?"":p.name;
+  q("edNote").value=p.note||"";
+  q("edDel").style.display=p.isNew?"none":"";
+  q("editor").classList.add("on"); q("scrim").classList.add("on");
+  setTimeout(()=>q("edName").focus(),30);
+}
+function closeEditor(commit){
+  const p=editing; editing=null;
+  q("editor").classList.remove("on"); q("scrim").classList.remove("on");
+  if(!p) return;
+  if(!commit){ if(p.isNew) S.removePin(p.id); refreshPins(); return; }
+  const name=q("edName").value.trim()||"Mark "+NYC.map.gridRef(p.x,p.y).slice(3);
+  const rec=S.updatePin(p.id,{name:name,note:q("edNote").value.trim()});
+  refreshPins();
+  if(rec) showPin(rec);
+  toast(p.isNew?"Mark dropped — "+name:"Mark saved");
+}
+
+/* ---- pins on the sheet ------------------------------------------------------------ */
+function refreshPins(){
+  map.renderPins(S.pins(),S.stars());
+  const n=S.pins().length+S.stars().length;
+  const b=q("pinCount"); b.textContent=n; b.classList.toggle("on",n>0);
+  if(tab==="marks") paintDrawer();
+}
+
+/* ---- the drawer ------------------------------------------------------------------- */
+function paintDrawer(){
+  const body=q("drawerBody"); body.innerHTML="";
+  q("tabViews").setAttribute("aria-selected",tab==="views");
+  q("tabMarks").setAttribute("aria-selected",tab==="marks");
+  q("drawerTitle").textContent = tab==="views"?"Street-view plates":"Your marks";
+  q("drawerFoot").style.display = tab==="marks"?"":"none";
+
+  if(tab==="views"){
+    NYC.scenes.ROUTES.forEach(r=>{
+      const h=document.createElement("div");
+      h.className="rm"; h.style.margin="12px 2px 6px"; h.textContent=r.name;
+      body.appendChild(h);
+      r.scenes.forEach(id=>{
+        const s=NYC.scenes.SCENES[id];
+        const row=document.createElement("div"); row.className="row";
+        row.innerHTML='<div class="rn"><span class="dot" style="background:'+
+          (NYC.map.DISP[s.disp]||"#2C2C2A")+'"></span>'+esc(s.name)+'</div>'+
+          '<div class="rm">'+esc(s.sub)+'</div>';
+        row.onclick=()=>{ closeDrawer(); NYC.streetview.open(id); };
+        body.appendChild(row);
+      });
+    });
+    return;
+  }
+
+  const pins=S.pins().sort((a,b)=>b.ts-a.ts), stars=S.stars();
+  if(!pins.length&&!stars.length){
+    body.innerHTML='<div class="empty">No marks yet.<br><br>'+
+      'Press <b>PIN</b> on the control rail, then tap anywhere on the sheet to drop a '+
+      'mark of your own. Tap any surveyed site and press <b>BOOKMARK</b> to keep it here.'+
+      (S.persistent?"":"<br><br>Storage is unavailable in this browser — marks will be "+
+       "lost when the page is closed.")+'</div>';
+    return;
+  }
+  if(pins.length){
+    const h=document.createElement("div");
+    h.className="rm"; h.style.margin="4px 2px 6px"; h.textContent="DROPPED MARKS";
+    body.appendChild(h);
+  }
+  pins.forEach(p=>{
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML='<div class="rn"><span class="dot" style="background:var(--mark)"></span>'+
+      esc(p.name)+'</div><div class="rm">'+esc(NYC.map.describe(p.x,p.y))+' · '+
+      NYC.map.gridRef(p.x,p.y)+'</div>'+
+      (p.note?'<div class="rnote">'+esc(p.note)+'</div>':'');
+    const ed=document.createElement("button");
+    ed.className="rv"; ed.textContent="✎"; ed.title="Edit";
+    ed.onclick=e=>{e.stopPropagation(); closeDrawer(); openEditor(p);};
+    const del=document.createElement("button");
+    del.className="rx"; del.textContent="✕"; del.title="Remove";
+    del.onclick=e=>{e.stopPropagation(); S.removePin(p.id); refreshPins(); toast("Mark removed");};
+    row.appendChild(ed); row.appendChild(del);
+    row.onclick=()=>{ closeDrawer(); map.flyTo(p.x,p.y,3.2); showPin(p); };
+    body.appendChild(row);
+  });
+  if(stars.length){
+    const h=document.createElement("div");
+    h.className="rm"; h.style.margin="14px 2px 6px"; h.textContent="BOOKMARKED SITES";
+    body.appendChild(h);
+  }
+  stars.forEach(nm=>{
+    const m=map.markByName(nm); if(!m) return;
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML='<div class="rn"><span class="dot" style="background:'+
+      (NYC.map.DISP[m.disp]||"#2C2C2A")+'"></span>'+esc(m.name)+'</div>'+
+      '<div class="rm">'+esc(m.disp+" · "+NYC.map.describe(m.x,m.y))+'</div>';
+    if(m.scene){
+      const v=document.createElement("button");
+      v.className="rv"; v.textContent="◉"; v.title="Street view";
+      v.onclick=e=>{e.stopPropagation(); closeDrawer(); NYC.streetview.open(m.scene);};
+      row.appendChild(v);
+    }
+    const del=document.createElement("button");
+    del.className="rx"; del.textContent="✕"; del.title="Remove bookmark";
+    del.onclick=e=>{e.stopPropagation(); S.toggleStar(nm); refreshPins(); toast("Bookmark removed");};
+    row.appendChild(del);
+    row.onclick=()=>{ closeDrawer(); map.flyTo(m.x,m.y,3.2); showMark(m); };
+    body.appendChild(row);
+  });
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
+  ">":"&gt;",'"':"&quot;"}[c])); }
+function openDrawer(t){ if(t) tab=t; paintDrawer();
+  q("drawer").classList.add("on"); q("listBtn").setAttribute("aria-pressed","true"); }
+function closeDrawer(){ q("drawer").classList.remove("on");
+  q("listBtn").setAttribute("aria-pressed","false"); }
+
+/* ---- search ----------------------------------------------------------------------- */
+let results=[], cursor=-1;
+function search(term){
+  const box=q("results"), t=term.trim().toLowerCase();
+  results=[]; cursor=-1;
+  if(t.length<2){ box.classList.remove("on"); box.innerHTML=""; return; }
+  const seen=new Set(), hits=[];
+  map.marks.forEach(m=>{
+    const i=m.name.toLowerCase().indexOf(t);
+    if(i<0||seen.has(m.name)) return;
+    seen.add(m.name);
+    /* a plate, then an exact opening match, then the shorter name */
+    hits.push({m:m,rank:(i===0?0:2)+(m.scene?0:1)+m.name.length/500});
+  });
+  hits.sort((a,b)=>a.rank-b.rank);
+  hits.slice(0,14).forEach(h=>results.push({kind:"mark",m:h.m}));
+  S.pins().forEach(p=>{
+    if(results.length>=18) return;
+    if(p.name.toLowerCase().indexOf(t)>=0) results.push({kind:"pin",p:p});
+  });
+  box.innerHTML="";
+  if(!results.length){
+    box.innerHTML='<button disabled style="color:var(--muted)">Nothing on the sheet '+
+      'matches that.</button>';
+    box.classList.add("on"); return;
+  }
+  results.forEach((r,i)=>{
+    const b=document.createElement("button");
+    if(r.kind==="mark"){
+      b.innerHTML=esc(r.m.name)+'<span class="sub">'+esc(r.m.disp+" · "+
+        NYC.map.describe(r.m.x,r.m.y))+(r.m.scene?" · STREET VIEW":"")+'</span>';
+      b.onclick=()=>{ pickResult(i); };
+    } else {
+      b.innerHTML='◆ '+esc(r.p.name)+'<span class="sub">OWN MARK · '+
+        esc(NYC.map.describe(r.p.x,r.p.y))+'</span>';
+      b.onclick=()=>{ pickResult(i); };
+    }
+    box.appendChild(b);
+  });
+  box.classList.add("on");
+}
+function pickResult(i){
+  const r=results[i]; if(!r) return;
+  q("results").classList.remove("on");
+  q("search").blur();
+  if(r.kind==="mark"){ map.flyTo(r.m.x,r.m.y,3.4); showMark(r.m); }
+  else { map.flyTo(r.p.x,r.p.y,3.4); showPin(r.p); }
+}
+function moveCursor(d){
+  const box=q("results"); if(!box.classList.contains("on")||!results.length) return;
+  cursor=Math.max(0,Math.min(results.length-1,cursor+d));
+  [...box.children].forEach((b,i)=>b.classList.toggle("sel",i===cursor));
+  const n=box.children[cursor]; n&&n.scrollIntoView({block:"nearest"});
+}
+
+/* ---- boot -------------------------------------------------------------------------- */
+function boot(){
+  map=NYC.map.init({
+    svg:q("map"), stage:q("stage"),
+    onMark:m=>{ pinMode&&setPinMode(false); showMark(m); },
+    onPin:p=>{ showPin(p); },
+    onGround:(g,e)=>{
+      if(pinMode){
+        const rec=S.addPin({x:g[0],y:g[1],name:"",note:""});
+        refreshPins();
+        rec.isNew=true; openEditor(rec);
+        setPinMode(false);
+      } else closeSheet();
+    }
+  });
+  NYC.streetview.init({
+    onShowOnMap:name=>{ const m=map.markByName(name);
+      if(m){ map.flyTo(m.x,m.y,3.4); showMark(m); } },
+    onBookmark:name=>{ const on=S.toggleStar(name); refreshPins();
+      toast(on?"Bookmarked "+name:"Removed "+name); },
+    isStarred:name=>S.isStarred(name)
+  });
+  NYC.mapView=map;            /* exposed for tooling and the console */
+  refreshPins();
+
+  /* controls */
+  q("closeSheet").onclick=closeSheet;
+  q("keyBtn").onclick=()=>{ const on=q("key").classList.toggle("on");
+    q("keyBtn").setAttribute("aria-pressed",on); };
+  q("covBtn").onclick=()=>{ const on=q("covBtn").getAttribute("aria-pressed")!=="true";
+    q("covBtn").setAttribute("aria-pressed",on); map.setCoverage(on); };
+  q("thruBtn").onclick=()=>{ const on=q("thruBtn").getAttribute("aria-pressed")!=="true";
+    q("thruBtn").setAttribute("aria-pressed",on); map.setThoroughfares(on); };
+  q("pinBtn").onclick=()=>setPinMode(!pinMode);
+  q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
+  q("zin").onclick=()=>map.zoomAt(1.45,innerWidth/2,innerHeight/2);
+  q("zout").onclick=()=>map.zoomAt(1/1.45,innerWidth/2,innerHeight/2);
+  q("rst").onclick=()=>{ map.fit(); closeSheet(); };
+  q("drawerClose").onclick=closeDrawer;
+  q("tabViews").onclick=()=>{ tab="views"; paintDrawer(); };
+  q("tabMarks").onclick=()=>{ tab="marks"; paintDrawer(); };
+  q("scrim").onclick=()=>closeEditor(false);
+  q("edSave").onclick=()=>closeEditor(true);
+  q("edCancel").onclick=()=>closeEditor(false);
+  q("edDel").onclick=()=>{ const p=editing; closeEditor(false);
+    if(p){ S.removePin(p.id); refreshPins(); closeSheet(); toast("Mark removed"); } };
+  q("edName").addEventListener("keydown",e=>{ if(e.key==="Enter") closeEditor(true); });
+
+  /* the marks file */
+  q("mkCopy").onclick=()=>{
+    const txt=S.toJSON();
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(txt).then(()=>toast("Marks copied to the clipboard"),
+        ()=>toast("Copy failed — see the console")) ;
+    else { console.log(txt); toast("Marks written to the console"); }
+  };
+  q("mkPaste").onclick=()=>{
+    const txt=prompt("Paste a marks file:");
+    if(!txt) return;
+    const r=S.fromJSON(txt);
+    if(!r.ok) toast("Could not read that: "+r.err);
+    else { refreshPins(); toast("Added "+r.added+" mark"+(r.added===1?"":"s")); }
+  };
+  q("mkClear").onclick=()=>{
+    if(!confirm("Remove every dropped mark and bookmark? This cannot be undone.")) return;
+    S.clear(); refreshPins(); paintDrawer(); toast("All marks cleared");
+  };
+
+  /* search */
+  const box=q("search");
+  box.addEventListener("input",()=>{
+    q("srch").classList.toggle("has",box.value.length>0);
+    search(box.value);
+  });
+  box.addEventListener("keydown",e=>{
+    if(e.key==="ArrowDown"){ e.preventDefault(); moveCursor(1); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); moveCursor(-1); }
+    else if(e.key==="Enter"){ pickResult(cursor<0?0:cursor); }
+    else if(e.key==="Escape"){ box.value=""; search(""); box.blur();
+      q("srch").classList.remove("has"); }
+  });
+  q("searchClear").onclick=()=>{ box.value=""; search(""); box.focus();
+    q("srch").classList.remove("has"); };
+  document.addEventListener("click",e=>{
+    if(!q("srch").contains(e.target)) q("results").classList.remove("on");
+  });
+
+  /* keyboard */
+  addEventListener("keydown",e=>{
+    if(NYC.streetview.isOpen()) return;
+    const tag=(e.target.tagName||"").toLowerCase();
+    if(tag==="input"||tag==="textarea") return;
+    if(e.key==="/"){ e.preventDefault(); q("search").focus(); }
+    else if(e.key==="p"||e.key==="P"){ setPinMode(!pinMode); }
+    else if(e.key==="b"||e.key==="B"){ q("drawer").classList.contains("on")?
+      closeDrawer():openDrawer("marks"); }
+    else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
+    else if(e.key==="Escape"){
+      if(q("editor").classList.contains("on")) closeEditor(false);
+      else if(q("drawer").classList.contains("on")) closeDrawer();
+      else if(pinMode) setPinMode(false);
+      else closeSheet();
+    }
+  });
+}
+function setPinMode(on){
+  pinMode=on;
+  q("pinBtn").setAttribute("aria-pressed",on?"true":"false");
+  q("stage").classList.toggle("pinning",on);
+  if(on) toast("Tap the sheet to drop a mark");
+}
+
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot);
+else boot();
+})();
+</script>
+</body>
+</html>

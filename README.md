@@ -1,2 +1,96 @@
-# NYC2050
-Drafting a map app that lets someone ‘walk through’ a dilapidated and post-apocalyptic New York City
+# NYC 2050
+
+A map app for walking through a New York that has been left to the water.
+
+The sheet is drawn as a survey document rather than a road map: Manhattan is
+banded by habitability, every logged site carries a *disposition* (flooded,
+collapsed, salvage, sealed, standing, occupied), and the ground the survey never
+covered is left hatched. Thirteen sites also have a **street-level plate** — a
+procedurally drawn view of the place as the survey found it, with a switch to
+see it as it was built.
+
+Open `index.html` in a browser. There is no build step, no server and no
+dependencies; `dist/nyc2050.html` is the same app inlined into a single file if
+you want to hand someone one thing.
+
+## What is in it
+
+**The sheet.** 302 logged sites across Manhattan, Brooklyn, Queens, the Bronx,
+the harbour islands and the Jersey shore. Named thoroughfares are drawn with
+their names riding the road: Flatbush and Atlantic and Eastern Parkway, Queens
+Boulevard and Northern Boulevard, the Grand Concourse and Fordham Road, the FDR
+and the Henry Hudson, Riverside Drive and St Nicholas Avenue, the pre-grid
+streets below Houston, and the crosstown streets that go by name rather than
+number. Drag to pan, pinch or scroll to zoom, tap anything to read its field
+note.
+
+**Street view.** Sites drawn with a ring on the sheet open a plate:
+
+| Plate | Where |
+| --- | --- |
+| Soldiers' and Sailors' Memorial Arch | Grand Army Plaza, Brooklyn |
+| New Museum | 235 Bowery |
+| Solomon R. Guggenheim Museum | Fifth Avenue at 89th |
+| Empire State Building | West 34th Street, looking east |
+| Flatiron Building | Fifth, Broadway and 23rd |
+| Washington Square Arch | Washington Square North |
+| Grand Central Terminal | East 42nd at Park |
+| Times Square | Broadway at 45th |
+| Brooklyn Bridge | the Manhattan approach |
+| St. Patrick's Cathedral | Fifth Avenue at 50th |
+| New York Public Library | Fifth Avenue at 42nd |
+| Statue of Liberty | Upper Bay, from the water |
+| Apollo Theater | 125th Street, at dusk |
+
+Plates are grouped into **walks** — Fifth Avenue from Washington Square to
+Museum Mile, the Midtown crosstown, the East Side and the bridge, the edges —
+and the arrows step along the walk you are on. **SHOW BEFORE** cross-fades the
+same drawing back to the city as built: the glass returns to the windows, the
+ivy and the rubble and the standing water go. Every plate is SVG generated at
+runtime from a kit of masonry, glazing, growth, water and wreck primitives. No
+photographs are used anywhere in this project.
+
+**Your own marks.** Press **PIN** and tap the sheet to drop a mark, name it and
+write a note; press **BOOKMARK** on any surveyed site to keep it. **LIST** opens
+the plates and your marks, and marks can be copied out and pasted back in as
+JSON. Everything is held in `localStorage` — nothing leaves the browser.
+
+Keys: `/` search · `P` pin · `B` marks · `K` key · in a plate `←` `→` walk,
+`T` then/now, `Esc` out.
+
+## Layout
+
+```
+index.html          the shell
+css/app.css         all styling
+js/data.js          geography, thoroughfares, 302 landmarks, scene links
+js/map.js           projection, sheet rendering, view state, place naming
+js/sv-kit.js        street-view drawing primitives
+js/sv-scenes.js     the thirteen plates and the walks
+js/pins.js          dropped marks and bookmarks (localStorage)
+js/streetview.js    the plate viewer
+js/app.js           wiring: sheet, drawer, search, pin tools
+build.js            inlines the above into dist/nyc2050.html
+legacy/             the original single-file demo, kept for reference
+```
+
+## The coordinate frame
+
+Everything in `data.js` is in **grid space**, the survey's working frame:
+
+* `x` runs cross-island, **Fifth Avenue is 0**, east positive
+* `y` runs along-island, **Houston Street is 0**, north positive
+* one street is 8 units, one avenue about 24, and a unit is roughly 33 feet
+
+`map.js` rotates that 29° east of north on draw, which is the angle the
+Manhattan grid actually sits at. `NYC.map.describe(x, y)` turns any point back
+into something a person can read — `MANHATTAN · W 34 ST nr 8 AV`,
+`BROOKLYN · nr EASTERN PKWY`, `EAST RIVER`.
+
+## Adding a plate
+
+Draw into a 1200 × 700 box with the ground near `y = 470`, put anything caused
+by the collapse in `G(..., {class:"decay"})` and anything that only existed
+before it in `G(..., {class:"intact"})` — the then/now switch does the rest.
+Then add the scene to `SCENES` in `js/sv-scenes.js`, list it in a walk, and
+point at it from `SCENE_OF` in `js/data.js` by the landmark's name.
