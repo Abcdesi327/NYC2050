@@ -1,0 +1,73 @@
+name: Preview on GitHub Pages
+
+# Publishes the survey sheet so the latest build can be looked at in a browser.
+# Runs on the default branch and on the feature branch, so a preview is available
+# before anything is merged. Pages serves whichever of them ran most recently.
+
+on:
+  push:
+    branches:
+      - main
+      - claude/nyc2050-map-app-features-912s9o
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes one still in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax-check every script
+        run: |
+          for f in build.js js/*.js; do
+            node --check "$f"
+          done
+
+      - name: Build the single-file version
+        run: node build.js
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r css js dist _site/
+          touch _site/.nojekyll
+          cat > _site/build.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF_NAME}",
+            "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          JSON
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
