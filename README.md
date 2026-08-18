@@ -19,6 +19,11 @@ The preview is rebuilt and redeployed by `.github/workflows/pages.yml` on every
 push to `main` or to the feature branch, and can be kicked off by hand from the
 Actions tab. `build.json` at the site root records the commit it was built from.
 
+One setting has to be turned on by hand before the first deploy can land, since
+a workflow token is not permitted to do it: **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. Re-run the workflow afterwards and the
+link above goes live.
+
 ## What is in it
 
 **The sheet.** 302 logged sites across Manhattan, Brooklyn, Queens, the Bronx,
