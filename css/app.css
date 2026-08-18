@@ -238,3 +238,106 @@ button{font-family:var(--cond);color:var(--ink)}
 #map .star{fill:var(--mark);stroke:var(--paper);stroke-width:.26em;paint-order:stroke}
 #map .sym{transform-box:fill-box;transform-origin:50% 50%;transform:scale(var(--symk,1))}
 #map .usym{transform-box:fill-box;transform-origin:50% 100%;transform:scale(var(--symk,1))}
+
+/* ---------- the projection console ------------------------------------------------ */
+#stage.picking{cursor:crosshair}
+#stage.picking::after{content:"";position:fixed;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 3px var(--z1);opacity:.5}
+
+.simp{position:fixed;top:0;left:0;bottom:0;width:min(354px,90vw);z-index:33;
+  background:var(--panel);border-right:1px solid var(--rule);backdrop-filter:blur(10px);
+  transform:translateX(-101%);transition:transform .22s ease;display:flex;
+  flex-direction:column}
+.simp.on{transform:none}
+.simp header{padding:12px 14px 10px;border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:8px}
+.simp header h2{margin:0;font-size:14px;font-weight:600;letter-spacing:.03em;flex:1}
+.simp header button{border:0;background:transparent;font-size:17px;color:var(--muted);
+  cursor:pointer;line-height:1;padding:2px 4px}
+.simp .body{flex:1;overflow:auto;padding:10px 13px 22px}
+
+.hgrid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.hgrid .ghead{width:100%;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);margin:6px 0 2px}
+.hgrid .ghead:first-child{margin-top:0}
+.chip{border:1px solid var(--rule);border-radius:7px;background:#fff;cursor:pointer;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;padding:6px 9px}
+.chip:hover{background:#F2F0E7}
+.chip[aria-pressed="true"]{background:var(--z1);color:#fff;border-color:var(--z1)}
+.simp .hname{margin:10px 0 3px;font-size:14px;font-weight:600}
+.simp .blurb{margin:0 0 12px;font-size:12px;line-height:1.5;color:#55554F}
+
+.prow{margin-bottom:11px}
+.prow label{display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--muted);
+  margin-bottom:3px}
+.prow label b{color:var(--ink);font-size:11px;letter-spacing:.02em}
+.prow input[type=range]{width:100%;accent-color:var(--z1);height:18px}
+
+.pointrow{display:flex;flex-direction:column;gap:5px;margin:12px 0}
+.pointrow button{height:30px;border:1px solid var(--rule);border-radius:8px;background:#fff;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;cursor:pointer}
+.pointrow button[aria-pressed="true"]{background:var(--z1);color:#fff;border-color:var(--z1)}
+.pointrow span{font-family:var(--mono);font-size:9.5px;color:var(--muted);line-height:1.5}
+button.run{width:100%;height:38px;border:1px solid var(--ink);border-radius:9px;
+  background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;cursor:pointer}
+button.run:hover{background:#3E3E3A}
+button.run:disabled{opacity:.5;cursor:default}
+
+.rep{margin-top:16px;border-top:1px solid var(--rule);padding-top:12px}
+.repnarr{font-size:12.5px;line-height:1.55;color:#3E3E3A;margin-bottom:12px}
+.bar{display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:6px}
+.legrow{display:flex;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:9px;
+  color:var(--muted);letter-spacing:.04em;margin-bottom:6px}
+.legrow i,.svc i,.worst i,.counts i{display:inline-block;width:8px;height:8px;
+  border-radius:2px;margin-right:4px;vertical-align:0}
+.rep h4{margin:14px 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);font-weight:600}
+.rep p{margin:0;font-size:12px;line-height:1.5;color:#4A4A45}
+.rep ul{list-style:none;margin:0;padding:0}
+.rep .svc li{display:flex;justify-content:space-between;font-size:11.5px;
+  padding:3px 0;border-bottom:1px dotted var(--rule)}
+.rep .svc li b{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em}
+.rep .svc li span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.rep .worst li{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 0}
+.rep .worst li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rep .worst li b{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;
+  color:var(--muted)}
+.rep .foot{margin-top:14px;font-family:var(--mono);font-size:9px;line-height:1.6;
+  color:var(--muted);border-top:1px solid var(--rule);padding-top:8px}
+
+/* ---------- the hour scrubber ------------------------------------------------------ */
+.timeline{position:fixed;left:50%;transform:translateX(-50%) translateY(140%);
+  bottom:14px;z-index:28;display:flex;align-items:center;gap:9px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+  padding:8px 12px;backdrop-filter:blur(8px);box-shadow:0 6px 20px rgba(44,44,42,.14);
+  transition:transform .22s ease;width:min(560px,calc(100vw - 130px));flex-wrap:wrap}
+.timeline.on{transform:translateX(-50%)}
+.timeline button{height:28px;min-width:30px;border:1px solid var(--rule);border-radius:7px;
+  background:#fff;cursor:pointer;font-size:11px;font-family:var(--mono)}
+.timeline button.txt{font-size:9px;letter-spacing:.06em}
+.timeline input[type=range]{flex:1;min-width:120px;accent-color:var(--z1)}
+.timeline .hh{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+  min-width:44px;text-align:center}
+.timeline .counts{font-family:var(--mono);font-size:10px;color:#4A4A45;
+  display:flex;align-items:center;gap:3px}
+.timeline .counts i{margin-left:5px}
+.timeline .log{width:100%;max-height:74px;overflow:auto;border-top:1px solid var(--rule);
+  padding-top:5px;margin-top:1px}
+.timeline .log:empty{display:none}
+.timeline .ev{font-size:11px;line-height:1.45;color:#4A4A45}
+.timeline .ev b{font-family:var(--mono);font-size:9px;color:var(--muted);margin-right:5px}
+.timeline .ev.loss{color:var(--z1)}
+.timeline .ev.hazard{color:#8A5A1A}
+.sheet .proj{margin-top:8px;padding-top:8px;border-top:1px dotted var(--rule);
+  font-family:var(--mono);font-size:10px;letter-spacing:.04em}
+.sheet .proj b{display:inline-block;padding:2px 6px;border-radius:4px;color:#fff;
+  font-size:9.5px;margin-right:6px}
+
+@media (max-width:620px){
+  .timeline{width:calc(100vw - 24px);left:12px;transform:translateY(140%);
+    bottom:70px}
+  .timeline.on{transform:none}
+  .simp{width:100vw}
+}

@@ -12,7 +12,7 @@
 <div class="hdr">
   <div class="ttl">
     <h1>NYC 2050 — Survey Sheet 2</h1>
-    <p>302 STATIONS LOGGED · 13 STREET-LEVEL PLATES · DRAG TO PAN, PINCH TO ZOOM</p>
+    <p>302 STATIONS · 13 STREET-LEVEL PLATES · 6 CONTINGENCY PROJECTIONS</p>
   </div>
   <div class="srch" id="srch">
     <input id="search" type="search" placeholder="Search the sheet  ( / )"
@@ -42,8 +42,12 @@
   <i style="background:#7A3E8F"></i>YOUR DROPPED MARKS<br>
   <span style="display:inline-block;width:11px;text-align:center;margin-right:6px;
     color:#7A3E8F">★</span>YOUR BOOKMARKS
+  <b>PROJECTION</b>
+  <i style="background:#6E1A1A"></i>LOST &nbsp;<i style="background:#8F2222"></i>CRITICAL<br>
+  <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
+  <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY &nbsp; S SIM<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -53,6 +57,7 @@
   <p class="meta" id="sMeta"></p>
   <span class="code" id="sCode"></span>
   <p class="note" id="sNote"></p>
+  <div class="proj" id="sProj" style="display:none"></div>
   <div class="acts" id="sActs"></div>
 </div>
 
@@ -63,6 +68,7 @@
   <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
   <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
     class="badge" id="pinCount">0</span></button>
+  <button id="simBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
   <button id="zin" aria-label="Zoom in">+</button>
   <button id="zout" aria-label="Zoom out">&minus;</button>
   <button id="rst" class="sm" aria-label="Reset view">RST</button>
@@ -83,6 +89,34 @@
     <button id="mkPaste">IMPORT</button>
     <button id="mkClear">CLEAR</button>
   </div>
+</div>
+
+<div class="simp" id="simPanel">
+  <header>
+    <h2>Contingency projection</h2>
+    <button id="simClose" aria-label="Close the console">&times;</button>
+  </header>
+  <div class="body">
+    <div class="hgrid" id="simHazards"></div>
+    <p class="hname" id="simName"></p>
+    <p class="blurb" id="simBlurb"></p>
+    <div id="simParams"></div>
+    <div class="pointrow" id="simPointRow">
+      <button id="simPick" aria-pressed="false">SET POINT</button>
+      <span id="simPointRef"></span>
+    </div>
+    <button id="simRun" class="run">RUN PROJECTION</button>
+    <div id="simReport"></div>
+  </div>
+</div>
+
+<div class="timeline" id="simTime">
+  <button id="simPlay" aria-label="Play the projection">&#9654;</button>
+  <input type="range" id="simScrub" min="0" max="24" value="24" aria-label="Hour">
+  <span class="hh" id="simHour">H+24</span>
+  <span class="counts" id="simCounts"></span>
+  <button id="simReset" class="txt">CLEAR</button>
+  <div class="log" id="simLog"></div>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -130,11 +164,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="js/data.js"></script>
+<script src="js/terrain.js"></script>
 <script src="js/map.js"></script>
 <script src="js/sv-kit.js"></script>
 <script src="js/sv-scenes.js"></script>
 <script src="js/pins.js"></script>
 <script src="js/streetview.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/sim-ui.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
