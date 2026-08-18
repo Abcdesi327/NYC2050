@@ -90,7 +90,7 @@ function init(opts){
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
   ["sea","land","band","cover","park","grid","thru","bway","shore","cross","thrulab",
-   "pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
+   "haz","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
   defs.innerHTML='<pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" '+
@@ -208,7 +208,7 @@ function init(opts){
     i, name:d[0], x:d[1], y:d[2], cat:d[3], disp:d[4], tier:d[5], note:d[6]||"",
     scene:D.SCENE_OF[d[0]]||null
   }));
-  const nodes=new Map();
+  const nodes=new Map(), shapes=new Map();
   marks.forEach(m=>{
     const [px,py]=P(m.x,m.y);
     const c=DISP[m.disp]||"#2C2C2A";
@@ -227,6 +227,7 @@ function init(opts){
     }
     sym.appendChild(el("circle",{cx:px,cy:py,r:13,fill:"transparent"}));
     g.appendChild(sym);
+    shapes.set(m.name,{node:sym.firstChild,base:c,text:null,g:g});
     const t=el("text",{x:px,y:py,dx:(m.cat==="District"?.62:.82)+"em",dy:".38em",
       "font-size":(m.cat==="District"?1.22:1)+"em",
       class:"mlab"+(m.cat==="District"?" dist":"")});
@@ -408,7 +409,66 @@ function init(opts){
   });
   addEventListener("resize",fit);
 
+  /* --- hazard overlay: the geometry a projection produces at one hour ----------- */
+  function clearHazard(){ while(L.haz.firstChild) L.haz.removeChild(L.haz.firstChild); }
+  function drawHazard(frame){
+    clearHazard();
+    if(!frame) return;
+    const add=n=>L.haz.appendChild(n);
+    const rectsPath=list=>list.map(r=>{
+      const a=P(r[0],r[1]), b=P(r[0]+r[2],r[1]), c=P(r[0]+r[2],r[1]+r[3]), d=P(r[0],r[1]+r[3]);
+      return "M"+a+"L"+b+"L"+c+"L"+d+"Z";
+    }).join("");
+    if(frame.burnt&&frame.burnt.length)
+      add(el("path",{d:rectsPath(frame.burnt),fill:"#37332E","fill-opacity":.52}));
+    if(frame.flood&&frame.flood.length)
+      add(el("path",{d:rectsPath(frame.flood),fill:"#3D6B8F","fill-opacity":.62}));
+    if(frame.fire&&frame.fire.length)
+      add(el("path",{d:rectsPath(frame.fire),fill:"#C4472A","fill-opacity":.85}));
+    (frame.cones||[]).forEach(pts=>
+      add(el("polygon",{points:poly(pts),fill:"#8F2222","fill-opacity":.42,
+        stroke:"#8F2222","stroke-width":1,"stroke-opacity":.7})));
+    (frame.dust||[]).forEach(d=>{
+      const [px,py]=P(d.x,d.y);
+      add(el("circle",{cx:px,cy:py,r:d.r,fill:"#8A8377","fill-opacity":.28}));
+    });
+    (frame.rings||[]).forEach((r,i)=>{
+      const [px,py]=P(r.x,r.y);
+      add(el("circle",{cx:px,cy:py,r:r.r,fill:"#8F2222",
+        "fill-opacity":i===0?.5:.12,stroke:"#8F2222","stroke-width":1.2,
+        "stroke-opacity":.75}));
+    });
+    if(frame.quake){
+      const [px,py]=P(frame.quake.x,frame.quake.y), k=frame.quake.faint?.45:1;
+      for(let i=1;i<=5;i++)
+        add(el("circle",{cx:px,cy:py,r:i*Math.pow(10,frame.quake.mag/3)*1.6,fill:"none",
+          stroke:"#8F2222","stroke-width":1.4,"stroke-opacity":(.5/i+.12)*k,
+          "stroke-dasharray":"5 5"}));
+      add(el("path",{d:`M${px-9} ${py}L${px+9} ${py}M${px} ${py-9}L${px} ${py+9}`,
+        stroke:"#8F2222","stroke-width":2.2,"stroke-opacity":k}));
+      add(el("circle",{cx:px,cy:py,r:5,fill:"none",stroke:"#8F2222","stroke-width":2,
+        "stroke-opacity":k}));
+    }
+  }
+  /* --- outcome colours over the survey's own dispositions ---------------------- */
+  let painted=false;
+  function paintOutcomes(names,states){
+    painted=true;
+    shapes.forEach((sh,name)=>{
+      const st=states?states.get(name):null;
+      if(st==null){ sh.node.setAttribute("fill","#B4B2A9"); sh.node.style.opacity=".35"; return; }
+      sh.node.setAttribute("fill",st.colour);
+      sh.node.style.opacity = st.state==="HELD" ? ".42" : "1";
+    });
+  }
+  function clearOutcomes(){
+    if(!painted) return;
+    painted=false;
+    shapes.forEach(sh=>{ sh.node.setAttribute("fill",sh.base); sh.node.style.opacity=""; });
+  }
+
   const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
+    drawHazard, clearHazard, paintOutcomes, clearOutcomes,
     renderPins, highlight, clearHighlight, project:P,
     get scale(){return sc;},
     setCoverage(on){ L.cover.style.display=on?"":"none"; },

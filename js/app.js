@@ -26,6 +26,13 @@ function showMark(m){
   q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y);
   const c=q("sCode"); c.textContent=m.disp; c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A";
   q("sNote").textContent=m.note||"No field note recorded.";
+  const proj=NYC.simui&&NYC.simui.outcomeFor(m.name);
+  const pv=q("sProj");
+  if(proj){
+    pv.style.display="";
+    pv.innerHTML='<b style="background:'+proj.colour+'">'+proj.state+'</b>'+
+      (proj.missing.length?"NO "+proj.missing.join(", NO "):"SERVICES HELD");
+  } else pv.style.display="none";
   const acts=q("sActs"); acts.innerHTML="";
   if(m.scene) acts.appendChild(btn("◉ STREET VIEW","pri",()=>NYC.streetview.open(m.scene)));
   const starred=S.isStarred(m.name);
@@ -240,6 +247,7 @@ function boot(){
     onMark:m=>{ pinMode&&setPinMode(false); showMark(m); },
     onPin:p=>{ showPin(p); },
     onGround:(g,e)=>{
+      if(NYC.simui&&NYC.simui.pickActive){ NYC.simui.takePoint(g); return; }
       if(pinMode){
         const rec=S.addPin({x:g[0],y:g[1],name:"",note:""});
         refreshPins();
@@ -256,6 +264,9 @@ function boot(){
     isStarred:name=>S.isStarred(name)
   });
   NYC.mapView=map;            /* exposed for tooling and the console */
+  NYC.simui.init({map:map, toast:toast,
+    onRun:()=>{ if(sel) showMark(sel); },
+    onStep:()=>{ if(sel) showMark(sel); }});
   refreshPins();
 
   /* controls */
@@ -268,6 +279,7 @@ function boot(){
     q("thruBtn").setAttribute("aria-pressed",on); map.setThoroughfares(on); };
   q("pinBtn").onclick=()=>setPinMode(!pinMode);
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
+  q("simBtn").onclick=()=>NYC.simui.toggle();
   q("zin").onclick=()=>map.zoomAt(1.45,innerWidth/2,innerHeight/2);
   q("zout").onclick=()=>map.zoomAt(1/1.45,innerWidth/2,innerHeight/2);
   q("rst").onclick=()=>{ map.fit(); closeSheet(); };
@@ -330,8 +342,10 @@ function boot(){
     else if(e.key==="b"||e.key==="B"){ q("drawer").classList.contains("on")?
       closeDrawer():openDrawer("marks"); }
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
+    else if(e.key==="s"||e.key==="S"){ NYC.simui.toggle(); }
     else if(e.key==="Escape"){
       if(q("editor").classList.contains("on")) closeEditor(false);
+      else if(NYC.simui&&NYC.simui.pickActive) NYC.simui.cancelPick();
       else if(q("drawer").classList.contains("on")) closeDrawer();
       else if(pinMode) setPinMode(false);
       else closeSheet();

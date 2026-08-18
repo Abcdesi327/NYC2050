@@ -7,7 +7,8 @@ banded by habitability, every logged site carries a *disposition* (flooded,
 collapsed, salvage, sealed, standing, occupied), and the ground the survey never
 covered is left hatched. Thirteen sites also have a **street-level plate** — a
 procedurally drawn view of the place as the survey found it, with a switch to
-see it as it was built.
+see it as it was built — and any of six **contingency projections** can be run
+across the sheet to see what a further disaster would take.
 
 **Preview: https://abcdesi327.github.io/NYC2050/**
 
@@ -61,13 +62,39 @@ ivy and the rubble and the standing water go. Every plate is SVG generated at
 runtime from a kit of masonry, glazing, growth, water and wreck primitives. No
 photographs are used anywhere in this project.
 
+**Contingency projections.** Press **SIM**. Choose a hazard — hurricane surge,
+earthquake, firestorm, uncontrolled structural collapse, a large-scale blast
+event, or a deliberate infrastructure failure — set its parameters, place it on
+the sheet, and run it. Twenty-four hours are simulated and the sheet recolours
+to the outcome; the scrubber walks the hours, and the log says what failed when.
+
+The point of it is the second-order effect. Every site is scored twice: what the
+event breaks, and what stops working because something else broke. Fourteen
+installations provide power, water, food, sanitation and overland supply across
+a reach, and a projection reports only what *this* event took away — a shortage
+the survey had already logged is not news. Losing the Astoria generating station
+does more damage over twenty-four hours than a blast that flattens ten blocks,
+and the write-up says so.
+
+Underneath it is a terrain model: spot heights for sixty-five points across the
+five boroughs interpolated into a surface, the made ground mapped separately
+because it floods first and shakes hardest, and the shallow schist at both ends
+of Manhattan distinguished from the deep till in between. Surge floods by
+elevation, shaking is amplified by soil, fire spreads cell by cell with the wind
+and is slowed by the avenues, and a falling structure throws debris the length
+of itself.
+
+None of it is a prediction. The fragility figures are invented to be plausible
+and internally consistent, not surveyed, and the blast case is deliberately kept
+abstract — an origin, a scale, and rings drawn off distance alone.
+
 **Your own marks.** Press **PIN** and tap the sheet to drop a mark, name it and
 write a note; press **BOOKMARK** on any surveyed site to keep it. **LIST** opens
 the plates and your marks, and marks can be copied out and pasted back in as
 JSON. Everything is held in `localStorage` — nothing leaves the browser.
 
-Keys: `/` search · `P` pin · `B` marks · `K` key · in a plate `←` `→` walk,
-`T` then/now, `Esc` out.
+Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · in a plate
+`←` `→` walk, `T` then/now, `Esc` out.
 
 ## Layout
 
@@ -75,7 +102,10 @@ Keys: `/` search · `P` pin · `B` marks · `K` key · in a plate `←` `→` wa
 index.html          the shell
 css/app.css         all styling
 js/data.js          geography, thoroughfares, 302 landmarks, scene links
+js/terrain.js       spot heights, made ground, rock, shaking amplification
 js/map.js           projection, sheet rendering, view state, place naming
+js/sim.js           hazards, fragility, the service network, the 24-hour run
+js/sim-ui.js        the projection console and the hour scrubber
 js/sv-kit.js        street-view drawing primitives
 js/sv-scenes.js     the thirteen plates and the walks
 js/pins.js          dropped marks and bookmarks (localStorage)
@@ -97,6 +127,15 @@ Everything in `data.js` is in **grid space**, the survey's working frame:
 Manhattan grid actually sits at. `NYC.map.describe(x, y)` turns any point back
 into something a person can read — `MANHATTAN · W 34 ST nr 8 AV`,
 `BROOKLYN · nr EASTERN PKWY`, `EAST RIVER`.
+
+## Adding a hazard
+
+`HAZARDS` in `js/sim.js` holds the six. A hazard is a name, a blurb, a list of
+slider parameters, whether it needs a point on the sheet, and a `focus` zoom.
+The run loop reads `H.id` at four places — set-up, per-hour effect, overlay
+geometry, and the narrative — so a seventh is four small additions and no
+changes to anything else. Damage is written into `s.struct`; the service
+cascade, the tally, the scrubber and the write-up all follow from that.
 
 ## Adding a plate
 
