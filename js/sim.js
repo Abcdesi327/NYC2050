@@ -213,6 +213,19 @@ function run(spec){
     g:TR.ground(m.x,m.y), services:{}, notes:[]
   }));
   const byName=new Map(S.map(s=>[s.m.name,s]));
+
+  /* the fabric between the stations takes the same event */
+  const blocks=(NYC.fabric?NYC.fabric.build():[]);
+  const B=blocks.map(b=>({b, struct:0, func:0,
+    era:NYC.fabric.ERAS[b.era], g:TR.ground(b.cx,b.cy)}));
+  const blockUse={RESID:{flood:.72,quake:1,fire:1,blast:1},
+                  MIXED:{flood:.72,quake:1,fire:1.05,blast:1},
+                  COMM:{flood:.62,quake:.9,fire:.8,blast:1.1},
+                  CIVIC:{flood:.6,quake:.9,fire:.8,blast:1},
+                  INDUST:{flood:.8,quake:.85,fire:1.2,blast:1},
+                  TRANSIT:{flood:.95,quake:.8,fire:.6,blast:.9}};
+  const hitBlock=(o,d,t)=>{ if(d>o.struct){ o.struct=Math.min(1,d);
+    if(o.lost==null&&o.struct>=.8) o.lost=t; } };
   const frames=[];
   const events=[];                      /* [{t, text, kind}] */
   const note=(t,text,kind)=>events.push({t,text,kind:kind||"info"});
@@ -285,6 +298,9 @@ function run(spec){
       count:P.frags|0||220, seed:hashSpec(spec)^0x9E37,
       sites:sites, heightOf:m=>NYC.heights.heightOf(m)
     });
+    if(ejecta.blockDamage) ejecta.blockDamage.forEach((d,id)=>{
+      const o=B[id]; if(o) o.struct=Math.min(1,o.struct+d*0.6);
+    });
     ejecta.damage.forEach((d,name)=>{
       const s2=byName.get(name); if(!s2) return;
       const dm=Math.min(1,d*s2.cond);
@@ -356,6 +372,13 @@ function run(spec){
       for(let i=0;i<mask.length;i++) if(R.land[i]&&R.elev[i]<lvl) mask[i]=1;
       frame.flood=runs(mask);
       const [wx,wy]=bearingVec(P.bearing);
+      B.forEach(o=>{
+        const depth=lvl-o.g.elev;
+        if(depth>0){
+          const u=blockUse[o.b.use];
+          hitBlock(o,Math.min(1,depth/4)*u.flood*(o.b.height<12?1.15:0.85),t);
+        }
+      });
       S.forEach(s=>{
         /* shores facing the approach take the set-up on top of the surge */
         const bx=s.m.x-40, by=s.m.y-300, bl=Math.hypot(bx,by)||1;
@@ -394,6 +417,14 @@ function run(spec){
         d=Math.min(1,d);
         if(d>s.struct){ s.struct=d; if(!s.lost&&d>=.8) s.lost=t; }
       });
+      B.forEach(o=>{
+        const rkm=dist(o.b.cx,o.b.cy,pt[0],pt[1])*U2KM;
+        const rr=Math.sqrt(rkm*rkm+P.depth*P.depth);
+        let I=(1.5*shock.mag-3.0*Math.log10(rr+10)+1.4)*o.g.amp;
+        let d=Math.max(0,(I-5)/4.3)*o.era.quake*blockUse[o.b.use].quake*0.85;
+        if(I>6) d+=o.g.liq*0.45;
+        hitBlock(o,Math.min(1,d),t);
+      });
       note(t, t===0 ? "Magnitude "+shock.mag.toFixed(1)+" at the epicentre."
                     : "Aftershock, magnitude "+shock.mag.toFixed(1)+".", "hazard");
       /* fires start where the shaking was worst */
@@ -426,6 +457,18 @@ function run(spec){
           if(dm>s.struct){ s.struct=dm; if(!s.lost&&dm>=.8) s.lost=Math.max(t,c.t); }
         });
       });
+      B.forEach(o=>{
+        live.forEach(c=>{
+          const dx=o.b.cx-c.x, dy=o.b.cy-c.y, d=Math.hypot(dx,dy);
+          if(d<1.5){ hitBlock(o,1,c.t); return; }
+          const dot=(dx*c.ux+dy*c.uy)/d;
+          let dm=0;
+          if(d<=c.reach&&dot>Math.cos(c.half*Math.PI)) dm=(1-d/c.reach)*0.95+0.2;
+          const dr=c.reach*1.7;
+          if(d<=dr) dm=Math.max(dm,(1-d/dr)*0.4);
+          hitBlock(o,Math.min(1,dm*o.era.blast*1.2),Math.max(t,c.t));
+        });
+      });
       cones.forEach(c=>{ if(c.t===t&&t>0) note(t,"Progressive failure of an adjacent structure.","hazard"); });
       if(t===0) note(0,"Structure comes down across "+ (P.height/10).toFixed(0) +
         " units of ground.","hazard");
@@ -442,6 +485,12 @@ function run(spec){
           dm = dm>=1 ? 1 : Math.min(1,dm*s.vuln.blast*s.cond*1.6);
           if(dm>s.struct){ s.struct=dm; if(!s.lost&&dm>=.8) s.lost=0; }
         }
+      });
+      B.forEach(o=>{
+        const d=dist(o.b.cx,o.b.cy,pt[0],pt[1]);
+        let dm=0;
+        for(const r of rings) if(d<=r.r){ dm=r.d; break; }
+        if(dm>0) hitBlock(o, dm>=1?1:Math.min(1,dm*o.era.blast*blockUse[o.b.use].blast),0);
       });
       note(0,"Event at "+NYC.map.gridRef(pt[0],pt[1])+". Rings drawn off distance only.","hazard");
     }
@@ -478,6 +527,13 @@ function run(spec){
       }
       frame.fire=runs(fireMask);
       frame.burnt=runs(burntMask);
+      B.forEach(o=>{
+        const c=R.col(o.b.cx), r=R.row(o.b.cy);
+        if(c<0||r<0||c>=R.cols||r>=R.rows) return;
+        const i=r*R.cols+c;
+        if(fireMask[i]||burntMask[i])
+          hitBlock(o,Math.min(1,0.9*o.era.fire*blockUse[o.b.use].fire),t);
+      });
       S.forEach(s=>{
         const c=R.col(s.m.x), r=R.row(s.m.y);
         if(c<0||r<0||c>=R.cols||r>=R.rows) return;
@@ -518,6 +574,18 @@ function run(spec){
       s.func=Math.max(s.func,Math.min(1,f));
     });
 
+    /* the fabric only fails functionally where the network reached it at all */
+    if(t>0&&t%4===0){
+      B.forEach(o=>{
+        const nearest=providersNow.length?providersNow.reduce((best,p)=>{
+          const pv=byName.get(p.name);
+          const d=pv?dist(o.b.cx,o.b.cy,pv.m.x,pv.m.y)/p.reach:9;
+          return d<best?d:best;},9):9;
+        if(nearest>1) o.func=Math.max(o.func,Math.min(1,0.34*Math.min(1,t/12)));
+      });
+    }
+    frame.blocks=new Uint8Array(B.length);
+    B.forEach((o,i)=>{ frame.blocks[i]=stateIndex(Math.max(o.struct,o.func*0.8)); });
     frame.counts=tally(S);
     /* the state of every site at this hour, for the scrubber */
     frame.states=new Uint8Array(S.length);
@@ -547,8 +615,29 @@ function run(spec){
         " lost across its reach.","loss");
   });
 
+  /* what the fabric lost, in blocks, in floor area and in shelter */
+  const fab={blocks:B.length,lost:0,critical:0,damaged:0,affected:0,held:0,
+    floorArea:0,floorLost:0,shelter:0,shelterLost:0,byEra:{},byUse:{},byBoro:{}};
+  B.forEach(o=>{
+    const v=Math.max(o.struct,o.func*0.8), st=stateOf(v);
+    fab[st==="LOST"?"lost":st==="CRITICAL"?"critical":st==="DAMAGED"?"damaged":
+        st==="AFFECTED"?"affected":"held"]++;
+    fab.floorArea+=o.b.floorArea; fab.shelter+=o.b.shelter;
+    if(v>=.55){
+      fab.floorLost+=o.b.floorArea; fab.shelterLost+=o.b.shelter;
+      fab.byEra[o.b.era]=(fab.byEra[o.b.era]||0)+1;
+      fab.byUse[o.b.use]=(fab.byUse[o.b.use]||0)+1;
+      fab.byBoro[o.b.boro]=(fab.byBoro[o.b.boro]||0)+1;
+    }
+  });
+  fab.eraRate={};
+  Object.keys(NYC.fabric.ERAS).forEach(e=>{
+    const total=B.filter(o=>o.b.era===e).length;
+    fab.eraRate[e]=total?Math.round(100*(fab.byEra[e]||0)/total):0;
+  });
+
   const report={
-    hazard:H, spec,
+    hazard:H, spec, fabric:fab,
     counts:tally(S),
     services:lostServices,
     lifelines:lostLifelines.map(s=>s.m.name),
@@ -569,6 +658,9 @@ function run(spec){
   };
   report.narrative=narrate(H,P,report,S);
   report.ejectaField=ejecta;
+  if(fab.lost+fab.critical>0)
+    note(STEPS,(fab.lost+fab.critical).toLocaleString()+" blocks of fabric out of use — "+
+      Math.round(fab.floorLost/1e6)+" million square metres of floor.","loss");
   events.sort((a,b)=>a.t-b.t);
 
   return { hazard:H, spec, steps:STEPS, frames, events, report,
@@ -593,6 +685,9 @@ function tally(S,pre){
   return t;
 }
 const peak2=v=>v.toFixed(1);
+/* people read millions, not thousands of thousands */
+const people=n=>n>=1e6?(n/1e6).toFixed(1)+" million":
+  n>=1000?Math.round(n/1000)+" thousand":String(n);
 
 /* the survey writes its projections up the same way it writes everything else */
 function narrate(H,P,rep,S){
@@ -632,6 +727,20 @@ function narrate(H,P,rep,S){
         ", for "+e.breached+" breaches in all; "+e.struckCount+
         " logged sites are hit."
       : "Nothing carries enough energy to breach a structure."));
+  }
+  if(rep.fabric&&rep.fabric.lost+rep.fabric.critical>0){
+    const f=rep.fabric;
+    const worstEra=Object.keys(f.eraRate).sort((a,b)=>f.eraRate[b]-f.eraRate[a])[0];
+    const spread=f.eraRate[worstEra]-Math.min.apply(null,Object.values(f.eraRate));
+    out.push("Across the fabric, "+(f.lost+f.critical).toLocaleString()+" of "+
+      f.blocks.toLocaleString()+" blocks pass out of use: "+
+      (f.floorLost/1e6).toFixed(1)+" million square metres of floor and shelter for "+
+      people(f.shelterLost)+
+      (f.eraRate[worstEra]>=8&&spread>=8
+        ? ". The "+worstEra+" fabric takes it worst, at "+f.eraRate[worstEra]+
+          " per cent against "+Math.min.apply(null,Object.values(f.eraRate))+
+          " for the newest."
+        : ", fairly evenly across every period of construction."));
   }
   const svc=Object.keys(rep.services);
   if(svc.length){

@@ -89,7 +89,7 @@ function init(opts){
   const svg=opts.svg, stage=opts.stage;
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
-  ["sea","land","band","cover","park","grid","thru","bway","shore","cross","thrulab",
+  ["sea","land","band","cover","fab","fabhaz","park","grid","thru","bway","shore","cross","thrulab",
    "haz","deb","hgt","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
@@ -126,15 +126,7 @@ function init(opts){
     stroke:"#33482350","stroke-width":.8}));
   /* outer-borough green: Prospect, Green-Wood, Fort Greene, Astoria, Flushing Meadows,
      Bronx Park, Inwood Hill, Morningside, Van Cortlandt */
-  [[[262,-244],[306,-250],[314,-300],[266,-296]],
-   [[210,-330],[248,-338],[252,-368],[212,-360]],
-   [[238,-108],[262,-112],[266,-134],[240,-130]],
-   [[262,404],[286,400],[290,438],[264,442]],
-   [[440,200],[498,208],[492,268],[436,262]],
-   [[312,1210],[364,1224],[356,1330],[306,1316]],
-   [[-138,1650],[-108,1660],[-116,1720],[-146,1706]],
-   [[-100,890],[-78,896],[-84,932],[-106,926]],
-   [[240,1420],[300,1436],[292,1516],[236,1500]]].forEach(p=>
+  D.PARKS.slice(1).forEach(p=>
     L.park.appendChild(el("polygon",{points:poly(p),fill:"var(--park)",
       stroke:"#33482350","stroke-width":.8})));
 
@@ -476,6 +468,54 @@ function init(opts){
         "stroke-opacity":k}));
     }
   }
+  /* --- the built fabric ---------------------------------------------------------- */
+  const HGT_RAMP=[[12,"#D9D2C2"],[20,"#CFC4AC"],[35,"#C0B092"],[60,"#A89478"],
+                  [120,"#8C7A60"],[1e9,"#6B5B46"]];
+  const fabColour={
+    use:b=>NYC.fabric.USES[b.use].colour,
+    era:b=>NYC.fabric.ERAS[b.era].colour,
+    height:b=>{ for(const r of HGT_RAMP) if(b.height<r[0]) return r[1]; return "#6B5B46"; }
+  };
+  let fabMode=null;
+  function blockPath(b){
+    let d="M";
+    b.pts.forEach((p,i)=>{ const q=P(p[0],p[1]); d+=(i?"L":"")+r1(q[0])+" "+r1(q[1]); });
+    return d+"Z";
+  }
+  const r1=n=>Math.round(n*10)/10;
+  function drawFabric(mode){
+    fabMode=mode;
+    while(L.fab.firstChild) L.fab.removeChild(L.fab.firstChild);
+    /* with the fabric up the habitability band becomes a wash under it */
+    L.band.style.opacity=mode?".34":"";
+    L.cover.style.opacity=mode?".5":"";
+    if(!mode){ L.fab.style.display="none"; return; }
+    L.fab.style.display="";
+    const blocks=NYC.fabric.build(), col=fabColour[mode], buckets=new Map();
+    blocks.forEach(b=>{
+      const c=col(b);
+      if(!buckets.has(c)) buckets.set(c,[]);
+      buckets.get(c).push(blockPath(b));
+    });
+    buckets.forEach((paths,c)=>
+      L.fab.appendChild(el("path",{d:paths.join(""),fill:c,"fill-opacity":.97,
+        stroke:"#6E675C","stroke-width":.22,"stroke-opacity":.45})));
+  }
+  function paintFabricStates(states){
+    while(L.fabhaz.firstChild) L.fabhaz.removeChild(L.fabhaz.firstChild);
+    if(!states) return;
+    const blocks=NYC.fabric.build(), buckets=new Map();
+    for(let i=0;i<blocks.length;i++){
+      const st=states[i];
+      if(st==null||st>=4) continue;            /* HELD blocks stay as they were */
+      const c=NYC.sim.STATES[st][2];
+      if(!buckets.has(c)) buckets.set(c,[]);
+      buckets.get(c).push(blockPath(blocks[i]));
+    }
+    buckets.forEach((paths,c)=>
+      L.fabhaz.appendChild(el("path",{d:paths.join(""),fill:c,"fill-opacity":.8})));
+  }
+
   /* --- structure heights, drawn as the shadow of the thing itself --------------- */
   let hgtOn=false;
   function buildHeights(){
@@ -524,6 +564,7 @@ function init(opts){
 
   const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
     drawHazard, clearHazard, paintOutcomes, clearOutcomes, setHeights,
+    drawFabric, paintFabricStates, get fabricMode(){return fabMode;},
     renderPins, highlight, clearHighlight, project:P,
     get scale(){return sc;},
     setCoverage(on){ L.cover.style.display=on?"":"none"; },

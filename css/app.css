@@ -376,3 +376,11 @@ svg.sect .bl{font-family:var(--mono);font-size:6px;fill:#3A3A36;text-anchor:star
 .seckey i.k2{background:#D8A66E}
 .seckey i.k3{background:#C4472A}
 svg.sect .ax.lft{text-anchor:start}
+.erabar{display:flex;align-items:flex-end;gap:4px;margin-top:8px;height:60px}
+.erabar span{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-end;gap:2px}
+.erabar i{display:block;width:100%;border-radius:2px 2px 0 0}
+.erabar b{font-family:var(--mono);font-size:9px;color:var(--ink)}
+.erabar em{font-family:var(--mono);font-size:6.5px;font-style:normal;
+  color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+.erafoot{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:3px}

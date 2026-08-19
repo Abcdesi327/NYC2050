@@ -160,6 +160,29 @@ const LIBERTY=[[-132,-484],[-108,-480],[-104,-462],[-126,-458]];
 const ELLIS=[[-146,-436],[-120,-432],[-118,-416],[-144,-419]];
 const GOVERNORS=[[46,-436],[92,-430],[98,-402],[52,-400]];
 
+/* ---- open ground: parks and cemeteries, kept clear of built fabric --------------- */
+const PARKS=[
+ CPARK,
+ [[262,-244],[306,-250],[314,-300],[266,-296]],   /* Prospect Park */
+ [[210,-330],[248,-338],[252,-368],[212,-360]],   /* Green-Wood */
+ [[238,-108],[262,-112],[266,-134],[240,-130]],   /* Fort Greene */
+ [[262,404],[286,400],[290,438],[264,442]],       /* Astoria Park */
+ [[440,200],[498,208],[492,268],[436,262]],       /* Flushing Meadows */
+ [[312,1210],[364,1224],[356,1330],[306,1316]],   /* Bronx Park */
+ [[-138,1650],[-108,1660],[-116,1720],[-146,1706]], /* Inwood Hill */
+ [[-100,890],[-78,896],[-84,932],[-106,926]],     /* Morningside */
+ [[240,1420],[300,1436],[292,1516],[236,1500]],   /* Van Cortlandt */
+ [[-52,120],[-30,124],[-26,148],[-48,144]],       /* Chelsea green */
+ [[-46,28],[-28,30],[-26,44],[-44,42]],           /* Washington Square */
+ [[8,108],[26,110],[24,124],[6,122]],             /* Union Square */
+ [[-24,320],[-8,322],[-10,340],[-26,338]],        /* Bryant Park */
+ [[26,152],[42,154],[40,170],[24,168]],           /* Gramercy */
+ [[62,116],[76,118],[74,132],[60,130]],           /* Stuyvesant Square */
+ [[-16,948],[-2,950],[-4,972],[-18,970]],         /* Marcus Garvey */
+ [[104,690],[120,694],[116,720],[100,716]],       /* Carl Schurz */
+ [[-136,1576],[-116,1584],[-124,1620],[-144,1610]] /* Fort Tryon */
+];
+
 /* ---- severed crossings: [x1,y1,x2,y2,label] --------------------------------------- */
 const CROSS=[
  [-146,-24,-232,-16,"Holland Tunnel"],[-160,236,-244,244,"Lincoln Tunnel"],
@@ -522,6 +545,6 @@ const SCENE_OF={
 };
 
 NYC.data={WEST,EAST,shore,WX,EX,BANDS,AVES,BROADWAY,CROSSTOWN,THRU,
-  NJ,BKQN,BRONX,ROOSEVELT,CPARK,RANDALLS,LIBERTY,ELLIS,GOVERNORS,
+  NJ,BKQN,BRONX,ROOSEVELT,CPARK,RANDALLS,LIBERTY,ELLIS,GOVERNORS,PARKS,
   CROSS,GAPS,LANDMARKS:D,SCENE_OF};
 })();

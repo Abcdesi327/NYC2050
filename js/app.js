@@ -26,7 +26,8 @@ function showMark(m){
   const ht=NYC.heights.heightOf(m);
   q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y)+
     (ht>0?" · "+ht+" m, c."+NYC.heights.floorsOf(ht)+" floors":"");
-  const c=q("sCode"); c.textContent=m.disp; c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A";
+  const c=q("sCode"); c.textContent=m.disp;
+  c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A"; c.style.color="";
   q("sNote").textContent=m.note||"No field note recorded.";
   const proj=NYC.simui&&NYC.simui.outcomeFor(m.name);
   const pv=q("sProj");
@@ -62,6 +63,26 @@ function showPin(p){
   }));
   q("sheet").classList.add("on");
   map.highlight(p.x,p.y);
+}
+function showBlock(b){
+  sel=null; selPin=null;
+  q("sNm").textContent=b.zone;
+  q("sMeta").textContent="BLOCK "+b.id+" · "+NYC.map.describe(b.cx,b.cy)+" · "+
+    b.height+" m, "+b.floors+" floors";
+  const c=q("sCode");
+  c.textContent=NYC.fabric.USES[b.use].label.toUpperCase();
+  c.style.background=NYC.fabric.USES[b.use].colour; c.style.color="#2C2C2A";
+  q("sNote").textContent="Built "+b.era+". "+
+    Math.round(b.area).toLocaleString()+" m² of ground at "+
+    Math.round(b.coverage*100)+"% coverage, "+
+    Math.round(b.floorArea).toLocaleString()+" m² of floor"+
+    (b.shelter?", shelter for about "+b.shelter.toLocaleString()+" people":"")+
+    ". Generated fabric, not a surveyed station.";
+  q("sProj").style.display="none";
+  const acts=q("sActs"); acts.innerHTML="";
+  acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(b.cx,b.cy,Math.max(map.scale,4))));
+  q("sheet").classList.add("on");
+  map.highlight(b.cx,b.cy);
 }
 function btn(label,cls,fn){
   const b=document.createElement("button");
@@ -255,6 +276,9 @@ function boot(){
         refreshPins();
         rec.isNew=true; openEditor(rec);
         setPinMode(false);
+      } else if(map.fabricMode){
+        const b=NYC.fabric.at(g[0],g[1]);
+        if(b) showBlock(b); else closeSheet();
       } else closeSheet();
     }
   });
@@ -282,6 +306,33 @@ function boot(){
   q("pinBtn").onclick=()=>setPinMode(!pinMode);
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
   q("simBtn").onclick=()=>NYC.simui.toggle();
+  const FAB_MODES=[null,"use","height","era"];
+  let fabIdx=0;
+  function cycleFabric(){
+    fabIdx=(fabIdx+1)%FAB_MODES.length;
+    const mode=FAB_MODES[fabIdx];
+    map.drawFabric(mode);
+    q("blkBtn").setAttribute("aria-pressed",mode?"true":"false");
+    q("blkModeLbl").textContent=mode?("· "+mode.toUpperCase()):"";
+    paintFabricKey(mode);
+    if(mode) toast("Built fabric — "+mode.toUpperCase()+
+      " ("+NYC.fabric.build().length+" blocks)");
+  }
+  function paintFabricKey(mode){
+    const k=q("blkKey");
+    if(!mode){ k.innerHTML='<i style="background:#C8B9A6"></i>PRESS BLK FOR THE BLOCKS'; return; }
+    if(mode==="use") k.innerHTML=Object.keys(NYC.fabric.USES).map(u=>
+      '<i style="background:'+NYC.fabric.USES[u].colour+'"></i>'+
+      NYC.fabric.USES[u].label.toUpperCase()).join("<br>");
+    else if(mode==="era") k.innerHTML=Object.keys(NYC.fabric.ERAS).map(e=>
+      '<i style="background:'+NYC.fabric.ERAS[e].colour+'"></i>'+e.toUpperCase()).join("<br>");
+    else k.innerHTML=['UNDER 12 m|#D9D2C2','12–20 m|#CFC4AC','20–35 m|#C0B092',
+      '35–60 m|#A89478','60–120 m|#8C7A60','OVER 120 m|#6B5B46']
+      .map(x=>{const[t,c]=x.split("|");return '<i style="background:'+c+'"></i>'+t;})
+      .join("<br>");
+  }
+  paintFabricKey(null);
+  q("blkBtn").onclick=cycleFabric;
   q("hgtBtn").onclick=()=>{ const on=q("hgtBtn").getAttribute("aria-pressed")!=="true";
     q("hgtBtn").setAttribute("aria-pressed",on); map.setHeights(on); };
   q("zin").onclick=()=>map.zoomAt(1.45,innerWidth/2,innerHeight/2);
@@ -348,6 +399,7 @@ function boot(){
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
     else if(e.key==="s"||e.key==="S"){ NYC.simui.toggle(); }
     else if(e.key==="h"||e.key==="H"){ q("hgtBtn").click(); }
+    else if(e.key==="f"||e.key==="F"){ cycleFabric(); }
     else if(e.key==="Escape"){
       if(q("editor").classList.contains("on")) closeEditor(false);
       else if(NYC.simui&&NYC.simui.pickActive) NYC.simui.cancelPick();

@@ -55,11 +55,12 @@ const STRIDE=4;                                 /* one building frontage, 40 m *
    fabric whether or not the survey put a station on it. */
 function fabricAt(x,y,parks,rand){
   const T=NYC.terrain;
-  if(!T.onLand(x,y)) return 0;
-  for(const p of parks) if(Math.hypot(p.x-x,p.y-y)<14) return 0;   /* open ground */
-  if(T.inPoly(x,y,NYC.data.CPARK)) return 0;
-  const base=20*NYC.heights.densityFactor(x,y);
-  return Math.max(6,base*(0.6+rand()*0.9));
+  if(!T.onLand(x,y)) return null;
+  const b=NYC.fabric&&NYC.fabric.at(x,y);
+  if(b&&Math.hypot(b.cx-x,b.cy-y)<16) return b;         /* the block it is standing on */
+  for(const p of parks) if(Math.hypot(p.x-x,p.y-y)<14) return null;
+  if(T.inPoly(x,y,NYC.data.CPARK)) return null;
+  return null;
 }
 /* everything one fragment could run into, in the order it would meet it */
 function obstacles(origin,dir,sites,parks,H,maxS,rand){
@@ -83,8 +84,9 @@ function obstacles(origin,dir,sites,parks,H,maxS,rand){
     while(ni<named.length&&named[ni].s<s-STRIDE*U2M/2) out.push(named[ni++]);
     if(ni<named.length&&Math.abs(named[ni].s-s)<=STRIDE*U2M/2){ out.push(named[ni++]); continue; }
     const x=origin[0]+dir[0]*u, y=origin[1]+dir[1]*u;
-    const h=fabricAt(x,y,parks,rand);
-    if(h<=0) continue;
+    const blk=fabricAt(x,y,parks,rand);
+    if(!blk) continue;
+    const h=blk.height;
     /* if the survey logged a station on this block, the strike belongs to it */
     let own=null,od=9;
     for(const n of near){
@@ -92,8 +94,10 @@ function obstacles(origin,dir,sites,parks,H,maxS,rand){
       if(d<od&&d<12){ od=d; own=n; }
     }
     out.push(own
-      ? {name:own.m.name,cat:own.m.cat,disp:own.m.disp,height:own.h,s,logged:true}
-      : {name:null,cat:"FABRIC",disp:"STANDING",height:h,s,logged:false});
+      ? {name:own.m.name,cat:own.m.cat,disp:own.m.disp,height:own.h,s,logged:true,
+         block:blk}
+      : {name:null,cat:"FABRIC",disp:"STANDING",height:h,s,logged:false,
+         block:blk,era:blk.era,use:blk.use});
   }
   while(ni<named.length) out.push(named[ni++]);
   out.sort((a,b)=>a.s-b.s);
@@ -120,14 +124,17 @@ function fly(o){
       const c=o.cands[next++];
       if(alt>c.height||alt<0) continue;         /* over the roof, or already down */
       const ke=0.5*cls.mass*v*v;
-      const res=(RESIST[c.cat]||1.1e6)*(CONDR[c.disp]||1)*(0.7+c.height/400);
+      const eraR=c.era&&NYC.fabric.ERAS[c.era]?NYC.fabric.ERAS[c.era].resist:1;
+      const res=(RESIST[c.cat]||1.1e6)*(CONDR[c.disp]||1)*(0.7+c.height/400)*eraR;
       const dmg=Math.min(0.5,ke/(res*3.2));
       if(ke>res){                               /* through it, and slower */
         const f=Math.sqrt(Math.max(0.04,1-res/ke));
         vx*=f; vy*=f;
-        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:true});
+        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:true,
+          block:c.block});
       } else {
-        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:false});
+        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:false,
+          block:c.block});
         out.stopped="building"; out.stopName=c.name||"unlogged fabric";
         path.push({s,alt,v}); out.landS=s; out.landAlt=alt;
         return out;
@@ -180,7 +187,7 @@ function field(opt){
   }
 
   /* ---- what it adds up to --------------------------------------------------------- */
-  const dmg=new Map();
+  const dmg=new Map(), blockDmg=new Map();
   let maxRange=0, through=0, multi=0, crossBlock=0, crossThree=0;
   frags.forEach(f=>{
     maxRange=Math.max(maxRange,f.landS);
@@ -189,7 +196,10 @@ function field(opt){
     const pen=f.strikes.filter(s=>s.through).length;
     if(pen) through++;
     if(pen>1) multi++;
-    f.strikes.forEach(s=>{ if(s.name) dmg.set(s.name,(dmg.get(s.name)||0)+s.dmg); });
+    f.strikes.forEach(s=>{
+      if(s.name) dmg.set(s.name,(dmg.get(s.name)||0)+s.dmg);
+      if(s.block) blockDmg.set(s.block.id,(blockDmg.get(s.block.id)||0)+s.dmg);
+    });
   });
   const struck=[...dmg.entries()].map(([name,d])=>({name,dmg:Math.min(1,d)}))
     .sort((a,b)=>b.dmg-a.dmg);
@@ -200,7 +210,7 @@ function field(opt){
     (b.strikes.filter(s=>s.through).length-a.strikes.filter(s=>s.through).length)||
     (b.landS-a.landS))[0]||null;
 
-  return {frags,damage:dmg,struck,deepest,
+  return {frags,damage:dmg,blockDamage:blockDmg,struck,deepest,
     stats:{count,maxRange,through,multi,crossBlock,crossThree,breached,
            blocks:maxRange/80, struckCount:struck.length}};
 }

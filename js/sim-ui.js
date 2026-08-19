@@ -143,6 +143,7 @@ function show(t){
     states.set(s.name,{state:st[0],colour:st[2]});
   });
   map.paintOutcomes(null,states);
+  map.paintFabricStates(f.blocks||null);
   const c=f.counts;
   q("simCounts").innerHTML=
     '<i style="background:#6E1A1A"></i>'+c.LOST+
@@ -171,8 +172,8 @@ function togglePlay(){
 function stop(){ if(playing) clearInterval(playing); playing=null; q("simPlay").textContent="▶"; }
 
 function clear(){
-  stop(); result=null; point=point;
-  map.clearHazard(); map.clearOutcomes();
+  stop(); result=null;
+  map.clearHazard(); map.clearOutcomes(); map.paintFabricStates(null);
   q("simTime").classList.remove("on");
   q("simReport").innerHTML="";
   hooks.onRun&&hooks.onRun(null);
@@ -193,6 +194,22 @@ function renderReport(){
   h+='<div class="legrow">'+NYC.sim.STATES.map(s=>
       '<span><i style="background:'+s[2]+'"></i>'+s[0]+' '+c[s[0]]+'</span>').join("")+'</div>';
 
+  if(r.fabric&&r.fabric.blocks){
+    const f=r.fabric, gone=f.lost+f.critical;
+    h+='<h4>BUILT FABRIC</h4><ul class="svc">';
+    h+='<li><b>BLOCKS OUT OF USE</b><span>'+gone.toLocaleString()+' of '+
+       f.blocks.toLocaleString()+'</span></li>';
+    h+='<li><b>FLOOR AREA LOST</b><span>'+(f.floorLost/1e6).toFixed(1)+' M m²</span></li>';
+    h+='<li><b>SHELTER LOST</b><span>'+(f.shelterLost>=1e6
+      ?(f.shelterLost/1e6).toFixed(1)+'M':Math.round(f.shelterLost/1000)+'k')+
+      ' places</span></li>';
+    h+='</ul>';
+    h+='<div class="erabar">'+Object.keys(NYC.fabric.ERAS).map(e=>
+      '<span title="'+e+' — '+f.eraRate[e]+'% out of use"><i style="background:'+
+      NYC.fabric.ERAS[e].colour+';height:'+(6+f.eraRate[e]*0.38)+'px"></i><b>'+
+      f.eraRate[e]+'</b><em>'+e+'</em></span>').join("")+'</div>';
+    h+='<div class="erafoot">per cent of each period\u2019s fabric out of use</div>';
+  }
   const svc=Object.keys(r.services);
   if(svc.length){
     h+='<h4>SERVICE LOST</h4><ul class="svc">';
