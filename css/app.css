@@ -341,3 +341,38 @@ button.run:disabled{opacity:.5;cursor:default}
   .timeline.on{transform:none}
   .simp{width:100vw}
 }
+#map .hbar{transform-box:fill-box;transform-origin:50% 100%;
+  transform:scale(var(--symk,1))}
+
+/* ---------- the debris section elevation ------------------------------------------ */
+.secthead{display:flex;justify-content:space-between;align-items:center;gap:6px;
+  margin:14px 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  color:var(--muted)}
+.secthead span{display:flex;gap:3px}
+.fsel{border:1px solid var(--rule);border-radius:5px;background:#fff;cursor:pointer;
+  font-family:var(--mono);font-size:8px;letter-spacing:.05em;padding:3px 5px;
+  color:var(--muted)}
+.fsel.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+svg.sect{width:100%;height:auto;display:block;background:#F3F1E8;
+  border:1px solid var(--rule);border-radius:8px}
+svg.sect .gl{stroke:#8A8377;stroke-width:1}
+svg.sect .tk{stroke:#B4AC9C;stroke-width:1}
+svg.sect .ax{font-family:var(--mono);font-size:7px;fill:#8A8377;text-anchor:middle}
+svg.sect .bd{fill:#C2BBA8;stroke:#9A9282;stroke-width:.6}
+svg.sect .bd.hit{fill:#D8A66E}
+svg.sect .bd.thru{fill:#C4472A}
+svg.sect .traj{fill:none;stroke:#2C2C2A;stroke-width:1.3;stroke-dasharray:3 2}
+svg.sect .stk{fill:#8F2222}
+svg.sect .stk.thru{fill:#B4741A;stroke:#8F2222;stroke-width:.8}
+svg.sect .land{fill:none;stroke:#2C2C2A;stroke-width:1.4}
+.secap{font-family:var(--mono);font-size:9px;line-height:1.6;color:#55554F;
+  margin-top:5px}
+svg.sect .bd.log{stroke:#2C2C2A;stroke-width:1}
+svg.sect .bl{font-family:var(--mono);font-size:6px;fill:#3A3A36;text-anchor:start}
+.seckey{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:5px;
+  font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.04em}
+.seckey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-left:6px}
+.seckey i.k1{background:#C2BBA8}
+.seckey i.k2{background:#D8A66E}
+.seckey i.k3{background:#C4472A}
+svg.sect .ax.lft{text-anchor:start}

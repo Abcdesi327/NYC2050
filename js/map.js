@@ -90,7 +90,7 @@ function init(opts){
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
   ["sea","land","band","cover","park","grid","thru","bway","shore","cross","thrulab",
-   "haz","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
+   "haz","deb","hgt","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
   defs.innerHTML='<pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" '+
@@ -283,6 +283,7 @@ function init(opts){
     /* labels are laid out in map space but sized in screen space, so a zoom moves
        them without inflating them */
     svg.style.setProperty("--symk",(1/sc).toFixed(3));
+    L.hgt.style.setProperty("--symk",(1/sc).toFixed(3));
     L.pin.style.fontSize=(8.6/sc)+"px";
     L.upin.style.fontSize=(9/sc)+"px";
     L.lab.style.fontSize=(8/sc)+"px";
@@ -410,11 +411,14 @@ function init(opts){
   addEventListener("resize",fit);
 
   /* --- hazard overlay: the geometry a projection produces at one hour ----------- */
-  function clearHazard(){ while(L.haz.firstChild) L.haz.removeChild(L.haz.firstChild); }
+  function clearHazard(){
+    [L.haz,L.deb].forEach(g=>{ while(g.firstChild) g.removeChild(g.firstChild); });
+  }
   function drawHazard(frame){
     clearHazard();
     if(!frame) return;
-    const add=n=>L.haz.appendChild(n);
+    let target=L.haz;
+    const add=n=>target.appendChild(n);
     const rectsPath=list=>list.map(r=>{
       const a=P(r[0],r[1]), b=P(r[0]+r[2],r[1]), c=P(r[0]+r[2],r[1]+r[3]), d=P(r[0],r[1]+r[3]);
       return "M"+a+"L"+b+"L"+c+"L"+d+"Z";
@@ -438,6 +442,28 @@ function init(opts){
         "fill-opacity":i===0?.5:.12,stroke:"#8F2222","stroke-width":1.2,
         "stroke-opacity":.75}));
     });
+    if(frame.debris){
+      target=L.deb;
+      const d=frame.debris, o=P(d.origin[0],d.origin[1]);
+      let far="",near="";
+      d.rays.forEach(r=>{
+        const a=P(r.x1,r.y1), b=P(r.x2,r.y2);
+        const seg="M"+a[0]+" "+a[1]+"L"+b[0]+" "+b[1];
+        if(r.through) far+=seg; else near+=seg;
+      });
+      add(el("path",{d:near,fill:"none",stroke:"#8A8377","stroke-width":.6,
+        "stroke-opacity":.4,"stroke-linecap":"round"}));
+      add(el("path",{d:far,fill:"none",stroke:"#B4741A","stroke-width":.9,
+        "stroke-opacity":.75,"stroke-linecap":"round"}));
+      let hit="";
+      d.impacts.forEach(i=>{
+        const p=P(i.x,i.y);
+        hit+="M"+(p[0]-1.6)+" "+p[1]+"a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0";
+      });
+      add(el("path",{d:hit,fill:"#8F2222","fill-opacity":.75}));
+      add(el("circle",{cx:o[0],cy:o[1],r:3,fill:"#8F2222"}));
+      target=L.haz;
+    }
     if(frame.quake){
       const [px,py]=P(frame.quake.x,frame.quake.y), k=frame.quake.faint?.45:1;
       for(let i=1;i<=5;i++)
@@ -450,6 +476,35 @@ function init(opts){
         "stroke-opacity":k}));
     }
   }
+  /* --- structure heights, drawn as the shadow of the thing itself --------------- */
+  let hgtOn=false;
+  function buildHeights(){
+    if(L.hgt.firstChild) return;
+    const H=NYC.heights;
+    marks.slice().sort((a,b)=>a.y-b.y).forEach(m=>{
+      const h=H.heightOf(m);
+      if(h<25) return;
+      const [px,py]=P(m.x,m.y);
+      /* a bar in screen space, so it reads as elevation and not as ground */
+      const len=Math.min(58,3+h*0.105);
+      const col=h>=200?"#8F2222":h>=90?"#B4741A":"#4A4842";
+      const g=el("g",{class:"hbar"});
+      g.appendChild(el("line",{x1:px,y1:py,x2:px,y2:py-len,
+        stroke:"#FAF9F5","stroke-opacity":.75,"stroke-width":3,"stroke-linecap":"round"}));
+      g.appendChild(el("line",{x1:px,y1:py,x2:px,y2:py-len,
+        stroke:col,"stroke-opacity":.85,"stroke-width":1.5,"stroke-linecap":"round"}));
+      g.appendChild(el("circle",{cx:px,cy:py-len,r:2.1,fill:col,
+        stroke:"#FAF9F5","stroke-width":.9}));
+      L.hgt.appendChild(g);
+    });
+  }
+  function setHeights(on){
+    hgtOn=on;
+    if(on) buildHeights();
+    L.hgt.style.display=on?"":"none";
+  }
+  setHeights(false);
+
   /* --- outcome colours over the survey's own dispositions ---------------------- */
   let painted=false;
   function paintOutcomes(names,states){
@@ -468,7 +523,7 @@ function init(opts){
   }
 
   const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
-    drawHazard, clearHazard, paintOutcomes, clearOutcomes,
+    drawHazard, clearHazard, paintOutcomes, clearOutcomes, setHeights,
     renderPins, highlight, clearHighlight, project:P,
     get scale(){return sc;},
     setCoverage(on){ L.cover.style.display=on?"":"none"; },

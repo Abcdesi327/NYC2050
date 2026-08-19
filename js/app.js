@@ -23,7 +23,9 @@ function showMark(m){
   sel=m; selPin=null;
   q("sNm").textContent=m.name;
   const zone=(m.x>150&&m.y<700)||(m.x<-190)?"OUTER BOROUGH":NYC.map.bandOf(m.y);
-  q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y);
+  const ht=NYC.heights.heightOf(m);
+  q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y)+
+    (ht>0?" · "+ht+" m, c."+NYC.heights.floorsOf(ht)+" floors":"");
   const c=q("sCode"); c.textContent=m.disp; c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A";
   q("sNote").textContent=m.note||"No field note recorded.";
   const proj=NYC.simui&&NYC.simui.outcomeFor(m.name);
@@ -280,6 +282,8 @@ function boot(){
   q("pinBtn").onclick=()=>setPinMode(!pinMode);
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
   q("simBtn").onclick=()=>NYC.simui.toggle();
+  q("hgtBtn").onclick=()=>{ const on=q("hgtBtn").getAttribute("aria-pressed")!=="true";
+    q("hgtBtn").setAttribute("aria-pressed",on); map.setHeights(on); };
   q("zin").onclick=()=>map.zoomAt(1.45,innerWidth/2,innerHeight/2);
   q("zout").onclick=()=>map.zoomAt(1/1.45,innerWidth/2,innerHeight/2);
   q("rst").onclick=()=>{ map.fit(); closeSheet(); };
@@ -343,6 +347,7 @@ function boot(){
       closeDrawer():openDrawer("marks"); }
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
     else if(e.key==="s"||e.key==="S"){ NYC.simui.toggle(); }
+    else if(e.key==="h"||e.key==="H"){ q("hgtBtn").click(); }
     else if(e.key==="Escape"){
       if(q("editor").classList.contains("on")) closeEditor(false);
       else if(NYC.simui&&NYC.simui.pickActive) NYC.simui.cancelPick();

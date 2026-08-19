@@ -349,6 +349,41 @@ button.run:disabled{opacity:.5;cursor:default}
   .timeline.on{transform:none}
   .simp{width:100vw}
 }
+#map .hbar{transform-box:fill-box;transform-origin:50% 100%;
+  transform:scale(var(--symk,1))}
+
+/* ---------- the debris section elevation ------------------------------------------ */
+.secthead{display:flex;justify-content:space-between;align-items:center;gap:6px;
+  margin:14px 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  color:var(--muted)}
+.secthead span{display:flex;gap:3px}
+.fsel{border:1px solid var(--rule);border-radius:5px;background:#fff;cursor:pointer;
+  font-family:var(--mono);font-size:8px;letter-spacing:.05em;padding:3px 5px;
+  color:var(--muted)}
+.fsel.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+svg.sect{width:100%;height:auto;display:block;background:#F3F1E8;
+  border:1px solid var(--rule);border-radius:8px}
+svg.sect .gl{stroke:#8A8377;stroke-width:1}
+svg.sect .tk{stroke:#B4AC9C;stroke-width:1}
+svg.sect .ax{font-family:var(--mono);font-size:7px;fill:#8A8377;text-anchor:middle}
+svg.sect .bd{fill:#C2BBA8;stroke:#9A9282;stroke-width:.6}
+svg.sect .bd.hit{fill:#D8A66E}
+svg.sect .bd.thru{fill:#C4472A}
+svg.sect .traj{fill:none;stroke:#2C2C2A;stroke-width:1.3;stroke-dasharray:3 2}
+svg.sect .stk{fill:#8F2222}
+svg.sect .stk.thru{fill:#B4741A;stroke:#8F2222;stroke-width:.8}
+svg.sect .land{fill:none;stroke:#2C2C2A;stroke-width:1.4}
+.secap{font-family:var(--mono);font-size:9px;line-height:1.6;color:#55554F;
+  margin-top:5px}
+svg.sect .bd.log{stroke:#2C2C2A;stroke-width:1}
+svg.sect .bl{font-family:var(--mono);font-size:6px;fill:#3A3A36;text-anchor:start}
+.seckey{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:5px;
+  font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.04em}
+.seckey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-left:6px}
+.seckey i.k1{background:#C2BBA8}
+.seckey i.k2{background:#D8A66E}
+.seckey i.k3{background:#C4472A}
+svg.sect .ax.lft{text-anchor:start}
 </style>
 </head>
 <body>
@@ -356,7 +391,7 @@ button.run:disabled{opacity:.5;cursor:default}
 <div class="hdr">
   <div class="ttl">
     <h1>NYC 2050 — Survey Sheet 2</h1>
-    <p>302 STATIONS · 13 STREET-LEVEL PLATES · 6 CONTINGENCY PROJECTIONS</p>
+    <p>304 STATIONS · 13 STREET-LEVEL PLATES · 6 CONTINGENCY PROJECTIONS</p>
   </div>
   <div class="srch" id="srch">
     <input id="search" type="search" placeholder="Search the sheet  ( / )"
@@ -386,12 +421,17 @@ button.run:disabled{opacity:.5;cursor:default}
   <i style="background:#7A3E8F"></i>YOUR DROPPED MARKS<br>
   <span style="display:inline-block;width:11px;text-align:center;margin-right:6px;
     color:#7A3E8F">★</span>YOUR BOOKMARKS
+  <b>HEIGHT</b>
+  <span style="display:inline-block;width:11px;text-align:center;margin-right:6px">|</span>
+    BAR LENGTH ~ ROOF HEIGHT<br>
+  <i style="background:#8F2222"></i>200 m + &nbsp;<i style="background:#B4741A"></i>90–200 m
+  &nbsp;<i style="background:#4A4842"></i>UNDER 90 m
   <b>PROJECTION</b>
   <i style="background:#6E1A1A"></i>LOST &nbsp;<i style="background:#8F2222"></i>CRITICAL<br>
   <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
   <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY &nbsp; S SIM<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY &nbsp; S SIM &nbsp; H HEIGHT<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -409,6 +449,7 @@ button.run:disabled{opacity:.5;cursor:default}
   <button id="keyBtn" class="sm" aria-pressed="false" aria-label="Toggle key">KEY</button>
   <button id="covBtn" class="sm" aria-pressed="true" aria-label="Toggle survey coverage">CVRG</button>
   <button id="thruBtn" class="sm" aria-pressed="true" aria-label="Toggle named thoroughfares">THRU</button>
+  <button id="hgtBtn" class="sm" aria-pressed="false" aria-label="Toggle structure heights">HGT</button>
   <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
   <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
     class="badge" id="pinCount">0</span></button>
@@ -1008,7 +1049,9 @@ const D=[
 ["Yankee Stadium",216,1120,"Civic","OCCUPIED",2,"Field under cultivation, stands used as housing. The Bronx's largest single shelter."],
 ["Bronx Zoo",330,1240,"Park","OCCUPIED",2,"Livestock now, of a kind. The collection that could be fed was kept."],
 ["New York Botanical Garden",338,1300,"Park","OCCUPIED",1,"Herbarium and seed store intact — the northern counterpart to the Brooklyn bank."],
-["The Bronx",280,1180,"District","OCCUPIED",1,"Mainland. Every route out of the city that still works runs through it."]
+["The Bronx",280,1180,"District","OCCUPIED",1,"Mainland. Every route out of the city that still works runs through it."],
+["Madison Square Garden",-46,260,"Civic","SALVAGE",2,"A drum on a raft over the station below, and the station below is a sump. Structurally sound, standing in water."],
+["Williamsburgh Savings Bank",240,-168,"Landmark","STANDING",1,"Brooklyn's tallest for a century. The clock faces are dark and the tower is the borough's landmark for anyone navigating on foot."]
 ];
 
 /* ---- scenes: landmark name -> street-view scene id -------------------------------- */
@@ -1173,6 +1216,98 @@ NYC.terrain={U2M,SPOT,FILL,elev,onLand,isFill,amplification,liquefaction,ground,
 </script>
 <script>
 /* ===================================================================================
+   NYC 2050 — structure heights.
+   Roof heights in metres, near enough to the real thing for the ones anybody would
+   recognise and plausible for the rest. Height drives three things: what a falling
+   structure reaches, what a thrown fragment flies over rather than into, and the
+   elevation profile drawn under a debris corridor.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+/* ---- named structures: height to roof, metres ------------------------------------ */
+const H={
+ /* --- Lower Manhattan --- */
+ "One World Trade Center":541,"One New York Plaza":195,"120 Wall Street":120,
+ "Woolworth Building":241,"Manhattan Municipal Building":177,"Trinity Church":86,
+ "New York Stock Exchange":34,"Cunard Building":68,"New York City Hall":30,
+ "Thurgood Marshall Courthouse":180,"Surrogate's Court":33,"The Sun Building":26,
+ "St Paul's Chapel":66,"9/11 Memorial & Museum":34,"Pace University":52,
+ "401 Broadway":65,"Battery Park City":90,"South Street Seaport":18,
+ "Fraunces Tavern":14,"National Museum of the American Indian":42,
+ "NY-Presbyterian Lower Manhattan":48,"Bowery Savings Bank":26,
+ /* --- Village to Midtown --- */
+ "Washington Square Arch":23,"New York University":48,"Jefferson Market Library":30,
+ "Cooper Square":30,"Webster Hall":24,"Palladium":26,"The Strand":22,
+ "Flatiron Building":87,"Empire State Building":381,"Macy's":45,"Morgan Library":22,
+ "Museum of Sex":26,"Barnes & Noble":30,"Xavier High School":28,
+ "New York Public Library":30,"Grand Central Terminal":32,"Summit One Vanderbilt":427,
+ "Penn Station":30,"Moynihan Train Hall":28,"Times Square":111,
+ "Rockefeller Center":260,"St. Patrick's Cathedral":100,"Museum of Modern Art":76,
+ "Trump Tower":202,"Carnegie Hall":45,"Javits Center":46,"Hudson Yards":387,
+ "Vessel":46,"The High Line":9,"Chelsea Market":25,"Whitney Museum":67,
+ "Little Island":12,"Bathhouse Flatiron":22,"Tenement Museum":20,"New Museum":53,
+ "Katz's Delicatessen":12,"McSorley's Old Ale House":12,"Bowery Ballroom":18,
+ "Cooper Square":30,"Union Square":0,"Madison Square Garden":45,
+ /* --- Upper Manhattan --- */
+ "Lincoln Center":40,"Metropolitan Opera":42,"Mount Sinai West":60,
+ "American Museum of Natural History":45,"Beresford Apartments":91,"The Dakota":44,
+ "Beacon Theatre":30,"Solomon R. Guggenheim Museum":28,"Metropolitan Museum of Art":30,
+ "Neue Galerie":26,"Cooper Hewitt":24,"Jewish Museum":30,
+ "Museum of the City of New York":26,"El Museo del Barrio":22,
+ "The Frick Collection":20,"Mount Sinai Hospital":90,"Gracie Mansion":11,
+ "Belvedere Castle":14,"Cathedral of St John the Divine":70,"Columbia University":58,
+ "Grant's Tomb":46,"Riverside Church":120,"Apollo Theater":20,
+ "Studio Museum in Harlem":18,"Harlem Hospital Center":58,
+ "Abyssinian Baptist Church":30,"City College of New York":44,"Hamilton Grange":11,
+ "The Met Cloisters":36,"NY-Presbyterian Columbia":90,"Highbridge Water Tower":61,
+ "United Palace":40,"Museum Mile":30,
+ /* --- Brooklyn --- */
+ "Soldiers' and Sailors' Memorial Arch":24,"Grand Army Plaza":24,
+ "Brooklyn Museum":34,"Brooklyn Public Library":25,"Barclays Center":40,
+ "Atlantic Terminal":56,"Brooklyn Technical High School":40,"Pratt Institute":30,
+ "The Brooklyn Hospital Center":52,"Brooklyn Bridge":84,"Williamsburgh Savings Bank":156,
+ "Brooklyn Navy Yard":24,"Home Depot":12,"Whole Foods Market":10,
+ "Green-Wood Cemetery":30,"Brooklyn Heights Promenade":18,
+ /* --- Queens, the Bronx, the harbour --- */
+ "Unisphere":42,"Citi Field":48,"Elmhurst Hospital Center":56,"Mount Sinai Queens":40,
+ "Astoria Generating Station":60,"Sunnyside Yard":8,"Yankee Stadium":42,
+ "New York Botanical Garden":20,"Statue of Liberty":93,"Ellis Island":30,
+ "Hillview / Aqueduct Terminus":18,"Newtown Creek Works":42,"East River Station":70,
+ "Hunts Point Market":16,"Holland Tunnel Vent Shaft":48,"Lincoln Tunnel Vent Shaft":48
+};
+
+/* ---- everything else, by what it is and where it stands -------------------------- */
+const BASE={Tower:180,Landmark:45,Civic:34,Trade:18,Transit:8,Medical:46,
+            Lifeline:28,Industry:22,District:26,Park:0,Water:0};
+/* the same shop is a different building in Midtown than it is in Windsor Terrace */
+function densityFactor(x,y){
+  const onManhattan = y>=-352&&y<=1740;
+  if(!onManhattan) return 0.6;
+  if(y<-186) return 1.5;                       /* the Financial District */
+  if(y<112)  return 0.85;                      /* below 14th, low-rise by age */
+  if(y<480)  return 1.6;                       /* Midtown */
+  if(y<880)  return 1.0;
+  return 0.7;
+}
+function heightOf(m){
+  if(H[m.name]!=null) return H[m.name];
+  const b=BASE[m.cat]!=null?BASE[m.cat]:18;
+  if(b===0) return 0;
+  let h=b*densityFactor(m.x,m.y);
+  if(m.tier===1) h*=1.25;                      /* the survey listed it first for a reason */
+  return Math.round(h);
+}
+/* a floor is about three and a half metres, and has been since the lifts arrived */
+const floorsOf=h=>h<=0?0:Math.max(1,Math.round(h/3.6));
+const named=name=>H[name]!=null;
+
+NYC.heights={H,BASE,heightOf,floorsOf,named,densityFactor};
+})();
+</script>
+<script>
+/* ===================================================================================
    NYC 2050 — map renderer. Builds the survey sheet in SVG and owns the view state
    (pan, zoom, fly-to), the projection, and the place-naming used everywhere else.
    =================================================================================== */
@@ -1264,7 +1399,7 @@ function init(opts){
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
   ["sea","land","band","cover","park","grid","thru","bway","shore","cross","thrulab",
-   "haz","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
+   "haz","deb","hgt","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
   defs.innerHTML='<pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" '+
@@ -1457,6 +1592,7 @@ function init(opts){
     /* labels are laid out in map space but sized in screen space, so a zoom moves
        them without inflating them */
     svg.style.setProperty("--symk",(1/sc).toFixed(3));
+    L.hgt.style.setProperty("--symk",(1/sc).toFixed(3));
     L.pin.style.fontSize=(8.6/sc)+"px";
     L.upin.style.fontSize=(9/sc)+"px";
     L.lab.style.fontSize=(8/sc)+"px";
@@ -1584,11 +1720,14 @@ function init(opts){
   addEventListener("resize",fit);
 
   /* --- hazard overlay: the geometry a projection produces at one hour ----------- */
-  function clearHazard(){ while(L.haz.firstChild) L.haz.removeChild(L.haz.firstChild); }
+  function clearHazard(){
+    [L.haz,L.deb].forEach(g=>{ while(g.firstChild) g.removeChild(g.firstChild); });
+  }
   function drawHazard(frame){
     clearHazard();
     if(!frame) return;
-    const add=n=>L.haz.appendChild(n);
+    let target=L.haz;
+    const add=n=>target.appendChild(n);
     const rectsPath=list=>list.map(r=>{
       const a=P(r[0],r[1]), b=P(r[0]+r[2],r[1]), c=P(r[0]+r[2],r[1]+r[3]), d=P(r[0],r[1]+r[3]);
       return "M"+a+"L"+b+"L"+c+"L"+d+"Z";
@@ -1612,6 +1751,28 @@ function init(opts){
         "fill-opacity":i===0?.5:.12,stroke:"#8F2222","stroke-width":1.2,
         "stroke-opacity":.75}));
     });
+    if(frame.debris){
+      target=L.deb;
+      const d=frame.debris, o=P(d.origin[0],d.origin[1]);
+      let far="",near="";
+      d.rays.forEach(r=>{
+        const a=P(r.x1,r.y1), b=P(r.x2,r.y2);
+        const seg="M"+a[0]+" "+a[1]+"L"+b[0]+" "+b[1];
+        if(r.through) far+=seg; else near+=seg;
+      });
+      add(el("path",{d:near,fill:"none",stroke:"#8A8377","stroke-width":.6,
+        "stroke-opacity":.4,"stroke-linecap":"round"}));
+      add(el("path",{d:far,fill:"none",stroke:"#B4741A","stroke-width":.9,
+        "stroke-opacity":.75,"stroke-linecap":"round"}));
+      let hit="";
+      d.impacts.forEach(i=>{
+        const p=P(i.x,i.y);
+        hit+="M"+(p[0]-1.6)+" "+p[1]+"a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0";
+      });
+      add(el("path",{d:hit,fill:"#8F2222","fill-opacity":.75}));
+      add(el("circle",{cx:o[0],cy:o[1],r:3,fill:"#8F2222"}));
+      target=L.haz;
+    }
     if(frame.quake){
       const [px,py]=P(frame.quake.x,frame.quake.y), k=frame.quake.faint?.45:1;
       for(let i=1;i<=5;i++)
@@ -1624,6 +1785,35 @@ function init(opts){
         "stroke-opacity":k}));
     }
   }
+  /* --- structure heights, drawn as the shadow of the thing itself --------------- */
+  let hgtOn=false;
+  function buildHeights(){
+    if(L.hgt.firstChild) return;
+    const H=NYC.heights;
+    marks.slice().sort((a,b)=>a.y-b.y).forEach(m=>{
+      const h=H.heightOf(m);
+      if(h<25) return;
+      const [px,py]=P(m.x,m.y);
+      /* a bar in screen space, so it reads as elevation and not as ground */
+      const len=Math.min(58,3+h*0.105);
+      const col=h>=200?"#8F2222":h>=90?"#B4741A":"#4A4842";
+      const g=el("g",{class:"hbar"});
+      g.appendChild(el("line",{x1:px,y1:py,x2:px,y2:py-len,
+        stroke:"#FAF9F5","stroke-opacity":.75,"stroke-width":3,"stroke-linecap":"round"}));
+      g.appendChild(el("line",{x1:px,y1:py,x2:px,y2:py-len,
+        stroke:col,"stroke-opacity":.85,"stroke-width":1.5,"stroke-linecap":"round"}));
+      g.appendChild(el("circle",{cx:px,cy:py-len,r:2.1,fill:col,
+        stroke:"#FAF9F5","stroke-width":.9}));
+      L.hgt.appendChild(g);
+    });
+  }
+  function setHeights(on){
+    hgtOn=on;
+    if(on) buildHeights();
+    L.hgt.style.display=on?"":"none";
+  }
+  setHeights(false);
+
   /* --- outcome colours over the survey's own dispositions ---------------------- */
   let painted=false;
   function paintOutcomes(names,states){
@@ -1642,7 +1832,7 @@ function init(opts){
   }
 
   const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
-    drawHazard, clearHazard, paintOutcomes, clearOutcomes,
+    drawHazard, clearHazard, paintOutcomes, clearOutcomes, setHeights,
     renderPins, highlight, clearHighlight, project:P,
     get scale(){return sc;},
     setCoverage(on){ L.cover.style.display=on?"":"none"; },
@@ -3634,6 +3824,229 @@ NYC.streetview={init,open,close,isOpen,step,toggleEra,get current(){return cur;}
 </script>
 <script>
 /* ===================================================================================
+   NYC 2050 — ejecta and fragment throw.
+   What an event puts into the air and where it comes down. Fragments are launched
+   from an origin, flown as ballistic bodies with quadratic drag, and tested against
+   every structure along their line: a fragment passes over anything shorter than its
+   altitude, and strikes anything taller. A strike that carries more energy than the
+   fabric can absorb goes through and keeps going, which is how debris crosses blocks.
+
+   This models material — facade, masonry, structural steel, glazing, plant, vehicles.
+   People in the throw field are counted as exposure, in the way a civil-defence plate
+   counts them, and not modelled further.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+const G=9.81, RHO=1.22, U2M=10;      /* one grid unit is ten metres */
+
+/* ---- what gets thrown ------------------------------------------------------------- */
+const CLASSES=[
+ {id:"GLAZING", label:"glazing",        mass:6,    cda:0.55, colour:"#7E9BA6", w:38},
+ {id:"FACADE",  label:"facade panel",   mass:190,  cda:1.40, colour:"#A89A82", w:22},
+ {id:"MASONRY", label:"masonry",        mass:70,   cda:0.55, colour:"#9A8A76", w:20},
+ {id:"STEEL",   label:"structural steel",mass:950, cda:0.85, colour:"#6E7276", w:10},
+ {id:"VEHICLE", label:"vehicle",        mass:1500, cda:2.60, colour:"#8A5A2B", w:5},
+ {id:"PLANT",   label:"roof plant",     mass:2600, cda:3.10, colour:"#5E6266", w:5}
+];
+const TOTALW=CLASSES.reduce((a,c)=>a+c.w,0);
+
+/* what a building will absorb before a thing goes through it, in joules */
+/* energy absorbed passing through the whole depth of one building, in joules */
+const RESIST={Tower:3.0e6,Landmark:5.0e6,Civic:3.5e6,Trade:1.2e6,Transit:6.0e6,
+              Medical:3.5e6,Lifeline:5.0e6,Industry:2.5e6,District:1.5e6,
+              FABRIC:1.1e6,Park:2.0e4,Water:1e4};
+const CONDR={COLLAPSED:0.45,SALVAGE:0.7,FLOODED:0.8,UNSURVEYED:1,SEALED:1.0,
+             STANDING:1.05,OCCUPIED:1.1};
+
+function rng(seed){
+  let a=(seed>>>0)||1;
+  return function(){ a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296; };
+}
+function pickClass(r){
+  let v=r()*TOTALW;
+  for(const c of CLASSES){ v-=c.w; if(v<=0) return c; }
+  return CLASSES[0];
+}
+/* a logged site stands for a block of fabric, not a single footprint */
+const footprint=(h)=>3+Math.min(4,h/120);      /* grid units */
+const STRIDE=4;                                 /* one building frontage, 40 m */
+
+/* Between the logged sites the city is still there. Ground that is built on gets a
+   typical roof height from the density model, so a fragment has to go through the
+   fabric whether or not the survey put a station on it. */
+function fabricAt(x,y,parks,rand){
+  const T=NYC.terrain;
+  if(!T.onLand(x,y)) return 0;
+  for(const p of parks) if(Math.hypot(p.x-x,p.y-y)<14) return 0;   /* open ground */
+  if(T.inPoly(x,y,NYC.data.CPARK)) return 0;
+  const base=20*NYC.heights.densityFactor(x,y);
+  return Math.max(6,base*(0.6+rand()*0.9));
+}
+/* everything one fragment could run into, in the order it would meet it */
+function obstacles(origin,dir,sites,parks,H,maxS,rand){
+  const named=[], near=[];
+  for(const m of sites){
+    if(m.cat==="Park"||m.cat==="Water"||m.cat==="District") continue;
+    const dx=m.x-origin[0], dy=m.y-origin[1];
+    const along=dx*dir[0]+dy*dir[1];
+    if(along<=1) continue;
+    const off=Math.abs(dx*dir[1]-dy*dir[0]);
+    const h=H(m);
+    if(h<=0) continue;
+    if(off<=footprint(h))
+      named.push({name:m.name,cat:m.cat,disp:m.disp,height:h,s:along*U2M,logged:true});
+    else if(off<=14) near.push({m,h,along,off});  /* stands for its own block */
+  }
+  named.sort((a,b)=>a.s-b.s);
+  const out=[]; let ni=0;
+  for(let u=STRIDE;u*U2M<=maxS;u+=STRIDE){
+    const s=u*U2M;
+    while(ni<named.length&&named[ni].s<s-STRIDE*U2M/2) out.push(named[ni++]);
+    if(ni<named.length&&Math.abs(named[ni].s-s)<=STRIDE*U2M/2){ out.push(named[ni++]); continue; }
+    const x=origin[0]+dir[0]*u, y=origin[1]+dir[1]*u;
+    const h=fabricAt(x,y,parks,rand);
+    if(h<=0) continue;
+    /* if the survey logged a station on this block, the strike belongs to it */
+    let own=null,od=9;
+    for(const n of near){
+      const d=Math.abs(n.along-u);
+      if(d<od&&d<12){ od=d; own=n; }
+    }
+    out.push(own
+      ? {name:own.m.name,cat:own.m.cat,disp:own.m.disp,height:own.h,s,logged:true}
+      : {name:null,cat:"FABRIC",disp:"STANDING",height:h,s,logged:false});
+  }
+  while(ni<named.length) out.push(named[ni++]);
+  out.sort((a,b)=>a.s-b.s);
+  return out;
+}
+
+/* ---- one fragment ----------------------------------------------------------------- */
+function fly(o){
+  const {cls,v0,theta,alt0}=o;
+  const k=0.5*RHO*cls.cda/cls.mass;            /* drag per metre of travel */
+  let vx=v0*Math.cos(theta), vy=v0*Math.sin(theta), s=0, alt=alt0, t=0;
+  const dt=0.05, path=[{s:0,alt:alt0,v:v0}];
+  const out={path,strikes:[],apex:alt0,stopped:"ground"};
+  let next=0;                                   /* pointer into the candidate list */
+  while(t<70&&alt>-0.5){
+    const v=Math.hypot(vx,vy);
+    vx+= -k*v*vx*dt;
+    vy+= -G*dt - k*v*vy*dt;
+    s+=vx*dt; alt+=vy*dt; t+=dt;
+    if(alt>out.apex) out.apex=alt;
+    if(path.length<400&&(path.length<8||t%0.25<dt)) path.push({s,alt,v});
+    /* has it reached the next structure on its line? */
+    while(next<o.cands.length&&o.cands[next].s<s){
+      const c=o.cands[next++];
+      if(alt>c.height||alt<0) continue;         /* over the roof, or already down */
+      const ke=0.5*cls.mass*v*v;
+      const res=(RESIST[c.cat]||1.1e6)*(CONDR[c.disp]||1)*(0.7+c.height/400);
+      const dmg=Math.min(0.5,ke/(res*3.2));
+      if(ke>res){                               /* through it, and slower */
+        const f=Math.sqrt(Math.max(0.04,1-res/ke));
+        vx*=f; vy*=f;
+        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:true});
+      } else {
+        out.strikes.push({name:c.name,cat:c.cat,s:c.s,alt,ke,dmg,through:false});
+        out.stopped="building"; out.stopName=c.name||"unlogged fabric";
+        path.push({s,alt,v}); out.landS=s; out.landAlt=alt;
+        return out;
+      }
+    }
+    if(vx<0.4&&alt<1) break;
+  }
+  path.push({s,alt:Math.max(0,alt),v:Math.hypot(vx,vy)});
+  out.landS=s; out.landAlt=0;
+  return out;
+}
+
+/* ---- the whole field -------------------------------------------------------------- */
+/* opt: {origin:[x,y], height, kind:"blast"|"collapse", power, bearing, spread,
+         count, seed, sites, heightOf} */
+function field(opt){
+  const r=rng(opt.seed||7), sites=opt.sites||[], origin=opt.origin;
+  const parks=sites.filter(m=>m.cat==="Park").map(m=>({x:m.x,y:m.y}));
+  const count=opt.count||220;
+  const V = opt.kind==="collapse" ? 16+opt.power*0.16 : 70+opt.power*52;
+  const frags=[];
+  /* every site's height once, and its distance along each bearing later */
+  const H=opt.heightOf;
+  for(let i=0;i<count;i++){
+    const cls=pickClass(r);
+    /* the heavier it is, the less of the energy it takes with it */
+    const heavy=Math.pow(Math.min(1,180/cls.mass),0.28);
+    const v0=V*heavy*(0.32+0.68*Math.pow(r(),1.6));
+    let bearing, theta, alt0;
+    if(opt.kind==="collapse"){
+      bearing=opt.bearing+(r()*2-1)*opt.spread;
+      theta=(-8+r()*44)*Math.PI/180;
+      alt0=Math.max(2,r()*opt.height);          /* it comes off every floor */
+    } else {
+      bearing=r()*360;
+      theta=(4+r()*68)*Math.PI/180;
+      alt0=2+r()*8;
+    }
+    const br=(90-bearing)*Math.PI/180;
+    const dir=[Math.cos(br),Math.sin(br)];
+    const reach=Math.min(4000,80+v0*v0/G*1.25);
+    const cands=obstacles(origin,dir,sites,parks,H,reach,r);
+    const f=fly({cls,v0,theta,alt0,cands});
+    f.cls=cls.id; f.label=cls.label; f.colour=cls.colour; f.mass=cls.mass;
+    f.v0=v0; f.theta=theta*180/Math.PI; f.bearing=bearing; f.alt0=alt0;
+    f.dir=dir; f.origin=origin;
+    f.land=[origin[0]+dir[0]*f.landS/U2M, origin[1]+dir[1]*f.landS/U2M];
+    f.cands=cands;
+    frags.push(f);
+  }
+
+  /* ---- what it adds up to --------------------------------------------------------- */
+  const dmg=new Map();
+  let maxRange=0, through=0, multi=0, crossBlock=0, crossThree=0;
+  frags.forEach(f=>{
+    maxRange=Math.max(maxRange,f.landS);
+    if(f.landS>80) crossBlock++;
+    if(f.landS>240) crossThree++;
+    const pen=f.strikes.filter(s=>s.through).length;
+    if(pen) through++;
+    if(pen>1) multi++;
+    f.strikes.forEach(s=>{ if(s.name) dmg.set(s.name,(dmg.get(s.name)||0)+s.dmg); });
+  });
+  const struck=[...dmg.entries()].map(([name,d])=>({name,dmg:Math.min(1,d)}))
+    .sort((a,b)=>b.dmg-a.dmg);
+  let breached=0;
+  frags.forEach(f=>{ breached+=f.strikes.filter(k=>k.through).length; });
+  /* the deepest line: the fragment that went through the most fabric */
+  const deepest=frags.slice().sort((a,b)=>
+    (b.strikes.filter(s=>s.through).length-a.strikes.filter(s=>s.through).length)||
+    (b.landS-a.landS))[0]||null;
+
+  return {frags,damage:dmg,struck,deepest,
+    stats:{count,maxRange,through,multi,crossBlock,crossThree,breached,
+           blocks:maxRange/80, struckCount:struck.length}};
+}
+
+/* the side elevation under one fragment's line: what it flew over and what it hit */
+function profile(f){
+  if(!f) return null;
+  const bars=f.cands.filter(c=>c.s<=Math.max(f.landS,60)+40)
+    .map(c=>({name:c.name||"unlogged fabric",logged:!!c.logged,s:c.s,h:c.height,
+      hit:f.strikes.some(k=>k.s===c.s),
+      through:f.strikes.some(k=>k.s===c.s&&k.through)}));
+  return {bars,path:f.path,landS:f.landS,landAlt:f.landAlt||0,
+    stopped:f.stopped,stopName:f.stopName,label:f.label,mass:f.mass,
+    v0:f.v0,theta:f.theta,bearing:f.bearing,apex:f.apex};
+}
+
+NYC.debris={CLASSES,RESIST,field,profile,footprint,U2M};
+})();
+</script>
+<script>
+/* ===================================================================================
    NYC 2050 — contingency projections.
    A hazard is placed on the sheet, run forward twenty-four hours, and every logged
    site is asked what it would be afterwards. Two things are tracked separately:
@@ -3737,9 +4150,11 @@ const HAZARDS=[
         "meant to. The debris field is the height of the structure, laid on its side, "+
         "and whatever it lands on may go the same way.",
   params:[
-   {id:"height", label:"STRUCTURE HEIGHT",min:60,max:420,step:10,val:220,unit:" m"},
+   {id:"height", label:"STRUCTURE HEIGHT",min:20,max:560,step:10,val:220,unit:" m"},
    {id:"bearing",label:"FALL BEARING",min:0,max:315,step:45,val:180,bearing:true},
-   {id:"chain",  label:"PROGRESSIVE",min:0,max:1,step:1,val:1,onoff:true}]},
+   {id:"chain",  label:"PROGRESSIVE",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"eject",  label:"EJECTA THROW",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"frags",  label:"FRAGMENTS SAMPLED",min:60,max:400,step:20,val:220}]},
 
  {id:"blast", kind:"human", name:"Large-scale blast event", short:"BLAST",
   point:true, focus:2.4, pointLabel:"EPICENTRE",
@@ -3748,7 +4163,9 @@ const HAZARDS=[
         "is the shape of the hole in the network, not the event that made it.",
   params:[
    {id:"scale",label:"SCALE",min:1,max:5,step:1,val:3},
-   {id:"burn", label:"SECONDARY FIRES",min:0,max:1,step:1,val:1,onoff:true}]},
+   {id:"burn", label:"SECONDARY FIRES",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"eject",label:"EJECTA THROW",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"frags",label:"FRAGMENTS SAMPLED",min:60,max:400,step:20,val:220}]},
 
  {id:"outage", kind:"human", name:"Deliberate infrastructure failure", short:"OUTAGE",
   point:true, focus:1.8, pointLabel:"INSTALLATION",
@@ -3904,6 +4321,42 @@ function run(spec){
       note(0,best.m.name+" taken out of service.","loss"); }
   }
 
+  /* ---- what the event throws, and what it goes through on the way down ---------- */
+  let ejecta=null, ejectaGeom=null;
+  if(NYC.debris&&P.eject&&(H.id==="blast"||H.id==="collapse")){
+    const isFall=H.id==="collapse";
+    ejecta=NYC.debris.field({
+      origin:pt, kind:isFall?"collapse":"blast",
+      height:isFall?P.height:10,
+      power:isFall?P.height:P.scale,
+      bearing:isFall?P.bearing:0, spread:isFall?36:180,
+      count:P.frags|0||220, seed:hashSpec(spec)^0x9E37,
+      sites:sites, heightOf:m=>NYC.heights.heightOf(m)
+    });
+    ejecta.damage.forEach((d,name)=>{
+      const s2=byName.get(name); if(!s2) return;
+      const dm=Math.min(1,d*s2.cond);
+      s2.struct=Math.min(1,s2.struct+dm);
+      if(!s2.lost&&s2.struct>=.8) s2.lost=0;
+    });
+    const U=NYC.debris.U2M;
+    ejectaGeom={
+      origin:pt,
+      rays:ejecta.frags.map(f=>({
+        x1:pt[0],y1:pt[1],x2:f.land[0],y2:f.land[1],
+        colour:f.colour, through:f.strikes.some(k=>k.through),
+        far:f.landS>240
+      })),
+      impacts:[].concat.apply([],ejecta.frags.map(f=>
+        f.strikes.map(k=>({x:pt[0]+f.dir[0]*k.s/U, y:pt[1]+f.dir[1]*k.s/U,
+          through:k.through}))))
+    };
+    note(0,ejecta.stats.crossBlock+" fragments carry past the first block; "+
+      ejecta.stats.through+" go through a structure and keep going.","hazard");
+    if(ejecta.stats.multi)
+      note(0,ejecta.stats.multi+" pass through more than one building before stopping.","hazard");
+  }
+
   /* what was already being provided before the event; a projection reports the
      difference it makes, not the shortages the survey had already logged */
   const reachOf=(p,s)=>{
@@ -3940,7 +4393,8 @@ function run(spec){
 
   let peakFlood=0, peakFloodT=0;
   for(let t=0;t<=STEPS;t++){
-    const frame={t,flood:null,fire:null,burnt:null,rings:null,cones:null,quake:null};
+    const frame={t,flood:null,fire:null,burnt:null,rings:null,cones:null,quake:null,
+      debris:ejectaGeom};
 
     /* ---- water ---- */
     if(H.id==="surge"){
@@ -4149,10 +4603,20 @@ function run(spec){
     districts:lostDistricts.map(s=>s.m.name),
     worst:worst.map(s=>({name:s.m.name,state:s.state,cat:s.m.cat})),
     peakFlood:H.id==="surge"?peakFlood:null,
+    ejecta:ejecta?Object.assign({},ejecta.stats,{
+      struck:ejecta.struck.slice(0,8),
+      deepest:ejecta.deepest?{
+        label:ejecta.deepest.label,
+        range:Math.round(ejecta.deepest.landS),
+        through:ejecta.deepest.strikes.filter(k=>k.through).length,
+        names:ejecta.deepest.strikes.map(k=>k.name).filter(Boolean),
+        fabric:ejecta.deepest.strikes.filter(k=>!k.name).length
+      }:null}):null,
     burnt:burntMask?burntMask.reduce((a,b)=>a+b,0)*Math.pow(CELL*10,2)/1e6:0, /* km2 */
     narrative:""
   };
   report.narrative=narrate(H,P,report,S);
+  report.ejectaField=ejecta;
   events.sort((a,b)=>a.t-b.t);
 
   return { hazard:H, spec, steps:STEPS, frames, events, report,
@@ -4205,6 +4669,18 @@ function narrate(H,P,rep,S){
   out.push(gone+" of "+S.length+" logged sites pass out of use — "+c.LOST+
     " lost outright, "+c.CRITICAL+" critical — and "+c.DAMAGED+" more are damaged.");
 
+  if(rep.ejecta){
+    const e=rep.ejecta;
+    out.push("Ejecta reaches "+Math.round(e.maxRange)+" m — "+
+      (e.blocks<1.4?"most of a city block":e.blocks.toFixed(1)+" city blocks")+
+      " — with "+e.crossBlock+" of "+e.count+" sampled fragments past the first block"+
+      (e.crossThree?" and "+e.crossThree+" past the third":"")+". "+
+      (e.through? e.through+" go through a structure and carry on"+
+        (e.multi?", "+e.multi+" of them through more than one":"")+
+        ", for "+e.breached+" breaches in all; "+e.struckCount+
+        " logged sites are hit."
+      : "Nothing carries enough energy to breach a structure."));
+  }
   const svc=Object.keys(rep.services);
   if(svc.length){
     const worst=svc.sort((a,b)=>rep.services[b]-rep.services[a])[0];
@@ -4271,7 +4747,7 @@ function buildHazards(){
 }
 function select(id){
   hazard=NYC.sim.HAZARDS.find(h=>h.id===id);
-  params={}; hazard.params.forEach(p=>params[p.id]=p.val);
+  params={}; hazard.params.forEach(p=>params[p.id]=p.val); snapped=null;
   [...q("simHazards").querySelectorAll(".chip")].forEach(b=>
     b.setAttribute("aria-pressed", b.dataset.id===id));
   q("simName").textContent=hazard.name;
@@ -4307,15 +4783,35 @@ function setPick(on){
   if(api.pickActive) hooks.toast&&hooks.toast("Tap the sheet to place the "+
     (hazard.pointLabel||"point").toLowerCase());
 }
+let snapped=null;
 function takePoint(g){
   point=[Math.round(g[0]),Math.round(g[1])];
+  snapped=null;
+  /* a collapse is a collapse OF something: take the nearest structure and its height */
+  if(hazard.id==="collapse"&&map){
+    let best=null,bd=1e9;
+    map.marks.forEach(m=>{
+      const h=NYC.heights.heightOf(m);
+      if(h<20) return;
+      const d=Math.hypot(m.x-point[0],m.y-point[1]);
+      if(d<bd){bd=d;best={m,h,d};}
+    });
+    if(best&&best.d<26){
+      snapped=best;
+      point=[best.m.x,best.m.y];
+      const hp=hazard.params.find(p=>p.id==="height");
+      params.height=Math.max(hp.min,Math.min(hp.max,Math.round(best.h/10)*10));
+      buildParams();
+    }
+  }
   setPick(false); updatePointRef();
 }
 function updatePointRef(){
   const el=q("simPointRef");
   if(!hazard.point){ el.textContent=""; return; }
-  el.textContent = point ? NYC.map.describe(point[0],point[1])+" · "+
-    NYC.map.gridRef(point[0],point[1]) : "not set — the sheet's centre will be used";
+  if(!point){ el.textContent="not set — the sheet's centre will be used"; return; }
+  el.textContent = (snapped ? snapped.m.name+" · "+snapped.h+" m · " : "")+
+    NYC.map.describe(point[0],point[1])+" · "+NYC.map.gridRef(point[0],point[1]);
 }
 
 /* ---- running it ------------------------------------------------------------------- */
@@ -4411,6 +4907,24 @@ function renderReport(){
       '<span>'+r.services[k]+' sites</span></li>');
     h+='</ul>';
   }
+  if(r.ejecta){
+    const e=r.ejecta;
+    h+='<h4>EJECTA THROW</h4>';
+    h+='<ul class="svc">';
+    h+='<li><b>MAX RANGE</b><span>'+Math.round(e.maxRange)+' m · '+
+        e.blocks.toFixed(1)+' blocks</span></li>';
+    h+='<li><b>PAST ONE BLOCK</b><span>'+e.crossBlock+' of '+e.count+'</span></li>';
+    h+='<li><b>PAST THREE BLOCKS</b><span>'+e.crossThree+'</span></li>';
+    h+='<li><b>THROUGH A BUILDING</b><span>'+e.through+'</span></li>';
+    h+='<li><b>THROUGH TWO OR MORE</b><span>'+e.multi+'</span></li>';
+    h+='<li><b>STRUCTURES STRUCK</b><span>'+e.struckCount+'</span></li>';
+    h+='</ul>';
+    h+='<div class="secthead">SECTION UNDER THE DEEPEST LINE'+
+       '<span><button data-frag="deepest" class="fsel on">DEEPEST</button>'+
+       '<button data-frag="longest" class="fsel">LONGEST</button>'+
+       '<button data-frag="heaviest" class="fsel">HEAVIEST</button></span></div>';
+    h+='<div id="simSection"></div>';
+  }
   if(r.lifelines.length)
     h+='<h4>LIFELINES LOST</h4><p>'+r.lifelines.map(esc).join("<br>")+'</p>';
   if(r.districts.length)
@@ -4425,6 +4939,79 @@ function renderReport(){
      'setting, not surveyed, and no part of this models a real event.</div>';
   h+='</div>';
   box.innerHTML=h;
+  if(r.ejecta){
+    drawSection("deepest");
+    [...box.querySelectorAll(".fsel")].forEach(b=>b.onclick=()=>{
+      [...box.querySelectorAll(".fsel")].forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      drawSection(b.dataset.frag);
+    });
+  }
+}
+
+/* ---- the side elevation: what the fragment flew over, and what it went through ---- */
+function pickFragment(which){
+  const f=result&&result.report.ejectaField;
+  if(!f||!f.frags.length) return null;
+  const by={
+    deepest:(a,b)=>(b.strikes.filter(k=>k.through).length-
+                    a.strikes.filter(k=>k.through).length)||(b.landS-a.landS),
+    longest:(a,b)=>b.landS-a.landS,
+    heaviest:(a,b)=>(b.mass-a.mass)||(b.landS-a.landS)
+  }[which];
+  if(!by) return f.frags[0];
+  return f.frags.slice().sort(by)[0];
+}
+function drawSection(which){
+  const host=q("simSection"); if(!host) return;
+  const frag=pickFragment(which);
+  const pr=frag&&NYC.debris.profile(frag);
+  if(!pr){ host.innerHTML=""; return; }
+  const W=316,Hh=156,L=26,B=26,T=12,R=8;
+  const maxS=Math.max(120,pr.landS*1.06,
+    pr.bars.length?pr.bars[pr.bars.length-1].s+40:0);
+  const maxA=Math.max(30,pr.apex*1.12,
+    pr.bars.reduce((a,b)=>Math.max(a,b.h),0)*1.12);
+  const X=s=>L+(W-L-R)*(s/maxS), Y=a=>Hh-B-(Hh-B-T)*(a/maxA);
+  let g='<svg viewBox="0 0 '+W+' '+Hh+'" class="sect">';
+  /* the ground, and a block scale */
+  g+='<line x1="'+L+'" y1="'+Y(0)+'" x2="'+(W-R)+'" y2="'+Y(0)+'" class="gl"/>';
+  for(let s=0;s<=maxS;s+=80){
+    g+='<line x1="'+X(s)+'" y1="'+Y(0)+'" x2="'+X(s)+'" y2="'+(Y(0)+4)+'" class="tk"/>';
+    if(s%240===0) g+='<text x="'+X(s)+'" y="'+(Hh-12)+'" class="ax">'+
+      (s===0?"0":(s/80)+" blk")+'</text>';
+  }
+  g+='<text x="3" y="'+(Y(maxA*0.9)+3)+'" class="ax lft">'+Math.round(maxA)+' m</text>';
+  g+='<text x="3" y="'+(Y(0)-2)+'" class="ax lft">0</text>';
+  /* the fabric it passed over */
+  pr.bars.forEach(b=>{
+    const x=X(b.s), y=Y(b.h), w=Math.max(4,X(b.s+22)-x);
+    g+='<rect x="'+(x-w/2)+'" y="'+y+'" width="'+w+'" height="'+(Y(0)-y)+
+       '" class="bd'+(b.through?" thru":b.hit?" hit":"")+(b.logged?" log":"")+
+       '"><title>'+esc(b.name)+" — "+b.h+' m</title></rect>';
+    if(b.logged&&w>5)
+      g+='<text transform="rotate(-90 '+(x+2)+' '+(Y(0)-4)+')" x="'+(x+2)+'" y="'+
+         (Y(0)-4)+'" class="bl">'+esc(b.name.slice(0,17))+'</text>';
+  });
+  /* the line it flew */
+  let d="";
+  pr.path.forEach((p,i)=>{ d+=(i?"L":"M")+X(p.s)+" "+Y(Math.max(0,p.alt)); });
+  g+='<path d="'+d+'" class="traj"/>';
+  /* where it hit something */
+  (frag.strikes||[]).forEach(k=>{
+    g+='<circle cx="'+X(k.s)+'" cy="'+Y(k.alt)+'" r="2.6" class="'+
+       (k.through?"stk thru":"stk")+'"/>';
+  });
+  g+='<circle cx="'+X(pr.landS)+'" cy="'+Y(pr.landAlt)+'" r="3" class="land"/>';
+  g+='</svg>';
+  const stop = pr.stopped==="building"
+    ? "stopped inside "+esc(pr.stopName)
+    : "came to ground at "+Math.round(pr.landS)+" m";
+  host.innerHTML=g+'<div class="seckey"><i class="k1"></i>passed over'+
+    '<i class="k2"></i>struck and stopped<i class="k3"></i>gone through</div>'+
+    '<div class="secap"><b>'+esc(pr.label)+'</b> · '+pr.mass+
+    ' kg · launched at '+Math.round(pr.v0)+' m/s, '+Math.round(pr.theta)+
+    '° · apex '+Math.round(pr.apex)+' m · '+stop+'.</div>';
 }
 
 /* ---- what the info sheet shows while a projection is up --------------------------- */
@@ -4475,7 +5062,9 @@ function showMark(m){
   sel=m; selPin=null;
   q("sNm").textContent=m.name;
   const zone=(m.x>150&&m.y<700)||(m.x<-190)?"OUTER BOROUGH":NYC.map.bandOf(m.y);
-  q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y);
+  const ht=NYC.heights.heightOf(m);
+  q("sMeta").textContent=m.cat.toUpperCase()+" · ZONE "+zone+" · "+NYC.map.describe(m.x,m.y)+
+    (ht>0?" · "+ht+" m, c."+NYC.heights.floorsOf(ht)+" floors":"");
   const c=q("sCode"); c.textContent=m.disp; c.style.background=NYC.map.DISP[m.disp]||"#2C2C2A";
   q("sNote").textContent=m.note||"No field note recorded.";
   const proj=NYC.simui&&NYC.simui.outcomeFor(m.name);
@@ -4732,6 +5321,8 @@ function boot(){
   q("pinBtn").onclick=()=>setPinMode(!pinMode);
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
   q("simBtn").onclick=()=>NYC.simui.toggle();
+  q("hgtBtn").onclick=()=>{ const on=q("hgtBtn").getAttribute("aria-pressed")!=="true";
+    q("hgtBtn").setAttribute("aria-pressed",on); map.setHeights(on); };
   q("zin").onclick=()=>map.zoomAt(1.45,innerWidth/2,innerHeight/2);
   q("zout").onclick=()=>map.zoomAt(1/1.45,innerWidth/2,innerHeight/2);
   q("rst").onclick=()=>{ map.fit(); closeSheet(); };
@@ -4795,6 +5386,7 @@ function boot(){
       closeDrawer():openDrawer("marks"); }
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
     else if(e.key==="s"||e.key==="S"){ NYC.simui.toggle(); }
+    else if(e.key==="h"||e.key==="H"){ q("hgtBtn").click(); }
     else if(e.key==="Escape"){
       if(q("editor").classList.contains("on")) closeEditor(false);
       else if(NYC.simui&&NYC.simui.pickActive) NYC.simui.cancelPick();
