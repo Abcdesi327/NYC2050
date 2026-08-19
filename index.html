@@ -42,6 +42,8 @@
   <i style="background:#7A3E8F"></i>YOUR DROPPED MARKS<br>
   <span style="display:inline-block;width:11px;text-align:center;margin-right:6px;
     color:#7A3E8F">★</span>YOUR BOOKMARKS
+  <b>BUILT FABRIC <span id="blkModeLbl" style="font-family:var(--mono);font-size:9px"></span></b>
+  <div id="blkKey" style="line-height:1.75"></div>
   <b>HEIGHT</b>
   <span style="display:inline-block;width:11px;text-align:center;margin-right:6px">|</span>
     BAR LENGTH ~ ROOF HEIGHT<br>
@@ -52,7 +54,7 @@
   <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
   <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY &nbsp; S SIM &nbsp; H HEIGHT<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; H HEIGHT &nbsp; F FABRIC<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -71,6 +73,7 @@
   <button id="covBtn" class="sm" aria-pressed="true" aria-label="Toggle survey coverage">CVRG</button>
   <button id="thruBtn" class="sm" aria-pressed="true" aria-label="Toggle named thoroughfares">THRU</button>
   <button id="hgtBtn" class="sm" aria-pressed="false" aria-label="Toggle structure heights">HGT</button>
+  <button id="blkBtn" class="sm" aria-pressed="false" aria-label="Built fabric">BLK</button>
   <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
   <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
     class="badge" id="pinCount">0</span></button>
@@ -172,6 +175,7 @@
 <script src="js/data.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/heights.js"></script>
+<script src="js/fabric.js"></script>
 <script src="js/map.js"></script>
 <script src="js/sv-kit.js"></script>
 <script src="js/sv-scenes.js"></script>

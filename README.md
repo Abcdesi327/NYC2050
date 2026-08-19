@@ -27,6 +27,22 @@ link above goes live.
 
 ## What is in it
 
+**The built fabric.** Press **BLK** to cycle it on: 5,242 city blocks, 3,461 of
+them in Manhattan, generated from the thing that actually determines them — the
+street grid already on the sheet. Avenues and streets bound them, the shoreline
+clips them, the parks are cut out, and each block is given a use, a period of
+construction, a height, a floor area and a shelter capacity from where it stands.
+Colour them by use, by height, or by period; tap any block to read it. 401 million
+square metres of floor in all.
+
+This is what makes the projections infrastructural rather than anecdotal. A
+hazard is applied to the fabric as well as to the logged stations, and how a
+block fails depends on when it was built: an M6.8 under 15th Street puts 74 per
+cent of the pre-1901 fabric out of use against 23 per cent of the 1961–99 fabric,
+while a blast — which does not much care what year a wall went up — falls close
+to evenly, and hits the post-2000 curtain wall hardest of all. Nothing here is
+surveyed. It is a plausible city, built to the right rules.
+
 **The sheet.** 304 logged sites across Manhattan, Brooklyn, Queens, the Bronx,
 the harbour islands and the Jersey shore. Named thoroughfares are drawn with
 their names riding the road: Flatbush and Atlantic and Eastern Parkway, Queens
@@ -93,9 +109,10 @@ a strike carrying more energy than that building's fabric absorbs goes **through
 and keeps going. That is how debris crosses blocks, and the report counts it —
 fragments past one block, past three, through a structure, through two or more.
 
-Between the logged stations the fabric is still there, so a corridor is filled in
-with typical buildings from the density model; where the survey did log a station
-on that block the strike is attributed to it. The console draws a **section under
+Between the logged stations the fabric is still there — a fragment's corridor is
+filled in from the block layer, at each block's real height and with the
+resistance its period of construction gives it; where the survey did log a
+station on that block the strike is attributed to it. The console draws a **section under
 the throw line**: a side elevation of everything the fragment flew over, at its
 real height, with the trajectory arcing across it and the strikes marked. Pick
 the deepest, longest, or heaviest fragment to change the section.
@@ -122,7 +139,7 @@ the plates and your marks, and marks can be copied out and pasted back in as
 JSON. Everything is held in `localStorage` — nothing leaves the browser.
 
 Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `H` heights
-· in a plate `←` `→` walk, `T` then/now, `Esc` out.
+· `F` fabric · in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
 ## Layout
 
@@ -132,6 +149,7 @@ css/app.css         all styling
 js/data.js          geography, thoroughfares, 304 landmarks, scene links
 js/terrain.js       spot heights, made ground, rock, shaking amplification
 js/heights.js       roof heights per structure, and the fallbacks
+js/fabric.js        block generation, typology, and the spatial index
 js/debris.js        fragment launch, ballistic flight, penetration, sections
 js/map.js           projection, sheet rendering, view state, place naming
 js/sim.js           hazards, fragility, the service network, the 24-hour run
