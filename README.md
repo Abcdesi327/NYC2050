@@ -27,7 +27,7 @@ link above goes live.
 
 ## What is in it
 
-**The sheet.** 302 logged sites across Manhattan, Brooklyn, Queens, the Bronx,
+**The sheet.** 304 logged sites across Manhattan, Brooklyn, Queens, the Bronx,
 the harbour islands and the Jersey shore. Named thoroughfares are drawn with
 their names riding the road: Flatbush and Atlantic and Eastern Parkway, Queens
 Boulevard and Northern Boulevard, the Grand Concourse and Fordham Road, the FDR
@@ -62,6 +62,13 @@ ivy and the rubble and the standing water go. Every plate is SVG generated at
 runtime from a kit of masonry, glazing, growth, water and wreck primitives. No
 photographs are used anywhere in this project.
 
+**Structure heights.** Every site carries a roof height — the real figure for the
+127 buildings anybody would recognise, and a plausible one derived from category
+and district density for the rest. It shows on the info sheet with an approximate
+floor count, **HGT** draws it on the sheet as a bar over each station, and the
+collapse projection reads it directly: place the point near a structure and it
+snaps to that building and loads its true height.
+
 **Contingency projections.** Press **SIM**. Choose a hazard — hurricane surge,
 earthquake, firestorm, uncontrolled structural collapse, a large-scale blast
 event, or a deliberate infrastructure failure — set its parameters, place it on
@@ -75,6 +82,27 @@ a reach, and a projection reports only what *this* event took away — a shortag
 the survey had already logged is not news. Losing the Astoria generating station
 does more damage over twenty-four hours than a blast that flattens ten blocks,
 and the write-up says so.
+
+**Ejecta.** A blast or a collapse throws material, and the throw is modelled
+rather than assumed. Fragments are drawn from six classes — glazing, facade
+panel, masonry, structural steel, vehicles, roof plant — launched with a spread
+of speeds and angles (from every floor, in a collapse) and flown as ballistic
+bodies under quadratic drag. Along its line each fragment meets the city: it
+passes over anything shorter than its altitude and strikes anything taller, and
+a strike carrying more energy than that building's fabric absorbs goes **through**
+and keeps going. That is how debris crosses blocks, and the report counts it —
+fragments past one block, past three, through a structure, through two or more.
+
+Between the logged stations the fabric is still there, so a corridor is filled in
+with typical buildings from the density model; where the survey did log a station
+on that block the strike is attributed to it. The console draws a **section under
+the throw line**: a side elevation of everything the fragment flew over, at its
+real height, with the trajectory arcing across it and the strikes marked. Pick
+the deepest, longest, or heaviest fragment to change the section.
+
+The model is about material — facade, masonry, steel, plant, vehicles. People in
+the throw field are counted as exposure the way a civil-defence plate counts
+them, and are not modelled further.
 
 Underneath it is a terrain model: spot heights for sixty-five points across the
 five boroughs interpolated into a surface, the made ground mapped separately
@@ -93,16 +121,18 @@ write a note; press **BOOKMARK** on any surveyed site to keep it. **LIST** opens
 the plates and your marks, and marks can be copied out and pasted back in as
 JSON. Everything is held in `localStorage` — nothing leaves the browser.
 
-Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · in a plate
-`←` `→` walk, `T` then/now, `Esc` out.
+Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `H` heights
+· in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
 ## Layout
 
 ```
 index.html          the shell
 css/app.css         all styling
-js/data.js          geography, thoroughfares, 302 landmarks, scene links
+js/data.js          geography, thoroughfares, 304 landmarks, scene links
 js/terrain.js       spot heights, made ground, rock, shaking amplification
+js/heights.js       roof heights per structure, and the fallbacks
+js/debris.js        fragment launch, ballistic flight, penetration, sections
 js/map.js           projection, sheet rendering, view state, place naming
 js/sim.js           hazards, fragility, the service network, the 24-hour run
 js/sim-ui.js        the projection console and the hour scrubber

@@ -102,9 +102,11 @@ const HAZARDS=[
         "meant to. The debris field is the height of the structure, laid on its side, "+
         "and whatever it lands on may go the same way.",
   params:[
-   {id:"height", label:"STRUCTURE HEIGHT",min:60,max:420,step:10,val:220,unit:" m"},
+   {id:"height", label:"STRUCTURE HEIGHT",min:20,max:560,step:10,val:220,unit:" m"},
    {id:"bearing",label:"FALL BEARING",min:0,max:315,step:45,val:180,bearing:true},
-   {id:"chain",  label:"PROGRESSIVE",min:0,max:1,step:1,val:1,onoff:true}]},
+   {id:"chain",  label:"PROGRESSIVE",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"eject",  label:"EJECTA THROW",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"frags",  label:"FRAGMENTS SAMPLED",min:60,max:400,step:20,val:220}]},
 
  {id:"blast", kind:"human", name:"Large-scale blast event", short:"BLAST",
   point:true, focus:2.4, pointLabel:"EPICENTRE",
@@ -113,7 +115,9 @@ const HAZARDS=[
         "is the shape of the hole in the network, not the event that made it.",
   params:[
    {id:"scale",label:"SCALE",min:1,max:5,step:1,val:3},
-   {id:"burn", label:"SECONDARY FIRES",min:0,max:1,step:1,val:1,onoff:true}]},
+   {id:"burn", label:"SECONDARY FIRES",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"eject",label:"EJECTA THROW",min:0,max:1,step:1,val:1,onoff:true},
+   {id:"frags",label:"FRAGMENTS SAMPLED",min:60,max:400,step:20,val:220}]},
 
  {id:"outage", kind:"human", name:"Deliberate infrastructure failure", short:"OUTAGE",
   point:true, focus:1.8, pointLabel:"INSTALLATION",
@@ -269,6 +273,42 @@ function run(spec){
       note(0,best.m.name+" taken out of service.","loss"); }
   }
 
+  /* ---- what the event throws, and what it goes through on the way down ---------- */
+  let ejecta=null, ejectaGeom=null;
+  if(NYC.debris&&P.eject&&(H.id==="blast"||H.id==="collapse")){
+    const isFall=H.id==="collapse";
+    ejecta=NYC.debris.field({
+      origin:pt, kind:isFall?"collapse":"blast",
+      height:isFall?P.height:10,
+      power:isFall?P.height:P.scale,
+      bearing:isFall?P.bearing:0, spread:isFall?36:180,
+      count:P.frags|0||220, seed:hashSpec(spec)^0x9E37,
+      sites:sites, heightOf:m=>NYC.heights.heightOf(m)
+    });
+    ejecta.damage.forEach((d,name)=>{
+      const s2=byName.get(name); if(!s2) return;
+      const dm=Math.min(1,d*s2.cond);
+      s2.struct=Math.min(1,s2.struct+dm);
+      if(!s2.lost&&s2.struct>=.8) s2.lost=0;
+    });
+    const U=NYC.debris.U2M;
+    ejectaGeom={
+      origin:pt,
+      rays:ejecta.frags.map(f=>({
+        x1:pt[0],y1:pt[1],x2:f.land[0],y2:f.land[1],
+        colour:f.colour, through:f.strikes.some(k=>k.through),
+        far:f.landS>240
+      })),
+      impacts:[].concat.apply([],ejecta.frags.map(f=>
+        f.strikes.map(k=>({x:pt[0]+f.dir[0]*k.s/U, y:pt[1]+f.dir[1]*k.s/U,
+          through:k.through}))))
+    };
+    note(0,ejecta.stats.crossBlock+" fragments carry past the first block; "+
+      ejecta.stats.through+" go through a structure and keep going.","hazard");
+    if(ejecta.stats.multi)
+      note(0,ejecta.stats.multi+" pass through more than one building before stopping.","hazard");
+  }
+
   /* what was already being provided before the event; a projection reports the
      difference it makes, not the shortages the survey had already logged */
   const reachOf=(p,s)=>{
@@ -305,7 +345,8 @@ function run(spec){
 
   let peakFlood=0, peakFloodT=0;
   for(let t=0;t<=STEPS;t++){
-    const frame={t,flood:null,fire:null,burnt:null,rings:null,cones:null,quake:null};
+    const frame={t,flood:null,fire:null,burnt:null,rings:null,cones:null,quake:null,
+      debris:ejectaGeom};
 
     /* ---- water ---- */
     if(H.id==="surge"){
@@ -514,10 +555,20 @@ function run(spec){
     districts:lostDistricts.map(s=>s.m.name),
     worst:worst.map(s=>({name:s.m.name,state:s.state,cat:s.m.cat})),
     peakFlood:H.id==="surge"?peakFlood:null,
+    ejecta:ejecta?Object.assign({},ejecta.stats,{
+      struck:ejecta.struck.slice(0,8),
+      deepest:ejecta.deepest?{
+        label:ejecta.deepest.label,
+        range:Math.round(ejecta.deepest.landS),
+        through:ejecta.deepest.strikes.filter(k=>k.through).length,
+        names:ejecta.deepest.strikes.map(k=>k.name).filter(Boolean),
+        fabric:ejecta.deepest.strikes.filter(k=>!k.name).length
+      }:null}):null,
     burnt:burntMask?burntMask.reduce((a,b)=>a+b,0)*Math.pow(CELL*10,2)/1e6:0, /* km2 */
     narrative:""
   };
   report.narrative=narrate(H,P,report,S);
+  report.ejectaField=ejecta;
   events.sort((a,b)=>a.t-b.t);
 
   return { hazard:H, spec, steps:STEPS, frames, events, report,
@@ -570,6 +621,18 @@ function narrate(H,P,rep,S){
   out.push(gone+" of "+S.length+" logged sites pass out of use — "+c.LOST+
     " lost outright, "+c.CRITICAL+" critical — and "+c.DAMAGED+" more are damaged.");
 
+  if(rep.ejecta){
+    const e=rep.ejecta;
+    out.push("Ejecta reaches "+Math.round(e.maxRange)+" m — "+
+      (e.blocks<1.4?"most of a city block":e.blocks.toFixed(1)+" city blocks")+
+      " — with "+e.crossBlock+" of "+e.count+" sampled fragments past the first block"+
+      (e.crossThree?" and "+e.crossThree+" past the third":"")+". "+
+      (e.through? e.through+" go through a structure and carry on"+
+        (e.multi?", "+e.multi+" of them through more than one":"")+
+        ", for "+e.breached+" breaches in all; "+e.struckCount+
+        " logged sites are hit."
+      : "Nothing carries enough energy to breach a structure."));
+  }
   const svc=Object.keys(rep.services);
   if(svc.length){
     const worst=svc.sort((a,b)=>rep.services[b]-rep.services[a])[0];

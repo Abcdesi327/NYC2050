@@ -40,7 +40,7 @@ function buildHazards(){
 }
 function select(id){
   hazard=NYC.sim.HAZARDS.find(h=>h.id===id);
-  params={}; hazard.params.forEach(p=>params[p.id]=p.val);
+  params={}; hazard.params.forEach(p=>params[p.id]=p.val); snapped=null;
   [...q("simHazards").querySelectorAll(".chip")].forEach(b=>
     b.setAttribute("aria-pressed", b.dataset.id===id));
   q("simName").textContent=hazard.name;
@@ -76,15 +76,35 @@ function setPick(on){
   if(api.pickActive) hooks.toast&&hooks.toast("Tap the sheet to place the "+
     (hazard.pointLabel||"point").toLowerCase());
 }
+let snapped=null;
 function takePoint(g){
   point=[Math.round(g[0]),Math.round(g[1])];
+  snapped=null;
+  /* a collapse is a collapse OF something: take the nearest structure and its height */
+  if(hazard.id==="collapse"&&map){
+    let best=null,bd=1e9;
+    map.marks.forEach(m=>{
+      const h=NYC.heights.heightOf(m);
+      if(h<20) return;
+      const d=Math.hypot(m.x-point[0],m.y-point[1]);
+      if(d<bd){bd=d;best={m,h,d};}
+    });
+    if(best&&best.d<26){
+      snapped=best;
+      point=[best.m.x,best.m.y];
+      const hp=hazard.params.find(p=>p.id==="height");
+      params.height=Math.max(hp.min,Math.min(hp.max,Math.round(best.h/10)*10));
+      buildParams();
+    }
+  }
   setPick(false); updatePointRef();
 }
 function updatePointRef(){
   const el=q("simPointRef");
   if(!hazard.point){ el.textContent=""; return; }
-  el.textContent = point ? NYC.map.describe(point[0],point[1])+" · "+
-    NYC.map.gridRef(point[0],point[1]) : "not set — the sheet's centre will be used";
+  if(!point){ el.textContent="not set — the sheet's centre will be used"; return; }
+  el.textContent = (snapped ? snapped.m.name+" · "+snapped.h+" m · " : "")+
+    NYC.map.describe(point[0],point[1])+" · "+NYC.map.gridRef(point[0],point[1]);
 }
 
 /* ---- running it ------------------------------------------------------------------- */
@@ -180,6 +200,24 @@ function renderReport(){
       '<span>'+r.services[k]+' sites</span></li>');
     h+='</ul>';
   }
+  if(r.ejecta){
+    const e=r.ejecta;
+    h+='<h4>EJECTA THROW</h4>';
+    h+='<ul class="svc">';
+    h+='<li><b>MAX RANGE</b><span>'+Math.round(e.maxRange)+' m · '+
+        e.blocks.toFixed(1)+' blocks</span></li>';
+    h+='<li><b>PAST ONE BLOCK</b><span>'+e.crossBlock+' of '+e.count+'</span></li>';
+    h+='<li><b>PAST THREE BLOCKS</b><span>'+e.crossThree+'</span></li>';
+    h+='<li><b>THROUGH A BUILDING</b><span>'+e.through+'</span></li>';
+    h+='<li><b>THROUGH TWO OR MORE</b><span>'+e.multi+'</span></li>';
+    h+='<li><b>STRUCTURES STRUCK</b><span>'+e.struckCount+'</span></li>';
+    h+='</ul>';
+    h+='<div class="secthead">SECTION UNDER THE DEEPEST LINE'+
+       '<span><button data-frag="deepest" class="fsel on">DEEPEST</button>'+
+       '<button data-frag="longest" class="fsel">LONGEST</button>'+
+       '<button data-frag="heaviest" class="fsel">HEAVIEST</button></span></div>';
+    h+='<div id="simSection"></div>';
+  }
   if(r.lifelines.length)
     h+='<h4>LIFELINES LOST</h4><p>'+r.lifelines.map(esc).join("<br>")+'</p>';
   if(r.districts.length)
@@ -194,6 +232,79 @@ function renderReport(){
      'setting, not surveyed, and no part of this models a real event.</div>';
   h+='</div>';
   box.innerHTML=h;
+  if(r.ejecta){
+    drawSection("deepest");
+    [...box.querySelectorAll(".fsel")].forEach(b=>b.onclick=()=>{
+      [...box.querySelectorAll(".fsel")].forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      drawSection(b.dataset.frag);
+    });
+  }
+}
+
+/* ---- the side elevation: what the fragment flew over, and what it went through ---- */
+function pickFragment(which){
+  const f=result&&result.report.ejectaField;
+  if(!f||!f.frags.length) return null;
+  const by={
+    deepest:(a,b)=>(b.strikes.filter(k=>k.through).length-
+                    a.strikes.filter(k=>k.through).length)||(b.landS-a.landS),
+    longest:(a,b)=>b.landS-a.landS,
+    heaviest:(a,b)=>(b.mass-a.mass)||(b.landS-a.landS)
+  }[which];
+  if(!by) return f.frags[0];
+  return f.frags.slice().sort(by)[0];
+}
+function drawSection(which){
+  const host=q("simSection"); if(!host) return;
+  const frag=pickFragment(which);
+  const pr=frag&&NYC.debris.profile(frag);
+  if(!pr){ host.innerHTML=""; return; }
+  const W=316,Hh=156,L=26,B=26,T=12,R=8;
+  const maxS=Math.max(120,pr.landS*1.06,
+    pr.bars.length?pr.bars[pr.bars.length-1].s+40:0);
+  const maxA=Math.max(30,pr.apex*1.12,
+    pr.bars.reduce((a,b)=>Math.max(a,b.h),0)*1.12);
+  const X=s=>L+(W-L-R)*(s/maxS), Y=a=>Hh-B-(Hh-B-T)*(a/maxA);
+  let g='<svg viewBox="0 0 '+W+' '+Hh+'" class="sect">';
+  /* the ground, and a block scale */
+  g+='<line x1="'+L+'" y1="'+Y(0)+'" x2="'+(W-R)+'" y2="'+Y(0)+'" class="gl"/>';
+  for(let s=0;s<=maxS;s+=80){
+    g+='<line x1="'+X(s)+'" y1="'+Y(0)+'" x2="'+X(s)+'" y2="'+(Y(0)+4)+'" class="tk"/>';
+    if(s%240===0) g+='<text x="'+X(s)+'" y="'+(Hh-12)+'" class="ax">'+
+      (s===0?"0":(s/80)+" blk")+'</text>';
+  }
+  g+='<text x="3" y="'+(Y(maxA*0.9)+3)+'" class="ax lft">'+Math.round(maxA)+' m</text>';
+  g+='<text x="3" y="'+(Y(0)-2)+'" class="ax lft">0</text>';
+  /* the fabric it passed over */
+  pr.bars.forEach(b=>{
+    const x=X(b.s), y=Y(b.h), w=Math.max(4,X(b.s+22)-x);
+    g+='<rect x="'+(x-w/2)+'" y="'+y+'" width="'+w+'" height="'+(Y(0)-y)+
+       '" class="bd'+(b.through?" thru":b.hit?" hit":"")+(b.logged?" log":"")+
+       '"><title>'+esc(b.name)+" — "+b.h+' m</title></rect>';
+    if(b.logged&&w>5)
+      g+='<text transform="rotate(-90 '+(x+2)+' '+(Y(0)-4)+')" x="'+(x+2)+'" y="'+
+         (Y(0)-4)+'" class="bl">'+esc(b.name.slice(0,17))+'</text>';
+  });
+  /* the line it flew */
+  let d="";
+  pr.path.forEach((p,i)=>{ d+=(i?"L":"M")+X(p.s)+" "+Y(Math.max(0,p.alt)); });
+  g+='<path d="'+d+'" class="traj"/>';
+  /* where it hit something */
+  (frag.strikes||[]).forEach(k=>{
+    g+='<circle cx="'+X(k.s)+'" cy="'+Y(k.alt)+'" r="2.6" class="'+
+       (k.through?"stk thru":"stk")+'"/>';
+  });
+  g+='<circle cx="'+X(pr.landS)+'" cy="'+Y(pr.landAlt)+'" r="3" class="land"/>';
+  g+='</svg>';
+  const stop = pr.stopped==="building"
+    ? "stopped inside "+esc(pr.stopName)
+    : "came to ground at "+Math.round(pr.landS)+" m";
+  host.innerHTML=g+'<div class="seckey"><i class="k1"></i>passed over'+
+    '<i class="k2"></i>struck and stopped<i class="k3"></i>gone through</div>'+
+    '<div class="secap"><b>'+esc(pr.label)+'</b> · '+pr.mass+
+    ' kg · launched at '+Math.round(pr.v0)+' m/s, '+Math.round(pr.theta)+
+    '° · apex '+Math.round(pr.apex)+' m · '+stop+'.</div>';
 }
 
 /* ---- what the info sheet shows while a projection is up --------------------------- */

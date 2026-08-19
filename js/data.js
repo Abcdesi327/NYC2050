@@ -498,7 +498,9 @@ const D=[
 ["Yankee Stadium",216,1120,"Civic","OCCUPIED",2,"Field under cultivation, stands used as housing. The Bronx's largest single shelter."],
 ["Bronx Zoo",330,1240,"Park","OCCUPIED",2,"Livestock now, of a kind. The collection that could be fed was kept."],
 ["New York Botanical Garden",338,1300,"Park","OCCUPIED",1,"Herbarium and seed store intact — the northern counterpart to the Brooklyn bank."],
-["The Bronx",280,1180,"District","OCCUPIED",1,"Mainland. Every route out of the city that still works runs through it."]
+["The Bronx",280,1180,"District","OCCUPIED",1,"Mainland. Every route out of the city that still works runs through it."],
+["Madison Square Garden",-46,260,"Civic","SALVAGE",2,"A drum on a raft over the station below, and the station below is a sump. Structurally sound, standing in water."],
+["Williamsburgh Savings Bank",240,-168,"Landmark","STANDING",1,"Brooklyn's tallest for a century. The clock faces are dark and the tower is the borough's landmark for anyone navigating on foot."]
 ];
 
 /* ---- scenes: landmark name -> street-view scene id -------------------------------- */
