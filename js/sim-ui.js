@@ -340,7 +340,29 @@ function close(){ q("simPanel").classList.remove("on"); q("simBtn").setAttribute
   setPick(false); }
 function toggle(){ q("simPanel").classList.contains("on")?close():open(); }
 
-Object.assign(api,{init,open,close,toggle,takePoint,outcomeFor,clear,
+/* what the router needs to know about the city the projection has just left behind */
+function projectionContext(){
+  if(!result) return null;
+  const f=result.frames[step], R=NYC.sim.raster(), C=NYC.sim.CELL;
+  const cellsOf=list=>{
+    const set=new Set();
+    (list||[]).forEach(r=>{
+      const c0=R.col(r[0]), c1=R.col(r[0]+r[2]-0.01), rw=R.row(r[1]);
+      for(let c=c0;c<=c1;c++) set.add(rw*R.cols+c);
+    });
+    return set;
+  };
+  const fire=cellsOf(f.fire), flood=cellsOf(f.flood);
+  const at=(x,y)=>R.row(y)*R.cols+R.col(x);
+  return {
+    hour:step,
+    blocks:f.blocks||null,
+    fire:(x,y)=>fire.size>0&&fire.has(at(x,y)),
+    flood:(x,y)=>flood.size>0&&flood.has(at(x,y))
+  };
+}
+
+Object.assign(api,{init,open,close,toggle,takePoint,outcomeFor,clear,projectionContext,
   cancelPick(){ setPick(false); },
   get running(){return !!result;}});
 NYC.simui=api;

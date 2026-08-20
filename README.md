@@ -85,6 +85,31 @@ floor count, **HGT** draws it on the sheet as a bar over each station, and the
 collapse projection reads it directly: place the point near a structure and it
 snaps to that building and loads its true height.
 
+**Routing.** Press **NAV**. Set two ends — search for them, tap them on the
+sheet, or send any site straight there with ROUTE TO / ROUTE FROM on its info
+sheet — and the console finds a way across. Four weightings of the same network
+produce up to four different routes: **fastest**, **safest** (avoids falling
+fabric, rubble and open ground), **driest** (stays out of the water at the stated
+tide), and **supplied** (keeps within reach of water, food and care). Each comes
+back with a distance, a walking time, a hazard index and a turn-by-turn list —
+*south on Park, 2,160 m, 29 min* — with what is wrong with each leg written
+against it.
+
+The network is welded out of what was already on the sheet: the avenues, the
+numbered streets, the named thoroughfares, and the two crossings that still carry
+weight. 4,401 junctions and 6,378 links. Manhattan is an island again, so a route
+off it goes over the Brooklyn Bridge — one at a time, on a still day — or over
+the Harlem River, and the console says so.
+
+Two things make the routes move. The **tide** — low, mean, high or spring — decides
+which low ground is passable, since the elevation surface is measured against the
+2050 waterline. And **PLAN AGAINST THE CURRENT PROJECTION** re-prices every link
+against whatever the SIM console has just done to the city: fire is impassable,
+lost blocks are rubble at a fifth of walking pace, and flooded ground is closed.
+A firestorm through Midtown turns Grand Central to Columbus Circle from 2.2 km and
+29 minutes into 4.4 km and 81 minutes, and the leg list says which avenues it is
+climbing rubble on.
+
 **Contingency projections.** Press **SIM**. Choose a hazard — hurricane surge,
 earthquake, firestorm, uncontrolled structural collapse, a large-scale blast
 event, or a deliberate infrastructure failure — set its parameters, place it on
@@ -138,8 +163,8 @@ write a note; press **BOOKMARK** on any surveyed site to keep it. **LIST** opens
 the plates and your marks, and marks can be copied out and pasted back in as
 JSON. Everything is held in `localStorage` — nothing leaves the browser.
 
-Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `H` heights
-· `F` fabric · in a plate `←` `→` walk, `T` then/now, `Esc` out.
+Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `N` navigate
+· `H` heights · `F` fabric · in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
 ## Layout
 
@@ -150,6 +175,9 @@ js/data.js          geography, thoroughfares, 304 landmarks, scene links
 js/terrain.js       spot heights, made ground, rock, shaking amplification
 js/heights.js       roof heights per structure, and the fallbacks
 js/fabric.js        block generation, typology, and the spatial index
+js/network.js       the walking graph welded out of the streets
+js/route.js         edge costs, turn penalties, and the four profiles
+js/route-ui.js      the route console
 js/debris.js        fragment launch, ballistic flight, penetration, sections
 js/map.js           projection, sheet rendering, view state, place naming
 js/sim.js           hazards, fragility, the service network, the 24-hour run
@@ -175,6 +203,18 @@ Everything in `data.js` is in **grid space**, the survey's working frame:
 Manhattan grid actually sits at. `NYC.map.describe(x, y)` turns any point back
 into something a person can read — `MANHATTAN · W 34 ST nr 8 AV`,
 `BROOKLYN · nr EASTERN PKWY`, `EAST RIVER`.
+
+## How a link is priced
+
+Every edge carries a time and a risk, and a profile decides how much the second
+one matters. The risk side reads the same sources as the rest of the sheet: the
+elevation surface and the tide for water, the block layer for what might come off
+a building (an old tall block over a narrow street is worse than the same block
+over an avenue), the named structures for their fall lines, and the projection,
+if one is up, for fire, rubble and new flooding. The search runs over directed
+edges rather than nodes so that turning off a street can be made to cost
+something — without that, a grid produces a staircase, because every zigzag
+between two points on a lattice is exactly the same length.
 
 ## Adding a hazard
 
