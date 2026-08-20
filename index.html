@@ -54,7 +54,7 @@
   <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
   <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; H HEIGHT &nbsp; F FABRIC<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; N NAV &nbsp; H HEIGHT &nbsp; F FABRIC<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -78,6 +78,7 @@
   <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
     class="badge" id="pinCount">0</span></button>
   <button id="simBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
+  <button id="navBtn" class="sm" aria-pressed="false" aria-label="Plan a route">NAV</button>
   <button id="zin" aria-label="Zoom in">+</button>
   <button id="zout" aria-label="Zoom out">&minus;</button>
   <button id="rst" class="sm" aria-label="Reset view">RST</button>
@@ -128,6 +129,42 @@
   <div class="log" id="simLog"></div>
 </div>
 
+<div class="simp rtp" id="rtPanel">
+  <header>
+    <h2>Find a way across</h2>
+    <button id="rtClose" aria-label="Close the route console">&times;</button>
+  </header>
+  <div class="body">
+    <div class="rtfield">
+      <label for="rtFrom">FROM</label>
+      <div class="rtrow">
+        <input id="rtFrom" autocomplete="off" spellcheck="false" placeholder="Search, or set on the sheet">
+        <button id="rtFromPick" aria-pressed="false" title="Set on the sheet">&#9678;</button>
+      </div>
+      <div class="res" id="rtFromRes"></div>
+    </div>
+    <button class="rtswap" id="rtSwap" aria-label="Swap the ends">&#8645;</button>
+    <div class="rtfield">
+      <label for="rtTo">TO</label>
+      <div class="rtrow">
+        <input id="rtTo" autocomplete="off" spellcheck="false" placeholder="Search, or set on the sheet">
+        <button id="rtToPick" aria-pressed="false" title="Set on the sheet">&#9678;</button>
+      </div>
+      <div class="res" id="rtToRes"></div>
+    </div>
+    <div class="prow">
+      <label>TIDE<b id="rtTideVal">MEAN</b></label>
+      <input type="range" id="rtTide" min="0" max="3" step="1" value="1">
+    </div>
+    <button id="rtProj" class="rttog" aria-pressed="false">PLAN AGAINST THE CURRENT PROJECTION</button>
+    <div class="rtbtns">
+      <button id="rtPlan" class="run">FIND A WAY</button>
+      <button id="rtClear" class="rtclear">CLEAR</button>
+    </div>
+    <div id="rtOut"></div>
+  </div>
+</div>
+
 <div class="scrim" id="scrim"></div>
 <div class="editor" id="editor">
   <h3 id="edTitle">New mark</h3>
@@ -176,6 +213,8 @@
 <script src="js/terrain.js"></script>
 <script src="js/heights.js"></script>
 <script src="js/fabric.js"></script>
+<script src="js/network.js"></script>
+<script src="js/route.js"></script>
 <script src="js/map.js"></script>
 <script src="js/sv-kit.js"></script>
 <script src="js/sv-scenes.js"></script>
@@ -184,6 +223,7 @@
 <script src="js/debris.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/sim-ui.js"></script>
+<script src="js/route-ui.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

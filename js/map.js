@@ -90,7 +90,7 @@ function init(opts){
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
   ["sea","land","band","cover","fab","fabhaz","park","grid","thru","bway","shore","cross","thrulab",
-   "haz","deb","hgt","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
+   "haz","deb","hgt","route","pin","upin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
   defs.innerHTML='<pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" '+
@@ -334,6 +334,7 @@ function init(opts){
   let halo=null;
   function highlight(x,y){
     const [px,py]=P(x,y);
+    if(halo&&!halo.parentNode) halo=null;
     if(!halo){ halo=el("circle",{r:11,fill:"none",stroke:"#C4472A","stroke-width":1.6,
       "stroke-opacity":.9}); L.halo.appendChild(halo); }
     halo.setAttribute("cx",px); halo.setAttribute("cy",py);
@@ -516,6 +517,42 @@ function init(opts){
       L.fabhaz.appendChild(el("path",{d:paths.join(""),fill:c,"fill-opacity":.8})));
   }
 
+  /* --- routes ------------------------------------------------------------------- */
+  function drawRoutes(list){
+    while(L.route.firstChild) L.route.removeChild(L.route.firstChild);
+    if(!list||!list.length) return;
+    /* the ones not chosen go down first, so the chosen line reads over them */
+    list.filter(r=>!r.on).forEach(r=>route(r,false));
+    list.filter(r=>r.on).forEach(r=>route(r,true));
+    function route(r,on){
+      const d=r.pts.map((p,i)=>{ const q=P(p[0],p[1]);
+        return (i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1); }).join("");
+      if(on) L.route.appendChild(el("path",{d:d,fill:"none",stroke:"#FAF9F5",
+        "stroke-width":8,"stroke-opacity":.9,"stroke-linejoin":"round",
+        "stroke-linecap":"round",class:"rline"}));
+      L.route.appendChild(el("path",{d:d,fill:"none",stroke:r.colour,
+        "stroke-width":on?4.2:2,"stroke-opacity":on?.95:.45,
+        "stroke-linejoin":"round","stroke-linecap":"round",
+        "stroke-dasharray":on?null:"5 4",class:"rline"}));
+    }
+  }
+  function drawRouteEnds(a,b){
+    while(L.halo.firstChild) L.halo.removeChild(L.halo.firstChild);
+    halo=null;
+    [[a,"A"],[b,"B"]].forEach(([p,t])=>{
+      if(!p) return;
+      const [px,py]=P(p[0],p[1]);
+      const g=el("g",{class:"usym"});
+      g.appendChild(el("path",{d:`M${px} ${py} l-5.4 -8.6 a6.3 6.3 0 1 1 10.8 0 Z`,
+        fill:"#2C2C2A",stroke:"#FAF9F5","stroke-width":1.2,"stroke-linejoin":"round"}));
+      const tx=el("text",{x:px,y:py-8,"text-anchor":"middle",dy:".34em",
+        "font-size":7.5,"font-family":"var(--mono)",fill:"#FAF9F5","font-weight":"700"});
+      tx.textContent=t;
+      g.appendChild(tx);
+      L.halo.appendChild(g);
+    });
+  }
+
   /* --- structure heights, drawn as the shadow of the thing itself --------------- */
   let hgtOn=false;
   function buildHeights(){
@@ -565,6 +602,7 @@ function init(opts){
   const api={ marks, layers:L, fit, zoomAt, flyTo, apply, toGrid, toScreen,
     drawHazard, clearHazard, paintOutcomes, clearOutcomes, setHeights,
     drawFabric, paintFabricStates, get fabricMode(){return fabMode;},
+    drawRoutes, drawRouteEnds,
     renderPins, highlight, clearHighlight, project:P,
     get scale(){return sc;},
     setCoverage(on){ L.cover.style.display=on?"":"none"; },
