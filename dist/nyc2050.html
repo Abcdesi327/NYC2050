@@ -222,6 +222,7 @@ button{font-family:var(--cond);color:var(--ink)}
   .srch{flex-basis:150px}
   .hdr h1{font-size:13.5px}
   .hdr p{display:none}
+  .sheetsw a{padding:6px 6px;font-size:8.5px}
 }
 
 /* ---------- street-view era cross-fade -------------------------------------------- */
@@ -446,11 +447,56 @@ svg.sect .ax.lft{text-anchor:start}
 .rtfoot{font-family:var(--mono);font-size:8.5px;line-height:1.6;color:var(--muted);
   margin-top:12px;border-top:1px solid var(--rule);padding-top:7px}
 #map .rline{vector-effect:non-scaling-stroke}
+
+/* ===================================================================================
+   Adrinem plate — the second sheet. Everything above is shared; this is only what
+   another world needs that a flooded New York did not.
+   =================================================================================== */
+.sheetsw{display:flex;gap:0;border:1px solid var(--rule);border-radius:8px;overflow:hidden;
+  flex:0 0 auto}
+.sheetsw a{display:block;padding:6px 9px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.06em;color:var(--muted);text-decoration:none;background:#fff;
+  white-space:nowrap}
+.sheetsw a+a{border-left:1px solid var(--rule)}
+.sheetsw a:hover{background:#F2F0E7}
+.sheetsw a.on{background:var(--ink);color:var(--paper)}
+
+/* the plate's own labels */
+#map .grat{font-family:var(--mono);fill:#2C2C2A;fill-opacity:.4;letter-spacing:.06em}
+#map .burglab{font-family:var(--cond);font-weight:600;fill:#24241F;
+  stroke:var(--paper);stroke-width:.3em;paint-order:stroke;stroke-linejoin:round}
+#map .realmlab{font-family:var(--cond);font-weight:600;fill:#4A463C;fill-opacity:.72;
+  letter-spacing:.22em;text-anchor:middle;font-size:1.85em;
+  stroke:var(--paper);stroke-width:.22em;paint-order:stroke;stroke-linejoin:round}
+
+/* the drawer's index rows and the account */
+.drawer .grp{margin:14px 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:4px}
+.drawer .grp:first-child{margin-top:2px}
+.drawer .row{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #EAE8DF;
+  background:transparent;padding:7px 4px;cursor:pointer}
+.drawer .row:hover{background:#F2F0E7}
+.drawer .row b{display:block;font-size:13px;font-weight:600}
+.drawer .row span{display:block;font-family:var(--mono);font-size:9px;color:var(--muted);
+  letter-spacing:.04em;margin-top:1px}
+.drawer .row i{display:block;font-style:normal;font-size:11.5px;color:#55554F;
+  line-height:1.4;margin-top:3px}
+dl.acct{margin:0;font-family:var(--mono);font-size:10px}
+dl.acct dt{float:left;clear:left;color:var(--muted);letter-spacing:.03em}
+dl.acct dd{margin:0 0 3px;text-align:right;color:var(--ink);font-weight:600}
+.lm{border-bottom:1px dotted var(--rule);padding:6px 0}
+.lm b{display:block;font-family:var(--cond);font-size:12.5px}
+.lm span{display:block;font-family:var(--mono);font-size:9px;color:var(--muted);
+  line-height:1.5}
 </style>
 </head>
 <body>
 
 <div class="hdr">
+  <div class="sheetsw">
+    <a href="nyc2050.html" class="on" aria-current="page">NYC 2050</a>
+    <a href="adrinem.html">ADRINEM</a>
+  </div>
   <div class="ttl">
     <h1>NYC 2050 — Survey Sheet 2</h1>
     <p>304 STATIONS · 13 STREET-LEVEL PLATES · 6 CONTINGENCY PROJECTIONS</p>
