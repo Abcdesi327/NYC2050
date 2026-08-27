@@ -58,7 +58,7 @@
   <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
   <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; N NAV &nbsp; H HEIGHT &nbsp; F FABRIC<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; N NAV &nbsp; 3 SOLID<br>H HEIGHT &nbsp; F FABRIC<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -83,6 +83,7 @@
     class="badge" id="pinCount">0</span></button>
   <button id="simBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
   <button id="navBtn" class="sm" aria-pressed="false" aria-label="Plan a route">NAV</button>
+  <button id="v3Btn" class="sm" aria-pressed="false" aria-label="Three-dimensional view">3D</button>
   <button id="zin" aria-label="Zoom in">+</button>
   <button id="zout" aria-label="Zoom out">&minus;</button>
   <button id="rst" class="sm" aria-label="Reset view">RST</button>
@@ -211,6 +212,66 @@
   </div>
 </div>
 
+<div class="v3" id="v3">
+  <canvas id="v3Canvas"></canvas>
+  <div class="v3fail" id="v3Fail">This browser has no WebGL2, so the three-dimensional
+    view cannot be drawn. Everything else on the sheet still works.</div>
+  <div class="v3bar">
+    <div class="t">
+      <h2>NYC 2050 — solid</h2>
+      <p id="v3Stat">building…</p>
+    </div>
+    <button class="close" id="v3Close" aria-label="Back to the sheet">&times;</button>
+  </div>
+  <div class="v3panel">
+    <div class="v3sec">
+      <div class="ghead">COLOUR BY</div>
+      <div class="hgrid" id="v3Modes">
+        <button class="chip" data-mode="use" aria-pressed="true">USE</button>
+        <button class="chip" data-mode="era" aria-pressed="false">PERIOD</button>
+        <button class="chip" data-mode="height" aria-pressed="false">HEIGHT</button>
+        <button class="chip" data-mode="damage" aria-pressed="false">PROJECTION</button>
+      </div>
+    </div>
+    <div class="v3sec">
+      <div class="ghead">LAYERS</div>
+      <div class="hgrid" id="v3Layers">
+        <button class="chip" data-layer="boxes" aria-pressed="true">BUILDINGS</button>
+        <button class="chip" data-layer="roads" aria-pressed="true">ROADS</button>
+        <button class="chip" data-layer="parks" aria-pressed="true">PARKS</button>
+        <button class="chip" data-layer="ground" aria-pressed="true">GROUND</button>
+      </div>
+    </div>
+    <div class="v3sec">
+      <div class="ghead">THROW SOMETHING</div>
+      <div class="pointrow">
+        <button id="v3Pick" aria-pressed="false">SET LAUNCH POINT</button>
+        <span id="v3Origin">not set — the nearest tall structure will be used</span>
+      </div>
+      <label class="v3lab" for="v3Class">OBJECT</label>
+      <select id="v3Class">
+        <option value="STEEL">structural steel · 950 kg</option>
+        <option value="VEHICLE">vehicle · 1500 kg</option>
+        <option value="PLANT">roof plant · 2600 kg</option>
+        <option value="MASONRY">masonry · 70 kg</option>
+        <option value="FACADE">facade panel · 190 kg</option>
+        <option value="GLAZING">glazing · 6 kg</option>
+      </select>
+      <div class="prow"><label>SPEED<b id="v3SpeedVal">120 m/s</b></label>
+        <input type="range" id="v3Speed" min="10" max="300" step="5" value="120"></div>
+      <div class="prow"><label>ELEVATION<b id="v3AngleVal">6°</b></label>
+        <input type="range" id="v3Angle" min="-20" max="70" step="1" value="6"></div>
+      <div class="prow"><label>BEARING<b id="v3BearingVal">180°</b></label>
+        <input type="range" id="v3Bearing" min="0" max="355" step="5" value="180"></div>
+      <button id="v3Throw" class="run">THROW</button>
+      <div id="v3Out"></div>
+    </div>
+    <div class="v3sec" id="v3Sel"></div>
+    <div class="v3help">Drag to orbit · shift-drag or right-drag to pan · wheel to zoom
+      · W A S D to move · click a building to read it · Esc to leave</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/data.js"></script>
@@ -228,6 +289,9 @@
 <script src="js/sim.js"></script>
 <script src="js/sim-ui.js"></script>
 <script src="js/route-ui.js"></script>
+<script src="js/gl.js"></script>
+<script src="js/world3d.js"></script>
+<script src="js/view3d.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
