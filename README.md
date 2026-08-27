@@ -319,6 +319,65 @@ The generator is general — every market centre with a harbour has a plate, nin
 in all, and they land between 308 and 409 people a hectare without being told to — but
 Oem'rek is the one whose landmarks were written against the data by hand.
 
+
+### The other kind of city: Rithi
+
+A second plate, and a different plan, because Rithi is a different problem. The
+generator picks which by reading the network:
+
+> A burg with two trunk roads leaving it on nearly opposite bearings is not a town with
+> roads. It is a road with a town on it, and it has to be laid out the other way round.
+
+Exactly one market on the sheet answers to that. **Rithi's two trunks leave 175° apart**
+— the Odina road east, 33 market pairs, reaching Mhekinn after 35 cells; the Borlo road
+west, 29 pairs, reaching Kel'Esta by way of Cutho's other city. **38 of the 92 reachable
+market pairs touch Rithi, first of all 80 burgs in Adrinem**, and 25 of them are only
+passing through. The land runs out 66 miles north of it and 176 miles south, and past
+the edge of the search east and west: it is a neck, and the road has nowhere else to be.
+
+So the plan is struck from the through-way rather than from a market — except that it
+is not, quite, and that is the interesting part.
+
+**The Interdict.** The export says nothing about religion. Cutho's is the author's, set
+down in one table at the top of `js/adrinem-city.js` and labelled on the plate as a
+premise rather than a reading, because the two kinds of claim must not get mixed up.
+It states one thing: *nothing unpurified may stand on consecrated ground, and no
+stranger may sleep on it.*
+
+Everything else on the plate is what that costs a city which has to move a third of a
+continent through itself:
+
+* **The plan is struck from the sanctuary.** The Temple Rock is the centre, quarried out
+  of the volcanic ground the whole site is made of, inside an interdict wall of its own
+  with three posterns and no gate a waggon could use.
+* **The through-way is bent round it.** The straight line between the Borlo Gate and the
+  Odina Gate runs through the middle of the precinct, so the road does not take it. It
+  leaves the west gate, runs round the southern skirt of the holy hill and comes back in
+  at the east gate — **1.28× the straight line, 1,830 metres of extra road on every
+  crossing of Adrinem made by land.** The plate draws the straight line it cannot take
+  in red, through the sanctuary, so you can see what the doctrine buys and what it costs.
+  The bend goes south because the sea is north: two water cells at bearing −94, and no
+  room that way.
+* **The strangers sleep outside.** Two wards at the ends of the way, one for each trunk,
+  holding **210,373 people — 18 per cent of the city** — on the most valuable ground in
+  it, none of which they are permitted to own. They are the densest blocks on the plate
+  at around 890 to the hectare.
+* **The named trades are exiled** beyond the wall by doctrine rather than by wind, which
+  is why the tanners and the slaughter ground are on the lesser road south and not
+  downwind of anything.
+* **The Unhallowed Market** sits outside the wall, where what may not be traded within
+  it is traded anyway, and the city takes its cut of that too.
+
+Rithi comes out at **3,544 blocks over 4,556 hectares**, 89 per cent of its people inside
+a wall at 395 to the hectare, 561 hectares of consecrated ground and 159 on the way,
+three gates and three posterns. Its harbour is value 2 — two sea contacts and no shelter
+worth the name — so the sea is the lesser road here and gets a stair rather than a quay.
+
+The two plates share every mechanism: the same polar mesh, the same jitter, the same
+wall solved from a population share, the same fixed point on density. What differs is
+where the plan is struck from, what the rules say may stand where, and what gets named.
+Adding a third archetype is those three things and nothing else.
+
 ## Layout
 
 ```
@@ -348,7 +407,8 @@ js/adrinem-world.js    the cell table, the Voronoi, coast, marches, rivers
 js/adrinem-route.js    the exported cost model, re-run in the browser
 js/adrinem-map.js      the plate renderer and the view state
 js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
-js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names
+js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names,
+                       both archetypes, and the doctrine table
 js/adrinem-cityview.js the city plate viewer
 tools/pack_adrinem.py  the exports -> js/adrinem-data.js
 
