@@ -1,0 +1,311 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 1,
+    "burg": 1,
+    "name": "Sumayya",
+    "cell": 1715,
+    "state": "Asra",
+    "population": 258322
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     20.5529,
+     14.1339
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 2,
+    "burg": 9,
+    "name": "Edhellon",
+    "cell": 242,
+    "state": "Edhellon",
+    "population": 901068
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     116.1219,
+     71.0914
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 3,
+    "burg": 3,
+    "name": "Remoore",
+    "cell": 3115,
+    "state": "Remoore",
+    "population": 280368
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -35.6721,
+     -44.1428
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 4,
+    "burg": 4,
+    "name": "Xaros",
+    "cell": 2141,
+    "state": "Boru",
+    "population": 249447
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -99.8567,
+     -5.3221
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 5,
+    "burg": 13,
+    "name": "Ar'lond",
+    "cell": 315,
+    "state": "Kel'Esta",
+    "population": 143046
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -68.0865,
+     63.8648
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 6,
+    "burg": 16,
+    "name": "S'ven",
+    "cell": 2224,
+    "state": "Dragon Coves",
+    "population": 345140
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     130.8762,
+     -3.3624
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 7,
+    "burg": 5,
+    "name": "Oem'rek",
+    "cell": 461,
+    "state": "Kel'Esta",
+    "population": 560794
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -38.924,
+     55.6156
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 8,
+    "burg": 12,
+    "name": "Str'amar",
+    "cell": 715,
+    "state": "Kel'Esta",
+    "population": 38313
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -96.3654,
+     48.6703
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 9,
+    "burg": 15,
+    "name": "Cass'tow",
+    "cell": 1200,
+    "state": "Kel'Esta",
+    "population": 561068
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -132.1096,
+     30.982
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 10,
+    "burg": 51,
+    "name": "Odina",
+    "cell": 1820,
+    "state": "Mhekinn",
+    "population": 556452
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     69.7686,
+     11.0547
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 11,
+    "burg": 54,
+    "name": "Agasga",
+    "cell": 2788,
+    "state": "Mhekinn",
+    "population": 656176
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     42.0371,
+     -27.7774
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 12,
+    "burg": 53,
+    "name": "Manaba",
+    "cell": 2620,
+    "state": "Mhekinn",
+    "population": 1749017
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.7988,
+     -19.8399
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 13,
+    "burg": 6,
+    "name": "Aravas",
+    "cell": 2299,
+    "state": "Mhekinn",
+    "population": 853855
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     75.6585,
+     -6.0976
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 14,
+    "burg": 7,
+    "name": "P'ivka",
+    "cell": 1840,
+    "state": "Dragon Coves",
+    "population": 454860
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     123.1598,
+     10.148
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 15,
+    "burg": 10,
+    "name": "Lecende",
+    "cell": 1735,
+    "state": "Lecende",
+    "population": 258974
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     86.5545,
+     12.8851
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 16,
+    "burg": 18,
+    "name": "Brynja",
+    "cell": 344,
+    "state": "Edhellon",
+    "population": 71544
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.9991,
+     65.566
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "market": 17,
+    "burg": 22,
+    "name": "Rithi",
+    "cell": 1968,
+    "state": "Cutho",
+    "population": 1201809
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -36.3487,
+     2.9576
+    ]
+   }
+  }
+ ]
+}

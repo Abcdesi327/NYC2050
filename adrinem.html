@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="Adrinem — an infrastructure plate of a high fantasy world: its realms, its peoples, its trade network and how far supply actually reaches.">
+<title>Adrinem — Infrastructure Plate</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="hdr">
+  <div class="sheetsw">
+    <a href="index.html">NYC 2050</a>
+    <a href="adrinem.html" class="on" aria-current="page">ADRINEM</a>
+  </div>
+  <div class="ttl">
+    <h1>Adrinem — Infrastructure Plate</h1>
+    <p id="hdrSub">READING THE PLATE…</p>
+  </div>
+  <div class="srch" id="srch">
+    <input id="search" type="search" placeholder="Search the world  ( / )"
+      autocomplete="off" spellcheck="false" aria-label="Search burgs, realms and peoples">
+    <button class="sx" id="searchClear" aria-label="Clear search">&times;</button>
+    <div class="res" id="results"></div>
+  </div>
+</div>
+
+<div id="stage"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+<div class="key" id="key"></div>
+
+<div class="sheet" id="sheet">
+  <button class="x" id="closeSheet" aria-label="Close">&times;</button>
+  <p class="nm" id="sNm"></p>
+  <p class="meta" id="sMeta"></p>
+  <span class="code" id="sCode"></span>
+  <p class="note" id="sNote"></p>
+  <div class="acts" id="sActs"></div>
+</div>
+
+<div class="ctl">
+  <button id="keyBtn" class="sm" aria-pressed="false" aria-label="Toggle the key">KEY</button>
+  <button id="grndBtn" class="sm" aria-label="Cycle what the ground is coloured by">BIOM</button>
+  <button id="rdBtn" class="sm" aria-pressed="true" aria-label="Toggle the trade network">RDS</button>
+  <button id="rivBtn" class="sm" aria-pressed="true" aria-label="Toggle rivers">RIV</button>
+  <button id="brdBtn" class="sm" aria-pressed="true" aria-label="Toggle realm and province marches">BRD</button>
+  <button id="grtBtn" class="sm" aria-pressed="false" aria-label="Toggle the graticule">GRT</button>
+  <button id="wayBtn" class="sm" aria-pressed="false" aria-label="Find a way across">WAY</button>
+  <button id="reachBtn" class="sm" aria-pressed="false" aria-label="Cast a reach">RCH</button>
+  <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
+  <button id="listBtn" class="sm" aria-pressed="false" aria-label="Open the index">LIST<span
+    class="badge" id="pinCount">0</span></button>
+  <button id="zin" aria-label="Zoom in">+</button>
+  <button id="zout" aria-label="Zoom out">&minus;</button>
+  <button id="rst" class="sm" aria-label="Reset the view">RST</button>
+</div>
+
+<div class="drawer" id="drawer">
+  <header>
+    <h2 id="drawerTitle">Index of the world</h2>
+    <button id="drawerClose" aria-label="Close panel">&times;</button>
+  </header>
+  <div class="tabs">
+    <button id="tabIndex" aria-selected="true">INDEX</button>
+    <button id="tabMarks" aria-selected="false">MY MARKS</button>
+    <button id="tabAccount" aria-selected="false">ACCOUNT</button>
+  </div>
+  <div class="body" id="drawerBody"></div>
+  <div class="foot" id="drawerFoot" style="display:none">
+    <button id="mkCopy">COPY</button>
+    <button id="mkPaste">IMPORT</button>
+    <button id="mkClear">CLEAR</button>
+  </div>
+</div>
+
+<div class="simp rtp" id="wayPanel">
+  <header>
+    <h2>Find a way across</h2>
+    <button id="wayClose" aria-label="Close the way console">&times;</button>
+  </header>
+  <div class="body">
+    <div class="rtfield">
+      <label for="wFrom">FROM</label>
+      <div class="rtrow">
+        <input id="wFrom" autocomplete="off" spellcheck="false" placeholder="Search, or set on the plate">
+        <button id="wFromPick" aria-pressed="false" title="Set on the plate">&#9678;</button>
+      </div>
+      <div class="res" id="wFromRes"></div>
+    </div>
+    <button class="rtswap" id="wSwap" aria-label="Swap the ends">&#8645;</button>
+    <div class="rtfield">
+      <label for="wTo">TO</label>
+      <div class="rtrow">
+        <input id="wTo" autocomplete="off" spellcheck="false" placeholder="Search, or set on the plate">
+        <button id="wToPick" aria-pressed="false" title="Set on the plate">&#9678;</button>
+      </div>
+      <div class="res" id="wToRes"></div>
+    </div>
+    <div class="rtbtns">
+      <button id="wPlan" class="run">FIND A WAY</button>
+      <button id="wClear" class="rtclear">CLEAR</button>
+    </div>
+    <div id="wOut"></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="editor" id="editor">
+  <h3 id="edTitle">New mark</h3>
+  <p class="loc" id="edLoc"></p>
+  <label for="edName">NAME</label>
+  <input id="edName" maxlength="60" placeholder="Ford, waystation, the pass east…">
+  <label for="edNote">NOTE</label>
+  <textarea id="edNote" maxlength="600" placeholder="What you want to remember about this ground."></textarea>
+  <div class="btns">
+    <button id="edSave" class="pri">SAVE</button>
+    <button id="edCancel">CANCEL</button>
+    <button id="edDel" class="del">DELETE</button>
+  </div>
+</div>
+
+<div class="cityplate" id="cityPlate">
+  <div class="cphdr">
+    <div class="cpttl">
+      <h2 id="cpName"></h2>
+      <p id="cpSub"></p>
+    </div>
+    <button id="cpClose" aria-label="Leave the city plate">&times;</button>
+  </div>
+  <div id="cpStage"><svg id="cpMap" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div class="key cpkey" id="cpKey"></div>
+  <div class="cpacct" id="cpAcct"></div>
+  <div class="sheet cpread" id="cpRead">
+    <button class="x" id="cpReadX" aria-label="Close">&times;</button>
+    <p class="nm" id="cpRNm"></p>
+    <p class="meta" id="cpRMeta"></p>
+    <span class="code" id="cpRCode"></span>
+    <p class="note" id="cpRNote"></p>
+  </div>
+  <div class="ctl cpctl">
+    <button id="cpKeyBtn" class="sm" aria-pressed="false" aria-label="Toggle the key">KEY</button>
+    <button id="cpFabBtn" class="sm" aria-label="Colour the fabric by">USE</button>
+    <button id="cpAcctBtn" class="sm" aria-pressed="false" aria-label="The account">ACCT</button>
+    <button id="cpIn" aria-label="Zoom in">+</button>
+    <button id="cpOut" aria-label="Zoom out">&minus;</button>
+    <button id="cpRst" class="sm" aria-label="Reset the view">RST</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/adrinem-data.js"></script>
+<script src="js/adrinem-palette.js"></script>
+<script src="js/adrinem-world.js"></script>
+<script src="js/adrinem-route.js"></script>
+<script src="js/adrinem-map.js"></script>
+<script src="js/adrinem-city.js"></script>
+<script src="js/adrinem-cityview.js"></script>
+<script src="js/adrinem-app.js"></script>
+</body>
+</html>

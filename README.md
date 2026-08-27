@@ -1,6 +1,8 @@
 # NYC 2050
 
-A map app for walking through a New York that has been left to the water.
+A map app for walking through a New York that has been left to the water — and,
+on a second sheet, for reading the infrastructure of a high fantasy world called
+**Adrinem**. The switch at the top left moves between them.
 
 The sheet is drawn as a survey document rather than a road map: Manhattan is
 banded by habitability, every logged site carries a *disposition* (flooded,
@@ -10,15 +12,17 @@ procedurally drawn view of the place as the survey found it, with a switch to
 see it as it was built — and any of six **contingency projections** can be run
 across the sheet to see what a further disaster would take.
 
-**Preview: https://abcdesi327.github.io/NYC2050/**
+**Preview: https://abcdesi327.github.io/NYC2050/** — the Adrinem plate is at
+[`/adrinem.html`](https://abcdesi327.github.io/NYC2050/adrinem.html).
 
-Or open `index.html` in a browser. There is no build step, no server and no
-dependencies; `dist/nyc2050.html` is the same app inlined into a single file if
-you want to hand someone one thing.
+Or open `index.html` (or `adrinem.html`) in a browser. There is no build step, no
+server and no dependencies; `dist/nyc2050.html` and `dist/adrinem.html` are the
+same two sheets inlined into single files if you want to hand someone one thing.
 
 The preview is rebuilt and redeployed by `.github/workflows/pages.yml` on every
 push to `main` or to the feature branch, and can be kicked off by hand from the
-Actions tab. `build.json` at the site root records the commit it was built from.
+Actions tab. `build.json` at the site root records the commit it was built from. Both sheets
+are built and shipped.
 
 One setting has to be turned on by hand before the first deploy can land, since
 a workflow token is not permitted to do it: **Settings → Pages → Build and
@@ -191,10 +195,160 @@ JSON. Everything is held in `localStorage` — nothing leaves the browser.
 Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `N` navigate
 · `H` heights · `F` fabric · `3` solid view · in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
+
+## The other sheet: Adrinem
+
+`adrinem.html` is the same chrome pointed at a different world. It is built from an
+export of the [Azgaar Fantasy Map Generator](https://azgaar.github.io/Fantasy-Map-Generator/)
+that has been run through `adrinem_infra.py` — the script at the repository root,
+which turns a raw map file into an infrastructure layer: a per-cell table, a
+least-cost road network laid between the market centres, the catchment each cell
+falls into, and the travel-cost surface behind both.
+
+Fourteen realms, forty-eight provinces, eight peoples — humans, godlings, angels,
+demons, shifters, dragon ridgers, halflings, and the wildlands nobody holds —
+across 3,817 cells of which 2,429 are land. Eighty burgs, seventeen of them market
+centres, twenty-eight with harbours.
+
+**The ground.** The export carries a point per cell and no polygons, so the sheet
+rebuilds the Voronoi diagram the generator made in the first place: the map frame
+clipped by the perpendicular bisector to every near neighbour. Which bisectors
+survive that clip *is* the cell's neighbour list, so the coastline, the realm and
+province marches, the river network and the adjacency the router walks all fall out
+of one pass — about 170 ms for the whole world. The 3,817 cells are then drawn as
+one path per colour rather than one path per cell, so panning stays cheap, and a tap
+is resolved back to a cell arithmetically, by nearest site, which is what a Voronoi
+cell means anyway.
+
+**Press GRND** to cycle what the ground is coloured by: biome, relief, realms,
+peoples, market catchments, supply, population, or habitability. Two of those are
+the point of the exercise. **Catchments** shows which of the seventeen markets each
+piece of ground actually belongs to, and hatches the 326 land cells that lie beyond
+the reach of every one of them — including the whole of Jomhor, which has no market
+on it at all. **Supply** is the same surface read as distance: at twenty-five
+effective miles a day, half the land is more than forty days from the market that
+feeds it.
+
+**Press WAY.** Set two ends and the console finds the least-cost way between them,
+priced by the same model that laid the exported network:
+
+    cost = miles x terrain(biome) x slope(climb) + 12 miles per unbridged crossing
+
+The route comes back with its cost in effective miles, what that is in days of
+supply, how much further it is than the straight line, and a leg list broken at
+every change of biome or realm with the fords and the climb written against it.
+Where no overland way exists — 44 of the 136 market pairs are like this — it says
+so and names the nearest harbours, because a crossing there would have to be
+sailed and no sea legs are drawn.
+
+The browser's router is not an approximation of the Python one. Run over all 136
+market pairs it reproduces `network_report.json` to within 0.006 per cent, agrees
+on exactly which 44 pairs are unreachable, and assigns all 2,103 catchment cells
+identically. That agreement is the test that the rebuilt Voronoi adjacency is the
+generator's own.
+
+**Press RCH** on any place to cast a reach: everything within 25, 50, 100, 200 and
+400 days of it, with the cells, the people and the burgs inside each band.
+
+**LIST** opens an index of every burg by realm, your own marks, and **the account** —
+the figures out of `network_report.json` as the generator wrote them, including the
+landmasses and what each one does and does not have a market on.
+
+Marks work as they do on the survey sheet, kept in `localStorage` under their own
+key so the two sheets never tread on each other.
+
+Nothing on this sheet is invented. Every figure is either read out of the export or
+derived from it by a rule written down here; where the source is silent — sea
+routes, in particular, since not one burg is flagged as a working port — the sheet
+says it is silent rather than filling in.
+
+### Re-packing the world
+
+The sheet cannot fetch `cells.csv` at runtime and still open from `file://`, so the
+exports are packed into one script:
+
+```
+python3 tools/pack_adrinem.py
+```
+
+That reads `cells.csv`, `roads.geojson`, `markets.geojson`, `ports.csv` and
+`network_report.json` from the repository root and writes `js/adrinem-data.js` —
+the cell table held column-wise as comma-joined strings, about a third the size of
+the equivalent JSON and parsed in one pass on load. Re-run it after regenerating
+the exports; do not edit the output by hand.
+
+
+### The city plate: Oem'rek
+
+A market centre that is also a harbour has a **◉ CITY PLATE** on its info sheet. It
+opens the ground under the dot: streets, quays, blocks, the wall and its gates, and
+about thirty named places, generated at the moment you press it — a second or less for
+most towns — and read block by block.
+
+**Oem'rek** in Kel'Esta is the one it was built and checked against. Nothing on the
+plate is drawn by hand. The plan follows from what the export says about cell 461, in
+this order:
+
+| What the export says | What it decides |
+| --- | --- |
+| Exactly one water neighbour, cell 463, bearing −63° | the sea lies north-east |
+| `harbor` = 1 — one sea contact | the haven has one mouth, so it is entered and not sailed through, and one chain closes it |
+| Land neighbours mean bearing 110° | the town stands on the **south-east shore**; on the other one every road out would have to cross its own harbour |
+| Cell 460 next door, `harbor` = 5 | that coast is open and unsheltered — it lands fish and nothing else |
+| Highest neighbour at bearing 105°, height 38 against 37 | the citadel and the conduit head go there |
+| Cell 551, Wetland, bearing 112° | tanneries, dye yards, salt pans and the burial ground go there, outside the wall |
+| `r` = 0 on the cell and on every neighbour | **no river** — the city drinks from cisterns and a conduit, and its grain arrives by sea and by road |
+| The road to Bodmouthton, bearing 60°, 11 market pairs | the principal land gate, and the waggon yards outside it |
+| The trail west, bearing −177° | a road that points straight across the harbour, so it leaves by the Pan Gate and turns outside the wall |
+| Cass'tow: 561,068 people, same realm, **no overland way** | the reason the city exists |
+
+That last line is the whole plate. Kel'Esta contains a second city of Oem'rek's own
+size that cannot be reached from it by land at any price, and P'ivka and S'ven in
+Dragon Coves are the same. Nearly one and a half million people are on the other side
+of water. So the Cass'tow Stair gets its own berths, the Outer Berths take the rest,
+and the lazaretto sits on the spit outside everything — a port that is the only sea
+road into half a realm cannot afford to guess about a ship.
+
+**How the ground is laid.** A port city is a quay with roads running back from it. The
+Staple is set where the principal land road reaches the principal quay; radials leave
+it for each gate and each end of the harbour; rings are thrown across them every ninety
+metres or so; and the ground between rings and radials is cut into blocks. Every corner
+is jittered by a value hashed from its ring and its angle, so the two blocks either
+side of a street agree on where the street is — and the wander is scaled to the gap
+between rings rather than to the radius, or the rings cross each other and the fabric
+comes out as splinters. Minor streets are inserted wherever an arc grows past a block
+frontage and carried outward from there, which is why they begin part-way out and never
+at the centre.
+
+Two things are then solved rather than chosen:
+
+* **The wall** is drawn at the radius that encloses three-quarters of the city's people
+  — so it traces the site instead of being a circle struck round the market, reaching
+  further inland than it does along the water. Gates fall where the great roads cross
+  it; towers every other node.
+* **The size of the town** is a fixed point. A first guess sizes it as a disc at 380
+  people a hectare, which is wrong, because the harbour and the far shore take most of
+  that disc and the suburbs outside the wall are ribbons along the roads rather than an
+  even spread. Each pass measures the density it actually built and scales the next by
+  the square root of the error. It settles in two.
+
+Oem'rek comes out at **1,768 blocks over 2,126 hectares**, 86 per cent of its people
+inside a wall of about 2.8 km radius at 381 to the hectare, 93 to the hectare in the
+ribbons outside, and 3.1 km of quay. Press **USE** to colour the fabric by use, by
+storeys or by density; **ACCT** for those figures and the table above; tap any block
+for what stands on it and how many live there.
+
+The head count is the export's. Everything else is generated from the site by the
+rules above, and where the source is silent the plate says so rather than filling in.
+The generator is general — every market centre with a harbour has a plate, nine of them
+in all, and they land between 308 and 409 people a hectare without being told to — but
+Oem'rek is the one whose landmarks were written against the data by hand.
+
 ## Layout
 
 ```
-index.html          the shell
+index.html          the survey sheet's shell
+adrinem.html        the Adrinem plate's shell
 css/app.css         all styling
 js/data.js          geography, thoroughfares, 304 landmarks, scene links
 js/terrain.js       spot heights, made ground, rock, shaking amplification
@@ -215,7 +369,26 @@ js/sv-scenes.js     the thirteen plates and the walks
 js/pins.js          dropped marks and bookmarks (localStorage)
 js/streetview.js    the plate viewer
 js/app.js           wiring: sheet, drawer, search, pin tools
-build.js            inlines the above into dist/nyc2050.html
+
+js/adrinem-data.js     the packed world; generated, not written
+js/adrinem-palette.js  the colours the plate is washed in
+js/adrinem-world.js    the cell table, the Voronoi, coast, marches, rivers
+js/adrinem-route.js    the exported cost model, re-run in the browser
+js/adrinem-map.js      the plate renderer and the view state
+js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
+js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names
+js/adrinem-cityview.js the city plate viewer
+tools/pack_adrinem.py  the exports -> js/adrinem-data.js
+
+adrinem_infra.py    the generator-side pipeline that wrote the exports
+cells.csv           per-cell table, 3,817 rows
+roads.geojson       the trade network, 548 segments classed by usage
+markets.geojson     the 17 market centres
+catchments.geojson  per-cell market assignment (also carried in cells.csv)
+ports.csv           the 28 harbour-capable burgs
+network_report.json the pair matrix and the summary figures
+
+build.js            inlines each sheet into dist/
 legacy/             the original single-file demo, kept for reference
 ```
 

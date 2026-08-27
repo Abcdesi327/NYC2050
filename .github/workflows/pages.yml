@@ -1,6 +1,7 @@
 name: Preview on GitHub Pages
 
-# Publishes the survey sheet so the latest build can be looked at in a browser.
+# Publishes both sheets — the survey sheet and the Adrinem plate — so the latest
+# build can be looked at in a browser.
 # Runs on the default branch and on the feature branch, so a preview is available
 # before anything is merged. Pages serves whichever of them ran most recently.
 #
@@ -15,6 +16,7 @@ on:
     branches:
       - main
       - claude/nyc2050-map-app-features-912s9o
+      - claude/nyc2050-fantasy-map-9s4ygd
   workflow_dispatch:
 
 permissions:
@@ -43,13 +45,13 @@ jobs:
             node --check "$f"
           done
 
-      - name: Build the single-file version
+      - name: Build the single-file version of each sheet
         run: node build.js
 
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp index.html adrinem.html _site/
           cp -r css js dist _site/
           touch _site/.nojekyll
           cat > _site/build.json <<JSON
