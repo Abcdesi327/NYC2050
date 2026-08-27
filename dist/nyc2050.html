@@ -446,6 +446,57 @@ svg.sect .ax.lft{text-anchor:start}
 .rtfoot{font-family:var(--mono);font-size:8.5px;line-height:1.6;color:var(--muted);
   margin-top:12px;border-top:1px solid var(--rule);padding-top:7px}
 #map .rline{vector-effect:non-scaling-stroke}
+
+/* ---------- the solid view -------------------------------------------------------- */
+.v3{position:fixed;inset:0;z-index:52;background:#CBC9C2;display:none}
+.v3.on{display:block}
+.v3 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;
+  touch-action:none;cursor:grab}
+.v3 canvas:active{cursor:grabbing}
+.v3fail{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  max-width:420px;background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+  padding:16px;font-size:13px;line-height:1.5;z-index:4}
+.v3bar{position:absolute;left:0;right:0;top:0;padding:11px 14px;z-index:3;
+  background:linear-gradient(rgba(250,249,245,.92),rgba(250,249,245,0));
+  display:flex;align-items:flex-start;gap:10px;pointer-events:none}
+.v3bar .t{flex:1}
+.v3bar h2{margin:0;font-size:15px;font-weight:600;letter-spacing:.02em}
+.v3bar p{margin:2px 0 0;font-family:var(--mono);font-size:10px;color:var(--muted);
+  letter-spacing:.05em}
+.v3bar .close{pointer-events:auto;width:32px;height:32px;border-radius:9px;
+  border:1px solid var(--rule);background:var(--panel);font-size:17px;cursor:pointer;
+  line-height:1}
+.v3panel{position:absolute;right:12px;top:56px;bottom:12px;width:min(310px,92vw);
+  z-index:3;background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+  padding:12px;overflow:auto;backdrop-filter:blur(8px)}
+.v3sec{margin-bottom:14px}
+.v3sec:empty{display:none}
+.v3sec .ghead{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);margin-bottom:5px}
+.v3panel .hgrid{margin-bottom:0}
+.v3lab{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  color:var(--muted);margin:8px 0 3px}
+.v3panel select{width:100%;height:30px;border:1px solid var(--rule);border-radius:8px;
+  background:#fff;font-family:var(--cond);font-size:12.5px;color:var(--ink);
+  padding:0 7px;margin-bottom:4px}
+.v3panel .pointrow{margin:0 0 8px}
+.v3res{font-size:12px;margin:10px 0 4px}
+.v3hits{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.6;
+  margin-top:5px}
+.v3help{font-family:var(--mono);font-size:8.5px;line-height:1.7;color:var(--muted);
+  border-top:1px solid var(--rule);padding-top:8px}
+#v3Sel b{display:block;font-size:13px;margin-bottom:2px}
+#v3Sel span{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  line-height:1.6}
+@media (max-width:620px){
+  .v3panel{left:12px;right:12px;width:auto;top:auto;bottom:12px;max-height:46vh}
+}
+.v3panel ul.svc{list-style:none;margin:8px 0 0;padding:0}
+.v3panel ul.svc li{display:flex;justify-content:space-between;gap:8px;
+  font-size:11.5px;padding:3px 0;border-bottom:1px dotted var(--rule)}
+.v3panel ul.svc li b{font-family:var(--mono);font-size:9px;letter-spacing:.06em;
+  color:var(--muted);font-weight:600}
+.v3panel ul.svc li span{font-family:var(--mono);font-size:10px}
 </style>
 </head>
 <body>
@@ -495,7 +546,7 @@ svg.sect .ax.lft{text-anchor:start}
   <i style="background:#C4472A"></i>DAMAGED &nbsp;<i style="background:#E08A24"></i>AFFECTED<br>
   <i style="background:#3F6B3A"></i>HELD
   <b>KEYS</b>
-  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; N NAV &nbsp; H HEIGHT &nbsp; F FABRIC<br>
+  / SEARCH &nbsp; P PIN &nbsp; B MARKS &nbsp; K KEY<br>S SIM &nbsp; N NAV &nbsp; 3 SOLID<br>H HEIGHT &nbsp; F FABRIC<br>
   IN A PLATE: ← → WALK &nbsp; T THEN/NOW &nbsp; ESC OUT
 </div>
 
@@ -520,6 +571,7 @@ svg.sect .ax.lft{text-anchor:start}
     class="badge" id="pinCount">0</span></button>
   <button id="simBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
   <button id="navBtn" class="sm" aria-pressed="false" aria-label="Plan a route">NAV</button>
+  <button id="v3Btn" class="sm" aria-pressed="false" aria-label="Three-dimensional view">3D</button>
   <button id="zin" aria-label="Zoom in">+</button>
   <button id="zout" aria-label="Zoom out">&minus;</button>
   <button id="rst" class="sm" aria-label="Reset view">RST</button>
@@ -645,6 +697,66 @@ svg.sect .ax.lft{text-anchor:start}
       <button id="svMap" class="wide">SHOW ON MAP</button>
       <button id="svNext">NEXT &#9654;</button>
     </div>
+  </div>
+</div>
+
+<div class="v3" id="v3">
+  <canvas id="v3Canvas"></canvas>
+  <div class="v3fail" id="v3Fail">This browser has no WebGL2, so the three-dimensional
+    view cannot be drawn. Everything else on the sheet still works.</div>
+  <div class="v3bar">
+    <div class="t">
+      <h2>NYC 2050 — solid</h2>
+      <p id="v3Stat">building…</p>
+    </div>
+    <button class="close" id="v3Close" aria-label="Back to the sheet">&times;</button>
+  </div>
+  <div class="v3panel">
+    <div class="v3sec">
+      <div class="ghead">COLOUR BY</div>
+      <div class="hgrid" id="v3Modes">
+        <button class="chip" data-mode="use" aria-pressed="true">USE</button>
+        <button class="chip" data-mode="era" aria-pressed="false">PERIOD</button>
+        <button class="chip" data-mode="height" aria-pressed="false">HEIGHT</button>
+        <button class="chip" data-mode="damage" aria-pressed="false">PROJECTION</button>
+      </div>
+    </div>
+    <div class="v3sec">
+      <div class="ghead">LAYERS</div>
+      <div class="hgrid" id="v3Layers">
+        <button class="chip" data-layer="boxes" aria-pressed="true">BUILDINGS</button>
+        <button class="chip" data-layer="roads" aria-pressed="true">ROADS</button>
+        <button class="chip" data-layer="parks" aria-pressed="true">PARKS</button>
+        <button class="chip" data-layer="ground" aria-pressed="true">GROUND</button>
+      </div>
+    </div>
+    <div class="v3sec">
+      <div class="ghead">THROW SOMETHING</div>
+      <div class="pointrow">
+        <button id="v3Pick" aria-pressed="false">SET LAUNCH POINT</button>
+        <span id="v3Origin">not set — the nearest tall structure will be used</span>
+      </div>
+      <label class="v3lab" for="v3Class">OBJECT</label>
+      <select id="v3Class">
+        <option value="STEEL">structural steel · 950 kg</option>
+        <option value="VEHICLE">vehicle · 1500 kg</option>
+        <option value="PLANT">roof plant · 2600 kg</option>
+        <option value="MASONRY">masonry · 70 kg</option>
+        <option value="FACADE">facade panel · 190 kg</option>
+        <option value="GLAZING">glazing · 6 kg</option>
+      </select>
+      <div class="prow"><label>SPEED<b id="v3SpeedVal">120 m/s</b></label>
+        <input type="range" id="v3Speed" min="10" max="300" step="5" value="120"></div>
+      <div class="prow"><label>ELEVATION<b id="v3AngleVal">6°</b></label>
+        <input type="range" id="v3Angle" min="-20" max="70" step="1" value="6"></div>
+      <div class="prow"><label>BEARING<b id="v3BearingVal">180°</b></label>
+        <input type="range" id="v3Bearing" min="0" max="355" step="5" value="180"></div>
+      <button id="v3Throw" class="run">THROW</button>
+      <div id="v3Out"></div>
+    </div>
+    <div class="v3sec" id="v3Sel"></div>
+    <div class="v3help">Drag to orbit · shift-drag or right-drag to pan · wheel to zoom
+      · W A S D to move · click a building to read it · Esc to leave</div>
   </div>
 </div>
 
@@ -2798,6 +2910,10 @@ function init(opts){
     setCoverage(on){ L.cover.style.display=on?"":"none"; },
     setThoroughfares(on){ L.thru.style.display=L.thrulab.style.display=on?"":"none"; },
     markByName(n){ return marks.find(m=>m.name===n); },
+    centreGrid(){
+      const w=svg.clientWidth||innerWidth, h=svg.clientHeight||innerHeight;
+      return INV((w/2-tx)/sc,(h/2-ty)/sc);
+    },
     node(n){ return nodes.get(n); }
   };
   fit();
@@ -6357,6 +6473,963 @@ NYC.routeui=api;
 </script>
 <script>
 /* ===================================================================================
+   NYC 2050 — a small WebGL2 layer.
+   Enough matrix maths and buffer plumbing to draw the city, and no more. Written by
+   hand rather than pulled from a library so the project keeps its one useful
+   property: it is a folder of files that opens from disk with nothing installed.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+/* ---- 4x4 matrices, column-major, the way GL wants them --------------------------- */
+const M4={
+  create:()=>new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+  identity(o){ o.set([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]); return o; },
+  perspective(o,fovy,aspect,near,far){
+    const f=1/Math.tan(fovy/2), nf=1/(near-far);
+    o.set([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+    return o;
+  },
+  lookAt(o,eye,ctr,up){
+    let zx=eye[0]-ctr[0], zy=eye[1]-ctr[1], zz=eye[2]-ctr[2];
+    let l=Math.hypot(zx,zy,zz)||1; zx/=l; zy/=l; zz/=l;
+    let xx=up[1]*zz-up[2]*zy, xy=up[2]*zx-up[0]*zz, xz=up[0]*zy-up[1]*zx;
+    l=Math.hypot(xx,xy,xz)||1; xx/=l; xy/=l; xz/=l;
+    const yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+    o.set([xx,yx,zx,0, xy,yy,zy,0, xz,yz,zz,0,
+      -(xx*eye[0]+xy*eye[1]+xz*eye[2]),
+      -(yx*eye[0]+yy*eye[1]+yz*eye[2]),
+      -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1]);
+    return o;
+  },
+  mul(o,a,b){
+    for(let c=0;c<4;c++) for(let r=0;r<4;r++){
+      let s=0;
+      for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k];
+      o[c*4+r]=s;
+    }
+    return o;
+  }
+};
+/* screen point -> a ray in world space, for picking */
+function unproject(px,py,w,h,invVP){
+  const x=(px/w)*2-1, y=1-(py/h)*2;
+  const pt=(z)=>{
+    const cx=invVP[0]*x+invVP[4]*y+invVP[8]*z+invVP[12];
+    const cy=invVP[1]*x+invVP[5]*y+invVP[9]*z+invVP[13];
+    const cz=invVP[2]*x+invVP[6]*y+invVP[10]*z+invVP[14];
+    const cw=invVP[3]*x+invVP[7]*y+invVP[11]*z+invVP[15];
+    return [cx/cw,cy/cw,cz/cw];
+  };
+  const a=pt(-1), b=pt(1);
+  const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];
+  const l=Math.hypot(d[0],d[1],d[2])||1;
+  return {origin:a,dir:[d[0]/l,d[1]/l,d[2]/l]};
+}
+function invert(o,m){
+  const a=m;
+  const b00=a[0]*a[5]-a[1]*a[4], b01=a[0]*a[6]-a[2]*a[4], b02=a[0]*a[7]-a[3]*a[4],
+        b03=a[1]*a[6]-a[2]*a[5], b04=a[1]*a[7]-a[3]*a[5], b05=a[2]*a[7]-a[3]*a[6],
+        b06=a[8]*a[13]-a[9]*a[12], b07=a[8]*a[14]-a[10]*a[12],
+        b08=a[8]*a[15]-a[11]*a[12], b09=a[9]*a[14]-a[10]*a[13],
+        b10=a[9]*a[15]-a[11]*a[13], b11=a[10]*a[15]-a[11]*a[14];
+  let det=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+  if(!det) return null;
+  det=1/det;
+  o[0]=(a[5]*b11-a[6]*b10+a[7]*b09)*det;
+  o[1]=(a[2]*b10-a[1]*b11-a[3]*b09)*det;
+  o[2]=(a[13]*b05-a[14]*b04+a[15]*b03)*det;
+  o[3]=(a[10]*b04-a[9]*b05-a[11]*b03)*det;
+  o[4]=(a[6]*b08-a[4]*b11-a[7]*b07)*det;
+  o[5]=(a[0]*b11-a[2]*b08+a[3]*b07)*det;
+  o[6]=(a[14]*b02-a[12]*b05-a[15]*b01)*det;
+  o[7]=(a[8]*b05-a[10]*b02+a[11]*b01)*det;
+  o[8]=(a[4]*b10-a[5]*b08+a[7]*b06)*det;
+  o[9]=(a[1]*b08-a[0]*b10-a[3]*b06)*det;
+  o[10]=(a[12]*b04-a[13]*b02+a[15]*b00)*det;
+  o[11]=(a[9]*b02-a[8]*b04-a[11]*b00)*det;
+  o[12]=(a[5]*b07-a[4]*b09-a[6]*b06)*det;
+  o[13]=(a[0]*b09-a[1]*b07+a[2]*b06)*det;
+  o[14]=(a[13]*b01-a[12]*b03-a[14]*b00)*det;
+  o[15]=(a[8]*b03-a[9]*b01+a[10]*b00)*det;
+  return o;
+}
+
+/* ---- shaders and buffers ---------------------------------------------------------- */
+function shader(gl,type,src){
+  const s=gl.createShader(type);
+  gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s)+"\n"+src);
+  return s;
+}
+function program(gl,vs,fs){
+  const p=gl.createProgram();
+  gl.attachShader(p,shader(gl,gl.VERTEX_SHADER,vs));
+  gl.attachShader(p,shader(gl,gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))
+    throw new Error(gl.getProgramInfoLog(p));
+  p.u={}; p.a={};
+  const nu=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<nu;i++){ const n=gl.getActiveUniform(p,i).name.replace(/\[0\]$/,"");
+    p.u[n]=gl.getUniformLocation(p,n); }
+  const na=gl.getProgramParameter(p,gl.ACTIVE_ATTRIBUTES);
+  for(let i=0;i<na;i++){ const n=gl.getActiveAttrib(p,i).name;
+    p.a[n]=gl.getAttribLocation(p,n); }
+  return p;
+}
+function buffer(gl,data,target){
+  const b=gl.createBuffer();
+  const t=target||gl.ARRAY_BUFFER;
+  gl.bindBuffer(t,b); gl.bufferData(t,data,gl.STATIC_DRAW);
+  return b;
+}
+function attrib(gl,prog,name,buf,size,opts){
+  const loc=prog.a[name];
+  if(loc==null||loc<0) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,size,(opts&&opts.type)||gl.FLOAT,!!(opts&&opts.norm),
+    (opts&&opts.stride)||0,(opts&&opts.offset)||0);
+  if(opts&&opts.divisor) gl.vertexAttribDivisor(loc,opts.divisor);
+}
+
+/* a unit box, base on the ground: x,z in [-.5,.5], y in [0,1] */
+function unitBox(){
+  const p=[],n=[];
+  const F=[
+    [[ .5,0,-.5],[ .5,0, .5],[ .5,1, .5],[ .5,1,-.5],[1,0,0]],
+    [[-.5,0, .5],[-.5,0,-.5],[-.5,1,-.5],[-.5,1, .5],[-1,0,0]],
+    [[-.5,1,-.5],[ .5,1,-.5],[ .5,1, .5],[-.5,1, .5],[0,1,0]],
+    [[-.5,0, .5],[ .5,0, .5],[ .5,0,-.5],[-.5,0,-.5],[0,-1,0]],
+    [[-.5,0, .5],[-.5,1, .5],[ .5,1, .5],[ .5,0, .5],[0,0,1]],
+    [[ .5,0,-.5],[ .5,1,-.5],[-.5,1,-.5],[-.5,0,-.5],[0,0,-1]]
+  ];
+  F.forEach(f=>{
+    let c=[f[0],f[1],f[2],f[3]];
+    /* wind each face so its face normal points out, whatever order it was written in */
+    const e1=[c[1][0]-c[0][0],c[1][1]-c[0][1],c[1][2]-c[0][2]];
+    const e2=[c[2][0]-c[0][0],c[2][1]-c[0][1],c[2][2]-c[0][2]];
+    const cr=[e1[1]*e2[2]-e1[2]*e2[1], e1[2]*e2[0]-e1[0]*e2[2], e1[0]*e2[1]-e1[1]*e2[0]];
+    if(cr[0]*f[4][0]+cr[1]*f[4][1]+cr[2]*f[4][2]<0) c=[c[3],c[2],c[1],c[0]];
+    const q=[c[0],c[1],c[2],c[0],c[2],c[3]];
+    q.forEach(v=>{ p.push(v[0],v[1],v[2]); n.push(f[4][0],f[4][1],f[4][2]); });
+  });
+  return {pos:new Float32Array(p),nrm:new Float32Array(n),count:p.length/3};
+}
+
+NYC.gl={M4,invert,unproject,shader,program,buffer,attrib,unitBox};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — the three-dimensional world.
+
+   Two things come out of here and they are deliberately separate:
+
+     meshes()     geometry for the renderer — terrain, roads, parks, extruded blocks
+     colliders()  the same city as a list of boxes with mass and material
+
+   The second is the groundwork. Every block and every named structure becomes an
+   oriented box in metres, sorted into a uniform broadphase grid, with the energy its
+   fabric will absorb before something goes through it. raycast() and trace() are a
+   deliberately simple integrator over that set: swap them for a real engine and the
+   world it needs is already built and indexed.
+
+   World space is metres. One grid unit on the survey sheet is ten metres.
+     world x  =  grid x * 10          east
+     world y  =  metres above the 2050 waterline
+     world z  = -grid y * 10          north is -z
+   Blocks are axis-aligned in this frame because the Manhattan grid is; the outer
+   boroughs carry a yaw, stored per collider for an engine that wants the true box.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+const U2M=10, G=9.81, RHO=1.22;
+const w2g=(x,z)=>[x/U2M,-z/U2M];
+const g2w=(gx,gy)=>[gx*U2M,-gy*U2M];
+
+const hex=h=>[parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,
+              parseInt(h.slice(5,7),16)/255];
+
+/* ---- what a thing is made of ------------------------------------------------------ */
+const MATERIAL={
+  "pre-1901": {name:"brick and timber",  resist:0.9e6, density:340, restitution:0.05},
+  "1901-29":  {name:"masonry and steel", resist:1.3e6, density:400, restitution:0.06},
+  "1930-60":  {name:"steel frame",       resist:2.0e6, density:300, restitution:0.10},
+  "1961-99":  {name:"concrete frame",    resist:2.4e6, density:330, restitution:0.08},
+  "post-2000":{name:"glass curtain wall",resist:1.5e6, density:260, restitution:0.12},
+  "STRUCTURE":{name:"monumental",        resist:4.5e6, density:520, restitution:0.04},
+  "GROUND":   {name:"ground",            resist:1e12,  density:1800,restitution:0.02}
+};
+
+let W=null;
+function rng(seed){
+  let a=(seed>>>0)||1;
+  return function(){ a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296; };
+}
+
+/* =================================================================================== */
+function build(opts){
+  if(W&&!(opts&&opts.rebuild)) return W;
+  const t0=now();
+  const blocks=NYC.fabric.build();
+  const colliders=[];
+
+  /* ---- the fabric, extruded ------------------------------------------------------
+     A block is not one building. Each is cut along its long axis into the two to five
+     buildings that would stand on it, with heights varying about the block's own, and
+     the occasional gap for the yard behind. It reads as a city rather than a wall, and
+     it gives a projectile something the size of a real building to hit. */
+  const rnd=rng(90210);
+  blocks.forEach(b=>{
+    const e1=[b.pts[1][0]-b.pts[0][0], b.pts[1][1]-b.pts[0][1]];
+    const e2=[b.pts[3][0]-b.pts[0][0], b.pts[3][1]-b.pts[0][1]];
+    const w=Math.hypot(e1[0],e1[1])*U2M, d=Math.hypot(e2[0],e2[1])*U2M;
+    const yaw=Math.atan2(-e1[1],e1[0]);          /* grid y is world -z */
+    const base=Math.max(0,NYC.terrain.elev(b.cx,b.cy));
+    const [wx,wz]=g2w(b.cx,b.cy);
+    const mat=MATERIAL[b.era]||MATERIAL["1901-29"];
+    const along=w>=d, longSide=along?w:d;
+    const n=Math.max(1,Math.min(5,Math.round(longSide/78)));
+    const seg=longSide/n;
+    const ux=along?Math.cos(yaw):-Math.sin(yaw);
+    const uz=along?Math.sin(yaw):Math.cos(yaw);
+    for(let i=0;i<n;i++){
+      if(n>2&&rnd()<0.09) continue;              /* the yard behind */
+      const t=(i+0.5)/n-0.5;
+      const jitter=0.55+rnd()*0.85;
+      const h=Math.max(3,b.height*(n===1?1:jitter));
+      const px=wx+ux*t*longSide, pz=wz+uz*t*longSide;
+      const sw=(along?seg:w)*0.94, sd=(along?d:seg)*0.94;
+      const floors=Math.max(1,Math.round(h/3.6));
+      colliders.push({
+        id:colliders.length, kind:"block", ref:b.id,
+        cx:px, cz:pz, base:base, height:h,
+        hx:sw/2, hz:sd/2, yaw:yaw,
+        era:b.era, use:b.use, material:mat,
+        mass:Math.round(sw*sd*b.coverage*mat.density*floors/1000)*1000,
+        label:b.zone
+      });
+    }
+  });
+
+  /* ---- the named structures, standing above their block -------------------------- */
+  const marks=(NYC.mapView&&NYC.mapView.marks)||[];
+  marks.forEach(m=>{
+    const h=NYC.heights.heightOf(m);
+    if(h<20) return;
+    const base=Math.max(0,NYC.terrain.elev(m.x,m.y));
+    const [wx,wz]=g2w(m.x,m.y);
+    /* footprint grows with height, the way a tower's core does */
+    const foot=Math.max(24,Math.min(90,18+h*0.16));
+    colliders.push({
+      id:colliders.length, kind:"structure", ref:m.name,
+      cx:wx, cz:wz, base:base, height:h,
+      hx:foot/2, hz:foot/2, yaw:0,
+      era:"STRUCTURE", use:m.cat,
+      material:MATERIAL.STRUCTURE,
+      mass:Math.round(foot*foot*h*520/1000)*1000,
+      label:m.name, disp:m.disp
+    });
+  });
+
+  /* ---- broadphase: a uniform grid over the ground plane -------------------------- */
+  const CELL=140;                               /* metres */
+  const bp=new Map();
+  const bkey=(cx,cz)=>cx+":"+cz;
+  colliders.forEach(c=>{
+    const r=Math.max(c.hx,c.hz);
+    const c0=Math.floor((c.cx-r)/CELL), c1=Math.floor((c.cx+r)/CELL);
+    const r0=Math.floor((c.cz-r)/CELL), r1=Math.floor((c.cz+r)/CELL);
+    for(let a=c0;a<=c1;a++) for(let b2=r0;b2<=r1;b2++){
+      const k=bkey(a,b2);
+      let arr=bp.get(k); if(!arr){arr=[];bp.set(k,arr);}
+      arr.push(c.id);
+    }
+  });
+
+  W={colliders,bp,CELL,bkey,buildMs:Math.round(now()-t0),
+     bounds:worldBounds()};
+  return W;
+}
+function now(){ return (typeof performance!=="undefined")?performance.now():Date.now(); }
+function worldBounds(){
+  return {x0:-290*U2M,x1:650*U2M,z0:-1770*U2M,z1:530*U2M};
+}
+
+/* ---- the ground ------------------------------------------------------------------- */
+function groundAt(x,z){
+  const [gx,gy]=w2g(x,z);
+  const e=NYC.terrain.elev(gx,gy);
+  return NYC.terrain.onLand(gx,gy)?Math.max(0,e):0;
+}
+
+/* ---- collision -------------------------------------------------------------------- */
+/* a box in its own frame; the ray is rotated into it, so a turned block is exact */
+function rayBox(o,d,c){
+  const cs=Math.cos(-c.yaw), sn=Math.sin(-c.yaw);
+  const rx=(o[0]-c.cx)*cs-(o[2]-c.cz)*sn, rz=(o[0]-c.cx)*sn+(o[2]-c.cz)*cs;
+  const dx=d[0]*cs-d[2]*sn, dz=d[0]*sn+d[2]*cs;
+  const ry=o[1]-(c.base+c.height/2), dy=d[1];
+  const h=[c.hx,c.height/2,c.hz], ro=[rx,ry,rz], rd=[dx,dy,dz];
+  let tmin=-Infinity, tmax=Infinity, axis=0;
+  for(let i=0;i<3;i++){
+    if(Math.abs(rd[i])<1e-9){ if(Math.abs(ro[i])>h[i]) return null; continue; }
+    const inv=1/rd[i];
+    let t1=(-h[i]-ro[i])*inv, t2=(h[i]-ro[i])*inv;
+    if(t1>t2){ const t=t1; t1=t2; t2=t; }
+    if(t1>tmin){ tmin=t1; axis=i; }
+    if(t2<tmax) tmax=t2;
+    if(tmin>tmax) return null;
+  }
+  if(tmax<0) return null;
+  const t=tmin>=0?tmin:tmax;
+  const n=[0,0,0];
+  n[axis]=(rd[axis]>0?-1:1);
+  /* back to world */
+  const nx=n[0]*cs+n[2]*sn, nz=-n[0]*sn+n[2]*cs;
+  return {t, normal:[nx,n[1],nz]};
+}
+function raycast(origin,dir,maxDist,skip){
+  const w=build();
+  let best=null;
+  const step=w.CELL*0.6;
+  const seen=new Set();
+  for(let travelled=0;travelled<=maxDist;travelled+=step){
+    const px=origin[0]+dir[0]*travelled, pz=origin[2]+dir[2]*travelled;
+    const c0=Math.floor(px/w.CELL), r0=Math.floor(pz/w.CELL);
+    for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){
+      const arr=w.bp.get(w.bkey(c0+a,r0+b));
+      if(!arr) continue;
+      for(const id of arr){
+        if(seen.has(id)) continue;
+        seen.add(id);
+        if(skip&&skip(id)) continue;
+        const hit=rayBox(origin,dir,w.colliders[id]);
+        if(hit&&hit.t>=0&&hit.t<=maxDist&&(!best||hit.t<best.t))
+          best={t:hit.t,normal:hit.normal,collider:w.colliders[id]};
+      }
+    }
+    if(best&&best.t<travelled) break;           /* nothing further can be nearer */
+  }
+  if(!best) return null;
+  best.point=[origin[0]+dir[0]*best.t,origin[1]+dir[1]*best.t,origin[2]+dir[2]*best.t];
+  return best;
+}
+
+/* ---- a projectile, integrated ------------------------------------------------------
+   opts: {origin:[x,y,z], velocity:[vx,vy,vz], mass, cda, dt, maxTime, penetrate}
+   Returns the flight path, every structure it went through, and where it stopped.
+   This is the seam a physics engine slots into: it consumes colliders() and produces
+   samples; nothing else in the app depends on how it does that.
+   ------------------------------------------------------------------------------------ */
+function trace(opts){
+  const mass=opts.mass||200, cda=opts.cda||1.2;
+  const k=0.5*RHO*cda/mass;
+  const dt=opts.dt||0.02, maxT=opts.maxTime||60;
+  let p=opts.origin.slice(), v=opts.velocity.slice(), t=0;
+  const samples=[{p:p.slice(),v:v.slice(),t:0}], impacts=[];
+  const spent=new Set();
+  /* whatever it started inside is not something it can hit on the way out */
+  containing(p).forEach(id=>spent.add(id));
+  let stopped=null;
+  while(t<maxT){
+    const sp=Math.hypot(v[0],v[1],v[2]);
+    const ax=-k*sp*v[0], ay=-G-k*sp*v[1], az=-k*sp*v[2];
+    const nv=[v[0]+ax*dt, v[1]+ay*dt, v[2]+az*dt];
+    const np=[p[0]+nv[0]*dt, p[1]+nv[1]*dt, p[2]+nv[2]*dt];
+    const seg=[np[0]-p[0],np[1]-p[1],np[2]-p[2]];
+    const len=Math.hypot(seg[0],seg[1],seg[2]);
+    if(len>1e-6){
+      const dir=[seg[0]/len,seg[1]/len,seg[2]/len];
+      const hit=raycast(p,dir,len,id=>spent.has(id));
+      if(hit){
+        const ke=0.5*mass*sp*sp;
+        const res=hit.collider.material.resist*(0.6+hit.collider.height/400);
+        const through=opts.penetrate!==false&&ke>res;
+        impacts.push({collider:hit.collider,point:hit.point,ke:Math.round(ke),
+          through,name:hit.collider.label,kind:hit.collider.kind});
+        spent.add(hit.collider.id);
+        if(through){
+          const f=Math.sqrt(Math.max(0.04,1-res/ke));
+          v=[nv[0]*f,nv[1]*f,nv[2]*f];
+          p=[hit.point[0]+dir[0]*0.6,hit.point[1]+dir[1]*0.6,hit.point[2]+dir[2]*0.6];
+          t+=dt; samples.push({p:p.slice(),v:v.slice(),t});
+          continue;
+        }
+        p=hit.point.slice();
+        samples.push({p:p.slice(),v:[0,0,0],t});
+        stopped={reason:"struck",name:hit.collider.label,kind:hit.collider.kind};
+        break;
+      }
+    }
+    p=np; v=nv; t+=dt;
+    const g=groundAt(p[0],p[2]);
+    if(p[1]<=g){
+      p[1]=g;
+      samples.push({p:p.slice(),v:[0,0,0],t});
+      stopped={reason:"ground"};
+      break;
+    }
+    if(samples.length<2000&&(samples.length<12||Math.round(t/dt)%5===0))
+      samples.push({p:p.slice(),v:v.slice(),t});
+  }
+  if(!stopped){ stopped={reason:"still moving"}; }
+  const o=opts.origin;
+  const range=Math.hypot(p[0]-o[0],p[2]-o[2]);
+  return {samples,impacts,rest:p,stopped,range,
+    through:impacts.filter(i=>i.through).length,
+    blocks:range/80};
+}
+
+function containing(p){
+  const w=build(), out=[];
+  const c0=Math.floor(p[0]/w.CELL), r0=Math.floor(p[2]/w.CELL);
+  for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){
+    const arr=w.bp.get(w.bkey(c0+a,r0+b));
+    if(!arr) continue;
+    for(const id of arr){
+      const c=w.colliders[id];
+      if(p[1]<c.base-2||p[1]>c.base+c.height+2) continue;
+      const cs=Math.cos(-c.yaw), sn=Math.sin(-c.yaw);
+      const rx=(p[0]-c.cx)*cs-(p[2]-c.cz)*sn, rz=(p[0]-c.cx)*sn+(p[2]-c.cz)*cs;
+      if(Math.abs(rx)<=c.hx+2&&Math.abs(rz)<=c.hz+2) out.push(id);
+    }
+  }
+  return out;
+}
+
+/* ---- geometry for the renderer ---------------------------------------------------- */
+function meshes(opt){
+  const w=build();
+  const mode=(opt&&opt.mode)||"use";
+  const states=(opt&&opt.states)||null;      /* per-block projection state, or null */
+  const out={};
+
+  /* terrain: an indexed grid, coloured by what is on it */
+  {
+    const STEP=8, x0=-290, x1=650, y0=-530, y1=1770;
+    const cols=Math.ceil((x1-x0)/STEP)+1, rows=Math.ceil((y1-y0)/STEP)+1;
+    const pos=new Float32Array(cols*rows*3), col=new Float32Array(cols*rows*3);
+    const LAND=hex("#9C9A90"), SAND=hex("#AEAB9F"), PARK=hex("#4E6B3A"),
+          DEEP=hex("#3A4B54");
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const gx=x0+c*STEP, gy=y0+r*STEP, i=(r*cols+c)*3;
+      const land=NYC.terrain.onLand(gx,gy);
+      const e=land?NYC.terrain.elev(gx,gy):-8;
+      const [wx,wz]=g2w(gx,gy);
+      pos[i]=wx; pos[i+1]=land?Math.max(0,e):e; pos[i+2]=wz;
+      let c3=land?(e<3?SAND:LAND):DEEP;
+      if(land&&isPark(gx,gy)) c3=PARK;
+      col[i]=c3[0]; col[i+1]=c3[1]; col[i+2]=c3[2];
+    }
+    const idx=new Uint32Array((cols-1)*(rows-1)*6);
+    let k=0;
+    for(let r=0;r<rows-1;r++) for(let c=0;c<cols-1;c++){
+      const a=r*cols+c, b=a+1, d=a+cols, e2=d+1;
+      idx[k++]=a; idx[k++]=d; idx[k++]=b;
+      idx[k++]=b; idx[k++]=d; idx[k++]=e2;
+    }
+    out.terrain={pos,col,idx,count:idx.length,cols,rows};
+  }
+
+  /* the roadway, as flat ribbons a little above the ground */
+  {
+    const g=NYC.network.build();
+    const WIDTH={ave:30,st:18,hwy:26,thru:22,bway:26,walk:8,cross:16,join:0};
+    const pos=[],col=[];
+    const grey=hex("#6B665C");
+    g.edges.forEach(e=>{
+      const wdt=WIDTH[e.kind];
+      if(!wdt) return;
+      const A=g.nodes[e.a], B=g.nodes[e.b];
+      const [ax,az]=g2w(A.x,A.y), [bx,bz]=g2w(B.x,B.y);
+      const dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz)||1;
+      const nx=-dz/L*wdt/2, nz=dx/L*wdt/2;
+      const ay=groundAt(ax,az)+0.5, by=groundAt(bx,bz)+0.5;
+      const q=[[ax+nx,ay,az+nz],[bx+nx,by,bz+nz],[bx-nx,by,bz-nz],
+               [ax+nx,ay,az+nz],[bx-nx,by,bz-nz],[ax-nx,ay,az-nz]];
+      q.forEach(v=>{ pos.push(v[0],v[1],v[2]); col.push(grey[0],grey[1],grey[2]); });
+    });
+    out.roads={pos:new Float32Array(pos),col:new Float32Array(col),count:pos.length/3};
+  }
+
+  /* the parks, as their own ground */
+  {
+    const pos=[],col=[];
+    const green=hex("#4E6B3A");
+    NYC.data.PARKS.forEach(p=>{
+      for(let i=1;i<p.length-1;i++){
+        [[p[0]],[p[i]],[p[i+1]]].forEach(v=>{
+          const [wx,wz]=g2w(v[0][0],v[0][1]);
+          pos.push(wx,groundAt(wx,wz)+0.8,wz);
+          col.push(green[0],green[1],green[2]);
+        });
+      }
+    });
+    out.parks={pos:new Float32Array(pos),col:new Float32Array(col),count:pos.length/3};
+  }
+
+  /* every box in the city, as instances */
+  {
+    const n=w.colliders.length;
+    const off=new Float32Array(n*3), scl=new Float32Array(n*3),
+          col=new Float32Array(n*3), yaw=new Float32Array(n);
+    w.colliders.forEach((c,i)=>{
+      let h=c.height;
+      let rgb=colourOf(c,mode);
+      if(states&&c.kind==="block"){
+        const st=states[c.ref];
+        if(st!=null&&st<4){
+          rgb=hex(NYC.sim.STATES[st][2]);
+          if(st===0) h=Math.max(3,c.height*0.22);      /* lost: down to its own rubble */
+          else if(st===1) h=c.height*0.75;
+        }
+      }
+      off[i*3]=c.cx; off[i*3+1]=c.base; off[i*3+2]=c.cz;
+      scl[i*3]=c.hx*2; scl[i*3+1]=h; scl[i*3+2]=c.hz*2;
+      col[i*3]=rgb[0]; col[i*3+1]=rgb[1]; col[i*3+2]=rgb[2];
+      yaw[i]=c.yaw;
+    });
+    out.boxes={off,scl,col,yaw,count:n};
+  }
+  return out;
+}
+function isPark(gx,gy){
+  for(const p of NYC.data.PARKS) if(NYC.fabric.inPoly(gx,gy,p)) return true;
+  return false;
+}
+const HGT_RAMP=[[12,"#D9D2C2"],[20,"#CFC4AC"],[35,"#C0B092"],[60,"#A89478"],
+                [120,"#8C7A60"],[1e9,"#6B5B46"]];
+function colourOf(c,mode){
+  if(c.kind==="structure") return hex("#6E6A60");
+  if(mode==="era") return hex((NYC.fabric.ERAS[c.era]||{colour:"#B08A62"}).colour);
+  if(mode==="height"){ for(const r of HGT_RAMP) if(c.height<r[0]) return hex(r[1]);
+    return hex("#6B5B46"); }
+  return hex((NYC.fabric.USES[c.use]||{colour:"#CBA57F"}).colour);
+}
+
+/* ---- what a fragment class weighs, borrowed from the two-dimensional model -------- */
+function fragmentPreset(id){
+  const c=(NYC.debris?NYC.debris.CLASSES:[]).find(x=>x.id===id);
+  return c?{mass:c.mass,cda:c.cda,label:c.label}:{mass:200,cda:1.2,label:"debris"};
+}
+
+NYC.world3d={build,meshes,colliders:()=>build().colliders,groundAt,raycast,trace,containing,
+  fragmentPreset,MATERIAL,U2M,g2w,w2g,
+  get stats(){ const w=build();
+    return {colliders:w.colliders.length,cells:w.bp.size,buildMs:w.buildMs}; }};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — the three-dimensional view.
+   A camera over the world built by world3d.js. Instanced boxes for the fabric and the
+   named structures, an indexed grid for the ground, ribbons for the roadway. The
+   THROW panel drives world3d.trace(), which is the seam a physics engine replaces.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+const q=id=>document.getElementById(id);
+const {M4,invert,unproject,program,buffer,attrib,unitBox}=NYC.gl;
+
+let gl=null, canvas=null, prog=null, mesh=null, line=null, bufs={}, ready=false;
+let mode="use", show={roads:true,parks:true,ground:true,boxes:true};
+let cam={tx:0,ty:0,tz:0,dist:2600,yaw:-0.62,pitch:0.72};
+let raf=null, hooks={}, lastTrace=null, throwOrigin=null, anim=null, picking=false;
+
+const VS_BOX=`#version 300 es
+precision highp float;
+in vec3 aPos; in vec3 aNrm;
+in vec3 iOff; in vec3 iScl; in vec3 iCol; in float iYaw;
+uniform mat4 uVP; uniform vec3 uEye;
+out vec3 vCol; out vec3 vNrm; out float vDist; out float vUp;
+void main(){
+  float c=cos(iYaw), s=sin(iYaw);
+  vec3 p=aPos*iScl;
+  vec3 r=vec3(p.x*c - p.z*s, p.y, p.x*s + p.z*c);
+  vec3 w=r+iOff;
+  vec3 n=vec3(aNrm.x*c - aNrm.z*s, aNrm.y, aNrm.x*s + aNrm.z*c);
+  vCol=iCol; vNrm=n; vUp=aPos.y;
+  vDist=length(w-uEye);
+  gl_Position=uVP*vec4(w,1.0);
+}`;
+const FS_COMMON=`
+  vec3 shade(vec3 col, vec3 n, float dist, float up){
+    vec3 sun=normalize(vec3(0.42,0.78,0.46));
+    float d=max(dot(normalize(n),sun),0.0);
+    float amb=0.52+0.16*normalize(n).y;
+    vec3 c=col*(amb+0.62*d);
+    c*=mix(0.72,1.0,clamp(up,0.0,1.0));            // streets sit in their own shade
+    float f=clamp((dist-2200.0)/9000.0,0.0,0.82);
+    return mix(c, vec3(0.796,0.792,0.760), f);
+  }`;
+const FS_BOX=`#version 300 es
+precision highp float;
+in vec3 vCol; in vec3 vNrm; in float vDist; in float vUp;
+out vec4 outColor;`+FS_COMMON+`
+void main(){ outColor=vec4(shade(vCol,vNrm,vDist,vUp*0.6+0.4),1.0); }`;
+
+const VS_MESH=`#version 300 es
+precision highp float;
+in vec3 aPos; in vec3 aCol;
+uniform mat4 uVP; uniform vec3 uEye;
+out vec3 vCol; out float vDist; out vec3 vW;
+void main(){ vCol=aCol; vW=aPos; vDist=length(aPos-uEye); gl_Position=uVP*vec4(aPos,1.0); }`;
+const FS_MESH=`#version 300 es
+precision highp float;
+in vec3 vCol; in float vDist; in vec3 vW;
+out vec4 outColor;`+FS_COMMON+`
+void main(){
+  vec3 n=normalize(cross(dFdx(vW),dFdy(vW)));
+  if(n.y<0.0) n=-n;
+  outColor=vec4(shade(vCol,n,vDist,1.0),1.0);
+}`;
+const VS_LINE=`#version 300 es
+precision highp float;
+in vec3 aPos; uniform mat4 uVP; uniform float uSize;
+void main(){ gl_Position=uVP*vec4(aPos,1.0); gl_PointSize=uSize; }`;
+const FS_LINE=`#version 300 es
+precision highp float;
+uniform vec4 uCol; out vec4 outColor;
+void main(){ outColor=uCol; }`;
+
+/* =================================================================================== */
+function init(o){
+  hooks=o||{};
+  q("v3Close").onclick=close;
+  q("v3Throw").onclick=doThrow;
+  q("v3Pick").onclick=()=>{ picking=!picking;
+    q("v3Pick").setAttribute("aria-pressed",picking);
+    hooks.toast&&hooks.toast(picking?"Click the city to set the launch point":""); };
+  [...document.querySelectorAll("#v3Modes .chip")].forEach(b=>b.onclick=()=>{
+    mode=b.dataset.mode;
+    [...document.querySelectorAll("#v3Modes .chip")].forEach(x=>
+      x.setAttribute("aria-pressed",x===b));
+    rebuild();
+  });
+  [...document.querySelectorAll("#v3Layers button")].forEach(b=>b.onclick=()=>{
+    show[b.dataset.layer]=!show[b.dataset.layer];
+    b.setAttribute("aria-pressed",show[b.dataset.layer]);
+    draw();
+  });
+  ["v3Speed","v3Angle","v3Bearing"].forEach(id=>{
+    q(id).addEventListener("input",()=>{
+      q(id+"Val").textContent=q(id).value+(id==="v3Speed"?" m/s":"°");
+    });
+  });
+}
+
+/* ---- the GL side ------------------------------------------------------------------- */
+function start(){
+  canvas=q("v3Canvas");
+  if(!gl){
+    gl=canvas.getContext("webgl2",{antialias:true,alpha:false});
+    if(!gl){ q("v3Fail").style.display="block"; return false; }
+    prog=program(gl,VS_BOX,FS_BOX);
+    mesh=program(gl,VS_MESH,FS_MESH);
+    line=program(gl,VS_LINE,FS_LINE);
+    const box=unitBox();
+    bufs.boxPos=buffer(gl,box.pos); bufs.boxNrm=buffer(gl,box.nrm);
+    bufs.boxCount=box.count;
+    bufs.line=gl.createBuffer();
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    bindControls();
+    rebuild();
+  }
+  resize();
+  loop();
+  return true;
+}
+function rebuild(){
+  const t0=performance.now();
+  const states=(NYC.simui&&NYC.simui.projectionContext&&NYC.simui.projectionContext());
+  const m=NYC.world3d.meshes({mode:mode==="damage"?"use":mode,
+    states:(mode==="damage"&&states)?states.blocks:null});
+  const up=(name,data)=>{
+    if(!bufs[name]) bufs[name]=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,bufs[name]);
+    gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+  };
+  up("iOff",m.boxes.off); up("iScl",m.boxes.scl); up("iCol",m.boxes.col);
+  up("iYaw",m.boxes.yaw);
+  bufs.instances=m.boxes.count;
+  up("tPos",m.terrain.pos); up("tCol",m.terrain.col);
+  if(!bufs.tIdx) bufs.tIdx=gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,bufs.tIdx);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,m.terrain.idx,gl.STATIC_DRAW);
+  bufs.tCount=m.terrain.count;
+  up("rPos",m.roads.pos); up("rCol",m.roads.col); bufs.rCount=m.roads.count;
+  up("pPos",m.parks.pos); up("pCol",m.parks.col); bufs.pCount=m.parks.count;
+  ready=true;
+  q("v3Stat").textContent=NYC.world3d.stats.colliders.toLocaleString()+" boxes · "+
+    Math.round(performance.now()-t0)+" ms";
+  draw();
+}
+function resize(){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=canvas.clientWidth||innerWidth, h=canvas.clientHeight||innerHeight;
+  canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+  gl&&gl.viewport(0,0,canvas.width,canvas.height);
+}
+function viewProj(){
+  const asp=canvas.width/Math.max(1,canvas.height);
+  const P=M4.perspective(M4.create(),0.9,asp,8,26000);
+  const cp=Math.cos(cam.pitch), eye=[
+    cam.tx+Math.sin(cam.yaw)*cp*cam.dist,
+    cam.ty+Math.sin(cam.pitch)*cam.dist,
+    cam.tz+Math.cos(cam.yaw)*cp*cam.dist];
+  const V=M4.lookAt(M4.create(),eye,[cam.tx,cam.ty,cam.tz],[0,1,0]);
+  return {VP:M4.mul(M4.create(),P,V),eye};
+}
+function draw(){
+  if(!ready||!gl) return;
+  const {VP,eye}=viewProj();
+  gl.clearColor(0.796,0.792,0.760,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+
+  gl.useProgram(mesh);
+  gl.uniformMatrix4fv(mesh.u.uVP,false,VP);
+  gl.uniform3fv(mesh.u.uEye,eye);
+  if(show.ground){
+    attrib(gl,mesh,"aPos",bufs.tPos,3); attrib(gl,mesh,"aCol",bufs.tCol,3);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,bufs.tIdx);
+    gl.disable(gl.CULL_FACE);
+    gl.drawElements(gl.TRIANGLES,bufs.tCount,gl.UNSIGNED_INT,0);
+    gl.enable(gl.CULL_FACE);
+  }
+  if(show.parks&&bufs.pCount){
+    attrib(gl,mesh,"aPos",bufs.pPos,3); attrib(gl,mesh,"aCol",bufs.pCol,3);
+    gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES,0,bufs.pCount);
+    gl.enable(gl.CULL_FACE);
+  }
+  if(show.roads&&bufs.rCount){
+    attrib(gl,mesh,"aPos",bufs.rPos,3); attrib(gl,mesh,"aCol",bufs.rCol,3);
+    gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES,0,bufs.rCount);
+    gl.enable(gl.CULL_FACE);
+  }
+  if(show.boxes){
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(prog.u.uVP,false,VP);
+    gl.uniform3fv(prog.u.uEye,eye);
+    attrib(gl,prog,"aPos",bufs.boxPos,3);
+    attrib(gl,prog,"aNrm",bufs.boxNrm,3);
+    attrib(gl,prog,"iOff",bufs.iOff,3,{divisor:1});
+    attrib(gl,prog,"iScl",bufs.iScl,3,{divisor:1});
+    attrib(gl,prog,"iCol",bufs.iCol,3,{divisor:1});
+    attrib(gl,prog,"iYaw",bufs.iYaw,1,{divisor:1});
+    gl.drawArraysInstanced(gl.TRIANGLES,0,bufs.boxCount,bufs.instances);
+    [prog.a.iOff,prog.a.iScl,prog.a.iCol,prog.a.iYaw].forEach(l=>{
+      if(l>=0) gl.vertexAttribDivisor(l,0); });
+  }
+  drawTrace(VP);
+}
+function drawTrace(VP){
+  if(!lastTrace) return;
+  const n=anim?Math.max(2,Math.floor(anim.i)):lastTrace.samples.length;
+  const pts=lastTrace.samples.slice(0,n);
+  const arr=new Float32Array(pts.length*3);
+  pts.forEach((s,i)=>{ arr[i*3]=s.p[0]; arr[i*3+1]=s.p[1]; arr[i*3+2]=s.p[2]; });
+  gl.useProgram(line);
+  gl.uniformMatrix4fv(line.u.uVP,false,VP);
+  gl.bindBuffer(gl.ARRAY_BUFFER,bufs.line);
+  gl.bufferData(gl.ARRAY_BUFFER,arr,gl.DYNAMIC_DRAW);
+  attrib(gl,line,"aPos",bufs.line,3);
+  gl.disable(gl.DEPTH_TEST);
+  gl.uniform4f(line.u.uCol,0.56,0.16,0.13,0.95);
+  gl.uniform1f(line.u.uSize,3.4);
+  gl.drawArrays(gl.LINE_STRIP,0,pts.length);
+  /* line width is clamped to one pixel almost everywhere, so the path is also
+     drawn as points, which are not */
+  gl.drawArrays(gl.POINTS,0,pts.length);
+  /* where it hit something, and where it came to rest */
+  const marks=lastTrace.impacts.filter((_,i)=>true).map(i=>i.point).concat([lastTrace.rest]);
+  const ma=new Float32Array(marks.length*3);
+  marks.forEach((p,i)=>{ ma[i*3]=p[0]; ma[i*3+1]=p[1]; ma[i*3+2]=p[2]; });
+  gl.bufferData(gl.ARRAY_BUFFER,ma,gl.DYNAMIC_DRAW);
+  attrib(gl,line,"aPos",bufs.line,3);
+  gl.uniform4f(line.u.uCol,0.10,0.10,0.09,1.0);
+  gl.uniform1f(line.u.uSize,7.0);
+  gl.drawArrays(gl.POINTS,0,marks.length);
+  gl.enable(gl.DEPTH_TEST);
+}
+function loop(){
+  if(!q("v3").classList.contains("on")){ raf=null; return; }
+  if(anim){
+    anim.i+=anim.rate;
+    if(anim.i>=lastTrace.samples.length){ anim=null; }
+  }
+  draw();
+  raf=requestAnimationFrame(loop);
+}
+
+/* ---- controls ---------------------------------------------------------------------- */
+function bindControls(){
+  let drag=null;
+  canvas.addEventListener("pointerdown",e=>{
+    canvas.setPointerCapture(e.pointerId);
+    drag={x:e.clientX,y:e.clientY,pan:e.shiftKey||e.button===2,moved:0};
+  });
+  canvas.addEventListener("pointermove",e=>{
+    if(!drag) return;
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    drag.moved+=Math.abs(dx)+Math.abs(dy);
+    if(drag.pan){
+      const s=cam.dist*0.0016;
+      cam.tx-=(dx*Math.cos(cam.yaw)+dy*Math.sin(cam.yaw))*s;
+      cam.tz+=(dx*Math.sin(cam.yaw)-dy*Math.cos(cam.yaw))*s;
+    } else {
+      cam.yaw-=dx*0.005;
+      cam.pitch=Math.max(0.06,Math.min(1.5,cam.pitch+dy*0.005));
+    }
+    drag.x=e.clientX; drag.y=e.clientY;
+  });
+  ["pointerup","pointercancel"].forEach(ev=>canvas.addEventListener(ev,e=>{
+    if(drag&&drag.moved<5) click(e);
+    drag=null;
+  }));
+  canvas.addEventListener("contextmenu",e=>e.preventDefault());
+  canvas.addEventListener("wheel",e=>{
+    e.preventDefault();
+    cam.dist=Math.max(60,Math.min(18000,cam.dist*Math.pow(1.0016,e.deltaY)));
+  },{passive:false});
+  addEventListener("resize",()=>{ if(q("v3").classList.contains("on")){ resize(); draw(); } });
+  addEventListener("keydown",e=>{
+    if(!q("v3").classList.contains("on")) return;
+    const s=cam.dist*0.06;
+    const f=[Math.sin(cam.yaw),0,Math.cos(cam.yaw)];
+    if(e.key==="Escape") close();
+    else if(e.key==="w"||e.key==="W"){ cam.tx-=f[0]*s; cam.tz-=f[2]*s; }
+    else if(e.key==="s"||e.key==="S"){ cam.tx+=f[0]*s; cam.tz+=f[2]*s; }
+    else if(e.key==="a"||e.key==="A"){ cam.tx-=f[2]*s; cam.tz+=f[0]*s; }
+    else if(e.key==="d"||e.key==="D"){ cam.tx+=f[2]*s; cam.tz-=f[0]*s; }
+    else return;
+    e.preventDefault();
+  });
+}
+function click(e){
+  const r=canvas.getBoundingClientRect();
+  const {VP}=viewProj();
+  const inv=invert(M4.create(),VP);
+  if(!inv) return;
+  const ray=unproject(e.clientX-r.left,e.clientY-r.top,r.width,r.height,inv);
+  const hit=NYC.world3d.raycast(ray.origin,ray.dir,26000);
+  if(picking){
+    let p;
+    if(hit) p=[hit.point[0],hit.point[1]+8,hit.point[2]];
+    else p=groundPoint(ray);
+    if(p){ throwOrigin=p; q("v3Origin").textContent=describe(p); }
+    picking=false; q("v3Pick").setAttribute("aria-pressed","false");
+    return;
+  }
+  if(hit){
+    const c=hit.collider;
+    q("v3Sel").innerHTML='<b>'+esc(c.label)+'</b>'+
+      '<span>'+(c.kind==="structure"?"named structure":c.era+" · "+
+        (NYC.fabric.USES[c.use]?NYC.fabric.USES[c.use].label:c.use))+'</span>'+
+      '<span>'+Math.round(c.height)+' m · '+Math.round(c.hx*2)+'×'+Math.round(c.hz*2)+
+      ' m · '+(c.mass/1e6).toFixed(1)+' kt · '+c.material.name+'</span>';
+  }
+}
+function groundPoint(ray){
+  if(Math.abs(ray.dir[1])<1e-5) return null;
+  const t=-ray.origin[1]/ray.dir[1];
+  if(t<0) return null;
+  const p=[ray.origin[0]+ray.dir[0]*t,0,ray.origin[2]+ray.dir[2]*t];
+  p[1]=NYC.world3d.groundAt(p[0],p[2])+2;
+  return p;
+}
+function describe(p){
+  const [gx,gy]=NYC.world3d.w2g(p[0],p[2]);
+  return NYC.map.describe(gx,gy)+" · "+Math.round(p[1])+" m up";
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
+  '"':"&quot;"}[c]));
+
+/* ---- the throw ---------------------------------------------------------------------- */
+function doThrow(){
+  const w=NYC.world3d.build();
+  let o=throwOrigin;
+  if(!o){
+    /* default: off the top of the tallest thing near the camera target */
+    let best=null,bd=1e18;
+    w.colliders.forEach(c=>{
+      if(c.kind!=="structure") return;
+      const d=(c.cx-cam.tx)*(c.cx-cam.tx)+(c.cz-cam.tz)*(c.cz-cam.tz);
+      if(d<bd&&c.height>80){ bd=d; best=c; }
+    });
+    o=best?[best.cx,best.base+best.height*0.55,best.cz]:[cam.tx,90,cam.tz];
+    throwOrigin=o; q("v3Origin").textContent=describe(o);
+  }
+  const cls=q("v3Class").value;
+  const preset=NYC.world3d.fragmentPreset(cls);
+  const sp=+q("v3Speed").value, el=+q("v3Angle").value*Math.PI/180;
+  const br=+q("v3Bearing").value*Math.PI/180;
+  /* bearing is compass-style: 0 north, 90 east; north is -z */
+  const v=[Math.sin(br)*Math.cos(el)*sp, Math.sin(el)*sp, -Math.cos(br)*Math.cos(el)*sp];
+  const t0=performance.now();
+  lastTrace=NYC.world3d.trace({origin:o.slice(),velocity:v,mass:preset.mass,
+    cda:preset.cda,penetrate:true});
+  const ms=Math.round(performance.now()-t0);
+  anim={i:2,rate:Math.max(1,lastTrace.samples.length/90)};
+  /* frame the whole flight, wherever the camera happened to be */
+  const r=lastTrace.rest;
+  cam.tx=(o[0]+r[0])/2; cam.tz=(o[2]+r[2])/2; cam.ty=(o[1]+r[1])/2;
+  cam.dist=Math.max(320,lastTrace.range*2.1);
+  cam.pitch=Math.min(cam.pitch,0.5);
+  const t=lastTrace;
+  const hitNames=[...new Set(t.impacts.map(i=>i.name))].slice(0,4);
+  q("v3Out").innerHTML=
+    '<div class="v3res"><b>'+esc(preset.label)+'</b> · '+preset.mass+' kg · '+sp+' m/s</div>'+
+    '<ul class="svc">'+
+    '<li><b>RANGE</b><span>'+Math.round(t.range)+' m · '+t.blocks.toFixed(1)+' blocks</span></li>'+
+    '<li><b>STRUCTURES HIT</b><span>'+t.impacts.length+'</span></li>'+
+    '<li><b>WENT THROUGH</b><span>'+t.through+'</span></li>'+
+    '<li><b>CAME TO REST</b><span>'+(t.stopped.reason==="struck"
+      ?"in "+esc(t.stopped.name):"on the ground")+'</span></li>'+
+    '<li><b>SOLVED IN</b><span>'+ms+' ms</span></li></ul>'+
+    (hitNames.length?'<div class="v3hits">through: '+hitNames.map(n=>esc(
+      NYC.world3d.build().colliders.some(c=>c.kind==="structure"&&c.label===n)
+        ? n : "fabric, "+n)).join(" · ")+'</div>':'');
+}
+
+/* ---- open and close ------------------------------------------------------------------ */
+function open(){
+  q("v3").classList.add("on");
+  document.body.style.overflow="hidden";
+  /* start over whatever the flat sheet was looking at */
+  if(NYC.mapView){
+    const c=NYC.mapView.centreGrid&&NYC.mapView.centreGrid();
+    if(c){ const [wx,wz]=NYC.world3d.g2w(c[0],c[1]); cam.tx=wx; cam.tz=wz; }
+  }
+  if(!start()) return;
+  q("v3Btn").setAttribute("aria-pressed","true");
+}
+function close(){
+  q("v3").classList.remove("on");
+  document.body.style.overflow="";
+  q("v3Btn").setAttribute("aria-pressed","false");
+  if(raf) cancelAnimationFrame(raf); raf=null;
+}
+function toggle(){ q("v3").classList.contains("on")?close():open(); }
+
+NYC.view3d={init,open,close,toggle,rebuild,
+  get trace(){return lastTrace;}};
+})();
+</script>
+<script>
+/* ===================================================================================
    NYC 2050 — application wiring: the sheet, the drawer, search, and the pin tools.
    =================================================================================== */
 (function(){
@@ -6669,6 +7742,8 @@ function boot(){
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
   q("simBtn").onclick=()=>{ NYC.routeui.close(); NYC.simui.toggle(); };
   q("navBtn").onclick=()=>NYC.routeui.toggle();
+  NYC.view3d.init({toast:toast});
+  q("v3Btn").onclick=()=>NYC.view3d.toggle();
   const FAB_MODES=[null,"use","height","era"];
   let fabIdx=0;
   function cycleFabric(){
@@ -6753,6 +7828,7 @@ function boot(){
   /* keyboard */
   addEventListener("keydown",e=>{
     if(NYC.streetview.isOpen()) return;
+    if(q("v3").classList.contains("on")) return;
     const tag=(e.target.tagName||"").toLowerCase();
     if(tag==="input"||tag==="textarea") return;
     if(e.key==="/"){ e.preventDefault(); q("search").focus(); }
@@ -6762,6 +7838,7 @@ function boot(){
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
     else if(e.key==="s"||e.key==="S"){ NYC.routeui.close(); NYC.simui.toggle(); }
     else if(e.key==="n"||e.key==="N"){ NYC.routeui.toggle(); }
+    else if(e.key==="3"){ NYC.view3d.toggle(); }
     else if(e.key==="h"||e.key==="H"){ q("hgtBtn").click(); }
     else if(e.key==="f"||e.key==="F"){ cycleFabric(); }
     else if(e.key==="Escape"){

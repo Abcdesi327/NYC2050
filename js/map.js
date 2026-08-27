@@ -608,6 +608,10 @@ function init(opts){
     setCoverage(on){ L.cover.style.display=on?"":"none"; },
     setThoroughfares(on){ L.thru.style.display=L.thrulab.style.display=on?"":"none"; },
     markByName(n){ return marks.find(m=>m.name===n); },
+    centreGrid(){
+      const w=svg.clientWidth||innerWidth, h=svg.clientHeight||innerHeight;
+      return INV((w/2-tx)/sc,(h/2-ty)/sc);
+    },
     node(n){ return nodes.get(n); }
   };
   fit();

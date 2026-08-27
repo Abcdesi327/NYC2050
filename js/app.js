@@ -311,6 +311,8 @@ function boot(){
   q("listBtn").onclick=()=>{ q("drawer").classList.contains("on")?closeDrawer():openDrawer(); };
   q("simBtn").onclick=()=>{ NYC.routeui.close(); NYC.simui.toggle(); };
   q("navBtn").onclick=()=>NYC.routeui.toggle();
+  NYC.view3d.init({toast:toast});
+  q("v3Btn").onclick=()=>NYC.view3d.toggle();
   const FAB_MODES=[null,"use","height","era"];
   let fabIdx=0;
   function cycleFabric(){
@@ -395,6 +397,7 @@ function boot(){
   /* keyboard */
   addEventListener("keydown",e=>{
     if(NYC.streetview.isOpen()) return;
+    if(q("v3").classList.contains("on")) return;
     const tag=(e.target.tagName||"").toLowerCase();
     if(tag==="input"||tag==="textarea") return;
     if(e.key==="/"){ e.preventDefault(); q("search").focus(); }
@@ -404,6 +407,7 @@ function boot(){
     else if(e.key==="k"||e.key==="K"){ q("keyBtn").click(); }
     else if(e.key==="s"||e.key==="S"){ NYC.routeui.close(); NYC.simui.toggle(); }
     else if(e.key==="n"||e.key==="N"){ NYC.routeui.toggle(); }
+    else if(e.key==="3"){ NYC.view3d.toggle(); }
     else if(e.key==="h"||e.key==="H"){ q("hgtBtn").click(); }
     else if(e.key==="f"||e.key==="F"){ cycleFabric(); }
     else if(e.key==="Escape"){
