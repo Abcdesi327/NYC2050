@@ -488,6 +488,48 @@ dl.acct dd{margin:0 0 3px;text-align:right;color:var(--ink);font-weight:600}
 .lm b{display:block;font-family:var(--cond);font-size:12.5px}
 .lm span{display:block;font-family:var(--mono);font-size:9px;color:var(--muted);
   line-height:1.5}
+
+/* ---------- the city plate --------------------------------------------------------- */
+.cityplate{position:fixed;inset:0;z-index:45;background:#E7E2CE;display:none}
+.cityplate.on{display:block}
+.cphdr{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;
+  gap:10px;padding:9px 12px 8px;background:rgba(250,249,245,.94);
+  border-bottom:1px solid var(--rule);backdrop-filter:blur(8px)}
+.cpttl{flex:1;min-width:0}
+.cpttl h2{margin:0;font-size:15px;font-weight:600;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpttl p{margin:2px 0 0;font-size:10px;color:var(--muted);font-family:var(--mono);
+  letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cphdr button{border:0;background:transparent;font-size:20px;color:var(--muted);
+  cursor:pointer;line-height:1;padding:0 4px}
+#cpStage{position:absolute;inset:0;touch-action:none;cursor:grab}
+#cpMap{width:100%;height:100%}
+.cpctl{z-index:4}
+.cpkey{top:60px;z-index:4}
+.cpread{z-index:4;left:12px;bottom:14px}
+.cpacct{position:absolute;right:70px;top:60px;width:min(310px,calc(100vw - 96px));
+  max-height:calc(100vh - 92px);overflow:auto;z-index:4;background:var(--panel);
+  border:1px solid var(--rule);border-radius:10px;padding:10px 12px;
+  backdrop-filter:blur(8px);display:none}
+.cpacct.on{display:block}
+.cpacct .grp{margin:12px 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:4px}
+.cpacct .empty{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.7;
+  margin:10px 0 0}
+ul.why{list-style:none;margin:0;padding:0}
+ul.why li{padding:5px 0;border-bottom:1px dotted var(--rule)}
+ul.why li:last-child{border-bottom:0}
+ul.why b{display:block;font-size:12px;font-weight:600}
+ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--muted);
+  line-height:1.5;margin-top:1px}
+#cpMap .cplab{font-family:var(--cond);font-weight:600;fill:#24241F;
+  stroke:#E7E2CE;stroke-width:.32em;paint-order:stroke;stroke-linejoin:round;
+  pointer-events:none}
+#cpMap .csym{transform-box:fill-box;transform-origin:50% 50%;
+  transform:scale(var(--csymk,1))}
+@media (max-width:520px){
+  .cpacct{right:12px;left:12px;width:auto;top:56px}
+}
 </style>
 </head>
 <body>
