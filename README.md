@@ -252,6 +252,73 @@ the cell table held column-wise as comma-joined strings, about a third the size 
 the equivalent JSON and parsed in one pass on load. Re-run it after regenerating
 the exports; do not edit the output by hand.
 
+
+### The city plate: Oem'rek
+
+A market centre that is also a harbour has a **◉ CITY PLATE** on its info sheet. It
+opens the ground under the dot: streets, quays, blocks, the wall and its gates, and
+about thirty named places, generated at the moment you press it — a second or less for
+most towns — and read block by block.
+
+**Oem'rek** in Kel'Esta is the one it was built and checked against. Nothing on the
+plate is drawn by hand. The plan follows from what the export says about cell 461, in
+this order:
+
+| What the export says | What it decides |
+| --- | --- |
+| Exactly one water neighbour, cell 463, bearing −63° | the sea lies north-east |
+| `harbor` = 1 — one sea contact | the haven has one mouth, so it is entered and not sailed through, and one chain closes it |
+| Land neighbours mean bearing 110° | the town stands on the **south-east shore**; on the other one every road out would have to cross its own harbour |
+| Cell 460 next door, `harbor` = 5 | that coast is open and unsheltered — it lands fish and nothing else |
+| Highest neighbour at bearing 105°, height 38 against 37 | the citadel and the conduit head go there |
+| Cell 551, Wetland, bearing 112° | tanneries, dye yards, salt pans and the burial ground go there, outside the wall |
+| `r` = 0 on the cell and on every neighbour | **no river** — the city drinks from cisterns and a conduit, and its grain arrives by sea and by road |
+| The road to Bodmouthton, bearing 60°, 11 market pairs | the principal land gate, and the waggon yards outside it |
+| The trail west, bearing −177° | a road that points straight across the harbour, so it leaves by the Pan Gate and turns outside the wall |
+| Cass'tow: 561,068 people, same realm, **no overland way** | the reason the city exists |
+
+That last line is the whole plate. Kel'Esta contains a second city of Oem'rek's own
+size that cannot be reached from it by land at any price, and P'ivka and S'ven in
+Dragon Coves are the same. Nearly one and a half million people are on the other side
+of water. So the Cass'tow Stair gets its own berths, the Outer Berths take the rest,
+and the lazaretto sits on the spit outside everything — a port that is the only sea
+road into half a realm cannot afford to guess about a ship.
+
+**How the ground is laid.** A port city is a quay with roads running back from it. The
+Staple is set where the principal land road reaches the principal quay; radials leave
+it for each gate and each end of the harbour; rings are thrown across them every ninety
+metres or so; and the ground between rings and radials is cut into blocks. Every corner
+is jittered by a value hashed from its ring and its angle, so the two blocks either
+side of a street agree on where the street is — and the wander is scaled to the gap
+between rings rather than to the radius, or the rings cross each other and the fabric
+comes out as splinters. Minor streets are inserted wherever an arc grows past a block
+frontage and carried outward from there, which is why they begin part-way out and never
+at the centre.
+
+Two things are then solved rather than chosen:
+
+* **The wall** is drawn at the radius that encloses three-quarters of the city's people
+  — so it traces the site instead of being a circle struck round the market, reaching
+  further inland than it does along the water. Gates fall where the great roads cross
+  it; towers every other node.
+* **The size of the town** is a fixed point. A first guess sizes it as a disc at 380
+  people a hectare, which is wrong, because the harbour and the far shore take most of
+  that disc and the suburbs outside the wall are ribbons along the roads rather than an
+  even spread. Each pass measures the density it actually built and scales the next by
+  the square root of the error. It settles in two.
+
+Oem'rek comes out at **1,768 blocks over 2,126 hectares**, 86 per cent of its people
+inside a wall of about 2.8 km radius at 381 to the hectare, 93 to the hectare in the
+ribbons outside, and 3.1 km of quay. Press **USE** to colour the fabric by use, by
+storeys or by density; **ACCT** for those figures and the table above; tap any block
+for what stands on it and how many live there.
+
+The head count is the export's. Everything else is generated from the site by the
+rules above, and where the source is silent the plate says so rather than filling in.
+The generator is general — every market centre with a harbour has a plate, nine of them
+in all, and they land between 308 and 409 people a hectare without being told to — but
+Oem'rek is the one whose landmarks were written against the data by hand.
+
 ## Layout
 
 ```
@@ -281,6 +348,8 @@ js/adrinem-world.js    the cell table, the Voronoi, coast, marches, rivers
 js/adrinem-route.js    the exported cost model, re-run in the browser
 js/adrinem-map.js      the plate renderer and the view state
 js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
+js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names
+js/adrinem-cityview.js the city plate viewer
 tools/pack_adrinem.py  the exports -> js/adrinem-data.js
 
 adrinem_infra.py    the generator-side pipeline that wrote the exports

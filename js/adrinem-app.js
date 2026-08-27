@@ -78,7 +78,9 @@ function showCell(i){
       (C.pop[i]>0?", "+C.pop[i].toLocaleString()+" living on this ground":", unpeopled")+".");
     if(burg) lines.push(burg.name+" holds "+burg.pop.toLocaleString()+" of them.");
     if(port) lines.push("Harbour of quality "+port.quality+
-      ", the haven lying at cell "+port.haven+".");
+      ", the haven lying at cell "+port.haven+"."+
+      (A.cityview&&A.cityview.has(i)?
+        " A market on a harbour: the ground under it is drawn on its own plate.":""));
     if(C.riv[i]) lines.push("A river runs through it, carrying "+C.flux[i]+" of flux.");
     if(C.mkt[i]>=0){
       const m=A.marketOf(C.mkt[i]);
@@ -96,6 +98,8 @@ function showCell(i){
   q("sNote").textContent=lines.join(" ");
 
   const acts=q("sActs"); acts.innerHTML="";
+  if(A.cityview&&A.cityview.has(i))
+    acts.appendChild(btn("◉ CITY PLATE","pri",()=>A.cityview.open(i)));
   acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(C.x[i],C.y[i],Math.max(map.scale,4))));
   if(A.isLand(i)){
     acts.appendChild(btn("→ WAY TO","",()=>setEnd("to",i,true)));
