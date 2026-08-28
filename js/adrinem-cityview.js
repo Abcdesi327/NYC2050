@@ -672,6 +672,7 @@ function open(cell){
       city.stats.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
     draw(city);
     fillKey(); acctFor=null; q("cpAcct").innerHTML=""; hideRead();
+    if(window.TOUR) window.TOUR.maybePlate();
   },30);
 }
 function close(){ q("cityPlate").classList.remove("on"); }

@@ -167,6 +167,8 @@ write a note; press **BOOKMARK** on any surveyed site to keep it. **LIST** opens
 the plates and your marks, and marks can be copied out and pasted back in as
 JSON. Everything is held in `localStorage` — nothing leaves the browser.
 
+Press **?** on the control rail at any time for a guided walk of everything below.
+
 Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `N` navigate
 · `H` heights · `F` fabric · in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
@@ -378,6 +380,33 @@ wall solved from a population share, the same fixed point on density. What diffe
 where the plan is struck from, what the rules say may stand where, and what gets named.
 Adding a third archetype is those three things and nothing else.
 
+
+## Finding your way round either sheet
+
+Both sheets carry a great deal and almost none of it announces itself, so each opens
+with a short guided walk the first time you visit it, and keeps it behind the **?** at
+the bottom of the control rail afterwards.
+
+It is not a wall of text over a screenshot. Each step points at the actual control and
+**works it as it explains it**: the step about the built fabric turns the fabric on, the
+step about projections opens the projection console, the step about search types into
+the box and shows you the results. Nothing is described that is not also shown. `→` and
+`←` move, `Esc` leaves, and whatever the walk opened is closed again behind it.
+
+* **NYC 2050** — sixteen steps: the sheet and how to move on it, search, the key, the
+  coverage and thoroughfare layers, structure heights, the built fabric, the six
+  contingency projections and what they report, the hour scrubber, routing with the tide
+  and against a projection, the street-level plates, your own marks, and the keys.
+* **Adrinem** — fourteen: the plate, search, the eight things the ground can be coloured
+  by, the layers, the way-finder and what it does when there is no way, the reach, the
+  index and the account, marks, and where the city plates are.
+* **A city plate** — six, run the first time you open one: reading a block and a named
+  place, colouring the fabric, the key, the account and its separation of what the
+  export says from what an author's premise says, and why the two archetypes differ.
+
+`localStorage` remembers that you have seen each of them. `TOUR.reset()` in the console
+puts them back.
+
 ## Layout
 
 ```
@@ -410,6 +439,7 @@ js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
 js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names,
                        both archetypes, and the doctrine table
 js/adrinem-cityview.js the city plate viewer
+js/tour.js             the guided walk, and the step scripts for both sheets
 tools/pack_adrinem.py  the exports -> js/adrinem-data.js
 
 adrinem_infra.py    the generator-side pipeline that wrote the exports

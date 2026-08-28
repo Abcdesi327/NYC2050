@@ -313,8 +313,9 @@ button.run:disabled{opacity:.5;cursor:default}
   bottom:14px;z-index:28;display:flex;align-items:center;gap:9px;
   background:var(--panel);border:1px solid var(--rule);border-radius:12px;
   padding:8px 12px;backdrop-filter:blur(8px);box-shadow:0 6px 20px rgba(44,44,42,.14);
-  transition:transform .22s ease;width:min(560px,calc(100vw - 130px));flex-wrap:wrap}
-.timeline.on{transform:translateX(-50%)}
+  transition:transform .22s ease,opacity .22s ease;
+  width:min(560px,calc(100vw - 130px));flex-wrap:wrap;opacity:0;pointer-events:none}
+.timeline.on{transform:translateX(-50%);opacity:1;pointer-events:auto}
 .timeline button{height:28px;min-width:30px;border:1px solid var(--rule);border-radius:7px;
   background:#fff;cursor:pointer;font-size:11px;font-family:var(--mono)}
 .timeline button.txt{font-size:9px;letter-spacing:.06em}
@@ -521,4 +522,38 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
   transform:scale(var(--csymk,1))}
 @media (max-width:520px){
   .cpacct{right:12px;left:12px;width:auto;top:56px}
+}
+
+/* ---------- the guided walk -------------------------------------------------------- */
+.tourdim{position:fixed;inset:0;z-index:80;display:none;background:transparent;
+  transition:background .18s ease}
+.tourdim.solid{background:rgba(30,30,28,.60)}
+.tourdim.on{display:block}
+.tourhole{position:fixed;pointer-events:none;border:2px solid var(--z2);border-radius:12px;
+  box-shadow:0 0 0 9999px rgba(30,30,28,.60);transition:left .22s ease,top .22s ease,
+  width .22s ease,height .22s ease}
+.tourcard{position:fixed;z-index:81;width:min(340px,calc(100vw - 28px));
+  background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+  padding:13px 15px 11px;box-shadow:0 10px 34px rgba(30,30,28,.28);
+  backdrop-filter:blur(10px);opacity:0;pointer-events:none;
+  transition:opacity .18s ease}
+.tourcard.on{opacity:1;pointer-events:auto}
+.tourcard .tt{margin:0 0 5px;font-size:14.5px;font-weight:600;letter-spacing:.01em}
+.tourcard .tb{font-size:12.5px;line-height:1.5;color:#44443F}
+.tourcard .tb b{font-weight:600;color:var(--ink)}
+.tourcard .tb code{font-family:var(--mono);font-size:10.5px;background:#EFEDE4;
+  padding:2px 5px;border-radius:4px;display:inline-block;margin:2px 0}
+.tourcard .tf{display:flex;align-items:center;gap:6px;margin-top:11px;
+  border-top:1px solid var(--rule);padding-top:9px}
+.tourcard .tc{flex:1;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.06em}
+.tourcard .tf button{min-height:28px;padding:0 11px;border:1px solid var(--rule);
+  border-radius:8px;background:#fff;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.05em;cursor:pointer}
+.tourcard .tf button:hover{background:#F2F0E7}
+.tourcard .tnext{background:var(--ink)!important;color:var(--paper);
+  border-color:var(--ink)!important}
+.tourcard .tskip{color:var(--muted)}
+@media (max-width:520px){
+  .tourcard{width:calc(100vw - 24px)}
 }
