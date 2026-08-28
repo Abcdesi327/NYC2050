@@ -89,6 +89,31 @@ floor count, **HGT** draws it on the sheet as a bar over each station, and the
 collapse projection reads it directly: place the point near a structure and it
 snaps to that building and loads its true height.
 
+**The solid view.** Press **3D**. The same city, extruded and drawn in WebGL2 —
+terrain from the elevation surface, water, roads as ribbons, the parks, and
+**12,282 buildings**. Each generated block is cut along its long axis into the two
+to five buildings that would stand on it, with heights varying about the block's
+own and the occasional gap for the yard behind, so it reads as a city rather than
+a row of walls. Colour it by use, period or height, or by what the current
+projection did to it — lost blocks come down to their own rubble. Drag to orbit,
+shift-drag to pan, wheel to zoom, WASD to move, click any building to read its
+size, mass and material.
+
+**Groundwork for physics.** The same world comes out of `world3d.js` twice: as
+geometry for the renderer, and as `colliders()` — every building as an oriented
+box in metres, with a mass, a material and the energy its fabric absorbs before
+something goes through it, sorted into a uniform broadphase grid. `raycast()` and
+`trace()` sit on top of that: a ballistic integrator with quadratic drag that
+sweeps against the collider set, spends energy on each penetration, and returns
+the flight path, every structure it went through, and where it came to rest.
+
+**THROW** in the 3D panel drives it directly. A 950 kg steel member launched flat
+at 200 m/s from ninety metres up goes through five buildings and 680 metres — 8.5
+city blocks — and the solve takes 6 ms. Glazing at the same speed is stopped by
+the first wall it meets. That is the seam a real physics engine slots into:
+nothing else in the app depends on how `trace()` does its work, only on what it
+returns, so the integrator can be replaced without touching the world it runs in.
+
 **Routing.** Press **NAV**. Set two ends — search for them, tap them on the
 sheet, or send any site straight there with ROUTE TO / ROUTE FROM on its info
 sheet — and the console finds a way across. Four weightings of the same network
@@ -170,7 +195,7 @@ JSON. Everything is held in `localStorage` — nothing leaves the browser.
 Press **?** on the control rail at any time for a guided walk of everything below.
 
 Keys: `/` search · `P` pin · `B` marks · `K` key · `S` projections · `N` navigate
-· `H` heights · `F` fabric · in a plate `←` `→` walk, `T` then/now, `Esc` out.
+· `H` heights · `F` fabric · `3` solid view · in a plate `←` `→` walk, `T` then/now, `Esc` out.
 
 
 ## The other sheet: Adrinem
@@ -420,6 +445,9 @@ js/fabric.js        block generation, typology, and the spatial index
 js/network.js       the walking graph welded out of the streets
 js/route.js         edge costs, turn penalties, and the four profiles
 js/route-ui.js      the route console
+js/gl.js            a small hand-written WebGL2 layer — matrices, shaders, buffers
+js/world3d.js       the 3D world: geometry, colliders, broadphase, raycast, trace
+js/view3d.js        the solid view — camera, drawing, and the THROW panel
 js/debris.js        fragment launch, ballistic flight, penetration, sections
 js/map.js           projection, sheet rendering, view state, place naming
 js/sim.js           hazards, fragility, the service network, the 24-hour run
@@ -466,6 +494,19 @@ Everything in `data.js` is in **grid space**, the survey's working frame:
 Manhattan grid actually sits at. `NYC.map.describe(x, y)` turns any point back
 into something a person can read — `MANHATTAN · W 34 ST nr 8 AV`,
 `BROOKLYN · nr EASTERN PKWY`, `EAST RIVER`.
+
+## World space
+
+The 3D world is in metres, and one grid unit on the survey sheet is ten of them.
+
+* world `x` = grid `x` × 10, east
+* world `y` = metres above the 2050 waterline
+* world `z` = −grid `y` × 10, so north is −z
+
+Blocks are axis-aligned in that frame because the Manhattan grid is, which is what
+makes the collider set cheap; the outer boroughs carry a yaw, stored per collider
+for an engine that wants the true oriented box. `NYC.world3d.g2w()` and `w2g()`
+convert either way.
 
 ## How a link is priced
 
