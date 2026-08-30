@@ -61,12 +61,14 @@ function btn(label,cls,fn){
 function showCell(i){
   sel=i; selPin=null;
   const burg=A.burgOf(i), mkt=A.marketOf(i), port=A.portOf(i), bio=A.biomeOf(i);
-  q("sNm").textContent = burg ? burg.name : A.isLand(i) ? bio.name : "Open water";
+  const hamlet=A.village&&A.village.nameOf(i);
+  q("sNm").textContent = burg ? burg.name : hamlet ? hamlet
+    : A.isLand(i) ? bio.name : "Open water";
   q("sMeta").textContent = describe(i)+" · CELL "+i;
 
   const code=q("sCode");
   code.textContent = mkt ? "MARKET CENTRE" : burg ? "SETTLEMENT"
-    : A.isLand(i) ? bio.name.toUpperCase() : "SEA";
+    : hamlet ? "VILLAGE" : A.isLand(i) ? bio.name.toUpperCase() : "SEA";
   code.style.background = mkt?"#7A4A22":burg?"#2C2C2A":PAL.biome(bio.name);
   code.style.color = (mkt||burg)?"var(--paper)":"#2C2C2A";
 
@@ -82,6 +84,10 @@ function showCell(i){
       (A.cityview&&A.cityview.has(i)?
         " A market on a harbour: the ground under it is drawn on its own plate.":""));
     if(C.riv[i]) lines.push("A river runs through it, carrying "+C.flux[i]+" of flux.");
+    if(hamlet) lines.push("The export names no burg here. "+hamlet+" is a village set "+
+      "on this ground by the author, laid out from what the export does say about it — "+
+      "the river, the slope, the climate and how far it is from anywhere — and drawn "+
+      "on its own plate.");
     if(C.mkt[i]>=0){
       const m=A.marketOf(C.mkt[i]);
       lines.push(C.cost[i]<=0 ? "This is the market itself."
@@ -99,7 +105,8 @@ function showCell(i){
 
   const acts=q("sActs"); acts.innerHTML="";
   if(A.cityview&&A.cityview.has(i))
-    acts.appendChild(btn("◉ CITY PLATE","pri",()=>A.cityview.open(i)));
+    acts.appendChild(btn(A.cityview.kindAt(i)==="village"?"◉ VILLAGE PLATE":"◉ CITY PLATE",
+      "pri",()=>A.cityview.open(i)));
   acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(C.x[i],C.y[i],Math.max(map.scale,4))));
   if(A.isLand(i)){
     acts.appendChild(btn("→ WAY TO","",()=>setEnd("to",i,true)));
@@ -167,6 +174,12 @@ function refreshPins(){
 /* =================================================================================== */
 function index(){
   const out=[];
+  if(A.village) Object.keys(A.village.HAMLETS).forEach(k=>{
+    const cell=+k;
+    out.push({name:A.village.nameOf(cell), sub:"VILLAGE · "+
+      A.provinceOf(cell).toUpperCase()+" · "+A.stateOf(cell).toUpperCase(),
+      cell:cell, zoom:6});
+  });
   A.burgs.forEach(b=>{
     const mkt=A.marketOf(b.cell);
     out.push({name:b.name, sub:(mkt?"MARKET CENTRE · ":"SETTLEMENT · ")+

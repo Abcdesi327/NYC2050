@@ -57,12 +57,13 @@ function draw(c){
   svg.insertBefore(defs,root);
 
   const S=c.S, W=c.water, R=S.reach*1.9;
+  const village=c.archetype==="village";
 
   /* ---- the country the city stands in ---- */
   L.ground.appendChild(el("rect",{x:-R,y:-R,width:R*2,height:R*2,fill:"#E7E2CE"}));
 
   /* ---- the marsh, on the bearing the export put it ---- */
-  if(c.site.marshBearing!=null){
+  if(!village&&c.site.marshBearing!=null){
     const g=A.city._geom, b=c.site.marshBearing, st=c.plan.staple;
     const pts=[];
     for(let k=0;k<=22;k++){
@@ -76,6 +77,18 @@ function draw(c){
     L.marsh.appendChild(el("path",{d:path(pts)+"Z",fill:"url(#reed)","fill-opacity":.85}));
   }
 
+  if(village){
+    /* a river along the foot of the slope, and the channel taken out of it */
+    L.water.appendChild(el("path",{d:path(W.river),fill:"none",stroke:"#6D8892",
+      "stroke-width":W.riverWidth,"stroke-linecap":"round","stroke-linejoin":"round"}));
+    L.water.appendChild(el("path",{d:path(W.river),fill:"none",stroke:"#8DA5AC",
+      "stroke-width":W.riverWidth*0.45,"stroke-linecap":"round",
+      "stroke-linejoin":"round","stroke-opacity":.5}));
+    L.water.appendChild(el("path",{d:path(W.race),fill:"none",stroke:"#8DA5AC",
+      "stroke-width":7,"stroke-linecap":"round","stroke-linejoin":"round"}));
+    L.water.appendChild(el("path",{d:path(W.race),fill:"none",stroke:"#4E7C96",
+      "stroke-width":2.4,"stroke-linecap":"round","stroke-linejoin":"round"}));
+  } else {
   /* ---- the water: the open sea, and the basin cut into it ---- */
   const coast=[];
   for(let s=-R;s<=R;s+=60) coast.push(W.coastOf(s));
@@ -94,11 +107,12 @@ function draw(c){
   /* the spit that shelters the mouth */
   L.water.appendChild(el("path",{d:path(W.spit),fill:"none",stroke:"#E7E2CE",
     "stroke-width":3,"stroke-opacity":0}));
+  }
 
   /* ---- the streets, drawn as the ground they take up.
          A street stops at the water like everything else, so each line is broken into
          the runs of it that are on land. ---- */
-  const dry=p=>W.room(p)>S.quayClear*0.35;
+  const dry=p=>village||W.room(p)>S.quayClear*0.35;
   function onLand(pts,closed){
     const list=closed?pts.concat([pts[0]]):pts;
     const runs=[]; let run=[];
@@ -122,7 +136,7 @@ function draw(c){
   });
 
   /* ---- the market square itself: the one piece of open paved ground ---- */
-  L.block.appendChild(el("circle",{cx:c.plan.staple[0],cy:c.plan.staple[1],
+  if(!village) L.block.appendChild(el("circle",{cx:c.plan.staple[0],cy:c.plan.staple[1],
     r:S.ring0*0.92,fill:"#D8C9A2",stroke:"#A2947A","stroke-width":4}));
 
   /* ---- the blocks ---- */
@@ -274,8 +288,8 @@ function makeView(svg,root,L){
        and the open shore are pulled in afterwards, but only so far: a beacon a mile
        out must not shrink the city to a thumbnail to make room for itself. */
     city.blocks.forEach(b=>b.poly.forEach(eat));
-    city.wall.ring.forEach(eat);
-    city.water.basin.forEach(eat);
+    (city.wall.ring||[]).forEach(eat);
+    (city.water.basin||city.water.river||[]).forEach(eat);
     const cx=(x0+x1)/2, cy=(y0+y1)/2, hw=(x1-x0)/2, hh=(y1-y0)/2;
     city.landmarks.forEach(m=>{
       x0=Math.min(x0,Math.max(m.p[0],cx-hw*1.3)); x1=Math.max(x1,Math.min(m.p[0],cx+hw*1.3));
@@ -437,6 +451,25 @@ function fillKey(){
         .map(c=>'<i style="background:'+c+';width:9px;margin:0;border-radius:0"></i>').join("")+
       '</span>0 → 770 A HECTARE<br>';
   }
+  if(city.archetype==="village"){
+    h+='<b>THE ORDER OF THE PLACE</b>';
+    const RK={foot:"#6E8892",first:"#96825E",middle:"#8F8459",high:"#B4894E",
+      temple:"#8E7BA8"};
+    city.RANKS.forEach(r=>{
+      const b=city.byRank[r.key];
+      h+='<i style="background:'+RK[r.key]+'"></i>'+r.name.toUpperCase()+
+        ' <span style="opacity:.6">'+(b?b.houses+' hh':'—')+'</span><br>';
+    });
+    h+='<b>ON THE PLATE</b>'+
+      '<i style="background:#6D8892"></i>THE RIVER<br>'+
+      '<i style="background:#4E7C96"></i>THE HEAD-RACE<br>'+
+      '<i style="background:'+STREET.great+'"></i>THE STAIR &nbsp;'+
+      '<i style="background:'+STREET.ring+'"></i>A RANK WALK<br>'+
+      '<i style="background:'+STREET.minor+'"></i>BUND WALKS<br>'+
+      '<b>KEYS</b>F FABRIC &nbsp; M MODEL &nbsp; A ACCOUNT<br>K KEY &nbsp; ESC OUT';
+    q("cpKey").innerHTML=h;
+    return;
+  }
   h+='<b>ON THE PLATE</b>'+
     '<i style="background:'+STREET.quay+'"></i>QUAY &nbsp;'+
     '<i style="background:'+STREET.great+'"></i>GREAT STREET<br>'+
@@ -512,6 +545,8 @@ function fillAccount(force){
   const s=city.stats, st=city.site, doc=city.doctrine;
   const row=(k,v)=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>';
   const pc=n=>Math.round(n/s.population*100)+"%";
+
+  if(city.archetype==="village"){ fillVillageAccount(s,st,row); return; }
 
   let h='<dl class="acct">'+
     row("People",s.population.toLocaleString())+
@@ -645,10 +680,159 @@ function fillAccount(force){
 }
 const COMPASS=["east","south-east","south","south-west","west","north-west","north",
   "north-east"];
+/* A village the export does not contain has to account for itself differently: what
+   was read, and then — kept well apart — what was supplied. */
+function fillVillageAccount(s,st,row){
+  const V=city.V;
+  let h='<dl class="acct">'+
+    row("People",s.population.toLocaleString())+
+    row("Households",s.households)+
+    row("Rice terrace",s.paddyHa.toFixed(1)+" ha")+
+    row("Terraces",s.terraces+" of "+V.riser+" m")+
+    row("Paddies",s.paddies.toLocaleString())+
+    row("Head-race",Math.round(s.raceM).toLocaleString()+" m")+
+    row("River to temple",Math.round(s.riseM)+" m of rise")+
+    row("Plots drawn",s.blocks.toLocaleString())+
+    '</dl>';
+
+  h+='<p class="grp">THE ORDER, BY HEIGHT</p><ul class="why">';
+  city.RANKS.forEach(r=>{
+    const b=city.byRank[r.key];
+    h+='<li><b>'+esc(r.name)+(b?' · '+b.houses+' households, '+
+      b.people+' people':' · none')+'</b><span>'+
+      (b?b.lowZ.toFixed(1)+" to "+b.highZ.toFixed(1)+" m above the top bund. ":"")+
+      esc(r.note)+'</span></li>';
+  });
+  h+='</ul>';
+
+  h+='<p class="grp">WHAT THE EXPORT SAYS</p><ul class="why">';
+  const why=[
+    ["River "+st.riverId+" runs "+bear(st.riverBearing)+" at flux "+st.riverFlux,
+     "the largest flow within reach of the cell, and the reason anything is here"],
+    ["The ground rises "+bear(st.upBearing),
+     "height "+st.upHeight+" against "+st.height+" on this cell — the slope the "+
+     "terraces are cut into and the ladder the order is read off"],
+    ["The biome is "+st.biome+", habitability "+A.biomeOf(st.cell).hab,
+     "wet, warm and worth clearing"],
+    ["No road touches this cell",
+     st.roadsHere+" exported road segments — the nearest named place is "+
+     (st.nearestBurg||"nowhere")+" in "+(st.nearestBurgIn||"—")+", "+
+     st.nearestBurgMi.toLocaleString()+" miles off"],
+    ["Its market is "+(st.marketName||"none")+", "+
+     (st.marketDays!=null?Math.round(st.marketDays)+" days away":"unreachable"),
+     Math.round(st.marketMi).toLocaleString()+" effective miles. Nothing grown here "+
+     "travels; it is eaten here"],
+    ["The culture is "+st.culture,
+     "the people the export assigns this ground, in "+st.province+", "+st.state]
+  ];
+  why.forEach(([a,b])=>h+='<li><b>'+esc(a)+'</b><span>'+esc(b)+'</span></li>');
+  h+='</ul>';
+
+  h+='<p class="grp">WHAT THE AUTHOR SUPPLIES</p>'+
+    '<p class="empty">There is no burg on this cell. The village, its name and its '+
+    'religion are invention — set against the readings above, but not read from '+
+    'them.</p><ul class="why">';
+  const made=[
+    ["That there is a village here at all","the export gives 15,303 people spread "+
+      "over ground a hundred miles across and names none of them"],
+    ["Its name, "+city.site.name,"invented; change it in js/adrinem-village.js"],
+    ["Rank is height above the paddies","the one rule the plan is built on. It puts "+
+      "the sluice-keeper at the bottom and the readers at the top, and the section "+
+      "under the model draws every household at the height that decides it"],
+    ["Nothing may stand above the temple","which is why the highest band has a "+
+      "ceiling and holds "+((city.byRank.temple||{}).houses||0)+" households"],
+    [V.feedPerHa+" people to the hectare of wet rice","the figure the population is "+
+      "solved from — "+s.paddyHa.toFixed(1)+" ha feeds "+s.population+
+      ". The land decides how many live here, not the other way about"],
+    ["A hillside of "+(V.slope*100).toFixed(1)+" in a hundred","chosen so a "+
+      V.riser+" m riser gives a workable "+Math.round(city.S.terraceTread)+" m tread"]
+  ];
+  made.forEach(([a,b])=>h+='<li><b>'+esc(a)+'</b><span>'+esc(b)+'</span></li>');
+  h+='</ul>';
+
+  h+='<p class="empty">Press <b>MDL</b> for the model: the same numbers drawn in three '+
+    'dimensions by the kit the survey sheet uses for its street-level plates.</p>';
+  q("cpAcct").innerHTML=h;
+}
+
 function dirOf(deg){
   return deg==null?"nowhere":COMPASS[(Math.round(((deg%360)+360)%360/45))%8];
 }
 function bear(deg){ return deg==null?"nowhere":"to the "+dirOf(deg); }
+
+/* =================================================================================== */
+/*  the model                                                                          */
+/*  The kit that draws it comes from the survey sheet; all this does is fit it, let it  */
+/*  be moved about, and say underneath what has been exaggerated.                       */
+/* =================================================================================== */
+let modelOn=false, mv=null;
+function setModel(on){
+  modelOn=!!on;
+  q("cpModel").classList.toggle("on",modelOn);
+  q("cpModelBtn").setAttribute("aria-pressed",String(modelOn));
+  if(!modelOn||!city||city.archetype!=="village") return;
+  if(!A.model||!A.model.ready()){
+    q("cpModelWrap").innerHTML='<p class="empty" style="padding:20px">The drawing kit '+
+      'did not load, so the model cannot be drawn.</p>';
+    return;
+  }
+  const m=A.model.model(city);
+  if(!m) return;
+  q("cpModelWrap").innerHTML='<svg id="cpModelSvg" xmlns="http://www.w3.org/2000/svg" '+
+    'viewBox="'+m.view.join(" ")+'" preserveAspectRatio="xMidYMid meet">'+m.svg+'</svg>';
+  q("cpModelSect").innerHTML=A.model.section(city);
+  const s=city.stats, V=city.V;
+  q("cpModelCap").innerHTML=
+    '<b>'+esc(city.site.name)+' — the model and the slope</b><br>'+
+    'Drawn from the same numbers as the plan, by the kit the survey sheet uses for its '+
+    'street-level plates. Heights are at '+A.model.VZ+'× the plan scale and nothing '+
+    'else is exaggerated. The hillside falls '+(V.slope*100).toFixed(1)+' in a hundred, '+
+    'so a terrace riser of '+V.riser+' m gives a tread of '+
+    Math.round(city.S.terraceTread)+' m; there are '+s.terraces+' of them. '+
+    'The river is '+Math.round(s.riseM)+' m below the temple, and every household in '+
+    'the section is drawn at the height that decides its rank.';
+  fitModel(m.view);
+}
+function fitModel(view){
+  const wrap=q("cpModelWrap"), svg=q("cpModelSvg");
+  if(!svg) return;
+  let vb=view.slice();
+  const apply=()=>svg.setAttribute("viewBox",vb.join(" "));
+  if(mv) { wrap.removeEventListener("wheel",mv.wheel); wrap.removeEventListener("pointerdown",mv.down); }
+  const toView=(cx,cy)=>{
+    const r=wrap.getBoundingClientRect();
+    /* preserveAspectRatio="meet" letterboxes, so work out the drawn box first */
+    const sc=Math.min(r.width/vb[2],r.height/vb[3]);
+    const dw=vb[2]*sc, dh=vb[3]*sc;
+    return [vb[0]+((cx-r.left)-(r.width-dw)/2)/sc,
+            vb[1]+((cy-r.top)-(r.height-dh)/2)/sc];
+  };
+  const wheel=e=>{
+    e.preventDefault();
+    const k=Math.pow(1.0016,e.deltaY);
+    const [ax,ay]=toView(e.clientX,e.clientY);
+    const nw=Math.max(view[2]*0.06,Math.min(view[2]*2.2,vb[2]*k));
+    const nk=nw/vb[2];
+    vb=[ax-(ax-vb[0])*nk, ay-(ay-vb[1])*nk, vb[2]*nk, vb[3]*nk];
+    apply();
+  };
+  let last=null;
+  const move=e=>{
+    if(!last) return;
+    const r=wrap.getBoundingClientRect();
+    const sc=Math.min(r.width/vb[2],r.height/vb[3]);
+    vb[0]-=(e.clientX-last.x)/sc; vb[1]-=(e.clientY-last.y)/sc;
+    last={x:e.clientX,y:e.clientY}; apply();
+  };
+  const up=()=>{ last=null; wrap.classList.remove("drag");
+    removeEventListener("pointermove",move); removeEventListener("pointerup",up); };
+  const down=e=>{ last={x:e.clientX,y:e.clientY}; wrap.classList.add("drag");
+    addEventListener("pointermove",move); addEventListener("pointerup",up); };
+  wrap.addEventListener("wheel",wheel,{passive:false});
+  wrap.addEventListener("pointerdown",down);
+  mv={wheel:wheel,down:down,reset(){ vb=view.slice(); apply(); }};
+  apply();
+}
 
 /* =================================================================================== */
 /*  open and close                                                                     */
@@ -661,21 +845,28 @@ function open(cell){
   /* let the panel paint before the generator takes the thread */
   setTimeout(()=>{
     const t0=performance.now();
-    city=A.city.generate(cell);
+    city=(A.village&&A.village.has(cell))?A.village.build(cell):A.city.generate(cell);
     const ms=Math.round(performance.now()-t0);
     if(!city){ host.classList.remove("on"); return; }
-    const st=city.site;
+    const st=city.site, s=city.stats;
     q("cpName").textContent=st.name;
-    q("cpSub").textContent=
-      st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
-      st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
-      city.stats.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
+    q("cpSub").textContent=city.archetype==="village"
+      ? st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
+        s.population.toLocaleString()+" PEOPLE IN "+s.households+" HOUSEHOLDS · "+
+        s.paddyHa.toFixed(0)+" HA OF TERRACE · "+
+        s.blocks.toLocaleString()+" PLOTS GENERATED IN "+ms+" MS"
+      : st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
+        st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
+        s.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
     draw(city);
+    setModel(false);
+    q("cpModelBtn").style.display=
+      (city.archetype==="village"&&A.model&&A.model.ready())?"":"none";
     fillKey(); acctFor=null; q("cpAcct").innerHTML=""; hideRead();
     if(window.TOUR) window.TOUR.maybePlate();
   },30);
 }
-function close(){ q("cityPlate").classList.remove("on"); }
+function close(){ q("cityPlate").classList.remove("on"); setModel(false); }
 
 function boot(){
   q("cpClose").onclick=close;
@@ -699,7 +890,8 @@ function boot(){
   };
   q("cpIn").onclick=()=>view&&view.zoomAt(1.4,innerWidth/2,innerHeight/2);
   q("cpOut").onclick=()=>view&&view.zoomAt(1/1.4,innerWidth/2,innerHeight/2);
-  q("cpRst").onclick=()=>view&&view.fit();
+  q("cpRst").onclick=()=>{ if(modelOn&&mv) mv.reset(); else if(view) view.fit(); };
+  q("cpModelBtn").onclick=()=>setModel(!modelOn);
   /* While the plate is up it owns the keyboard — the world sheet underneath must not
      also act on the key. Caught on the way down, before the sheet's own listener. */
   addEventListener("keydown",e=>{
@@ -712,12 +904,18 @@ function boot(){
     else if(k==="k") q("cpKeyBtn").click();
     else if(k==="a") q("cpAcctBtn").click();
     else if(k==="r") q("cpRst").click();
+    else if(k==="m"&&q("cpModelBtn").style.display!=="none") q("cpModelBtn").click();
   },true);
   addEventListener("resize",()=>{ if(view&&q("cityPlate").classList.contains("on")) view.fit(); });
 }
 
 A.cityview={open:open, close:close, boot:boot,
-  has:cell=>{ const b=A.burgOf(cell); return !!(b&&A.portOf(cell)&&A.marketOf(cell)); }};
+  has:cell=>{
+    if(A.village&&A.village.has(cell)) return true;
+    const b=A.burgOf(cell);
+    return !!(b&&A.portOf(cell)&&A.marketOf(cell));
+  },
+  kindAt:cell=>(A.village&&A.village.has(cell))?"village":"city"};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot);
 else boot();
 })();
