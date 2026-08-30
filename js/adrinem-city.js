@@ -938,7 +938,8 @@ const USES={
   waggon:  {label:"Waggon yard and inn",  colour:"#96825E", storeys:[1,2]},
   temple:  {label:"Sanctuary",            colour:"#8E7BA8", storeys:[1,3]},
   ward:    {label:"Strangers' ward",      colour:"#A87A6A", storeys:[2,4]},
-  quarry:  {label:"Quarry and sulphur",   colour:"#6E655A", storeys:[0,1]}
+  quarry:  {label:"Quarry and sulphur",   colour:"#6E655A", storeys:[0,1]},
+  paddy:   {label:"Rice terrace",         colour:"#86A98D", storeys:[0,0]}
 };
 
 function assignUses(blocks,site,water,plan,S,rnd){
@@ -995,7 +996,7 @@ const HOUSES={dwelling:1, poor:1.22, craft:0.62, merchant:0.5, staple:0.22,
   waggon:0.25, garden:0.05,
   /* the sanctuary houses its own and nobody else; a ward is packed, because the people
      in it are not allowed to sleep anywhere better */
-  temple:0.34, ward:1.9, quarry:0.04};
+  temple:0.34, ward:1.9, quarry:0.04, paddy:0};
 
 function housePeople(blocks,site,plan,S){
   let weight=0;

@@ -565,6 +565,24 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
 @media (max-width:520px){
   .tourcard{width:calc(100vw - 24px)}
 }
+
+/* ---------- the model view --------------------------------------------------------- */
+.cpmodel{position:absolute;inset:0;z-index:2;background:#E7E2CE;display:none;
+  flex-direction:column}
+.cpmodel.on{display:flex}
+.cpmodel .mwrap{flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab}
+.cpmodel .mwrap.drag{cursor:grabbing}
+.cpmodel .mwrap svg{width:100%;height:100%;display:block}
+.cpmodel .msect{flex:0 0 auto;padding:6px 12px 0;background:rgba(250,249,245,.9);
+  border-top:1px solid var(--rule)}
+.cpmodel .msect svg{width:100%;height:auto;max-height:190px;display:block}
+.cpmodel .mcap{flex:0 0 auto;padding:6px 14px 9px;background:rgba(250,249,245,.9);
+  font-family:var(--mono);font-size:9.5px;line-height:1.65;color:var(--muted);
+  letter-spacing:.02em}
+.cpmodel .mcap b{color:var(--ink);font-family:var(--cond);font-size:11.5px;
+  letter-spacing:.03em}
+svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:start;
+  letter-spacing:.04em}
 </style>
 </head>
 <body>
@@ -698,8 +716,15 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
     <span class="code" id="cpRCode"></span>
     <p class="note" id="cpRNote"></p>
   </div>
+  <div class="cpmodel" id="cpModel">
+    <div class="mwrap" id="cpModelWrap"></div>
+    <div class="msect" id="cpModelSect"></div>
+    <div class="mcap" id="cpModelCap"></div>
+  </div>
   <div class="ctl cpctl">
     <button id="cpKeyBtn" class="sm" aria-pressed="false" aria-label="Toggle the key">KEY</button>
+    <button id="cpModelBtn" class="sm" aria-pressed="false" aria-label="The model"
+      style="display:none">MDL</button>
     <button id="cpFabBtn" class="sm" aria-label="Colour the fabric by">USE</button>
     <button id="cpAcctBtn" class="sm" aria-pressed="false" aria-label="The account">ACCT</button>
     <button id="cpIn" aria-label="Zoom in">+</button>
@@ -1602,6 +1627,499 @@ function init(opts){
 }
 
 A.map={init:init, MODES:MODES};
+})();
+</script>
+<script>
+/* ===================================================================================
+   NYC 2050 — street-view drawing kit.
+   Every plate is procedural SVG: no photographs, no external assets. Elements that
+   belong to the collapse go in <g class="decay">; elements that only existed before
+   it go in <g class="intact">. The viewer's THEN/NOW switch cross-fades the two.
+   =================================================================================== */
+(function(){
+"use strict";
+const NYC=window.NYC=window.NYC||{};
+
+/* ---- markup helpers --------------------------------------------------------------- */
+const A=o=>Object.keys(o||{}).filter(k=>o[k]!=null&&o[k]!==false)
+  .map(k=>' '+k+'="'+o[k]+'"').join("");
+const T=(n,a,inner)=> "<"+n+A(a)+(inner==null?"/>":">"+inner+"</"+n+">");
+const G=(inner,a)=>T("g",a,inner);
+const R=(x,y,w,h,fill,a)=>T("rect",Object.assign({x:r2(x),y:r2(y),width:r2(w),
+  height:r2(h),fill:fill},a));
+const PT=(d,a)=>T("path",Object.assign({d:d},a));
+const PG=(pts,a)=>T("polygon",Object.assign({points:pts.map(p=>r2(p[0])+","+r2(p[1])).join(" ")},a));
+const LN=(x1,y1,x2,y2,a)=>T("line",Object.assign({x1:r2(x1),y1:r2(y1),x2:r2(x2),y2:r2(y2)},a));
+const EL=(cx,cy,rx,ry,a)=>T("ellipse",Object.assign({cx:r2(cx),cy:r2(cy),rx:r2(rx),ry:r2(ry)},a));
+const TX=(x,y,s,a)=>T("text",Object.assign({x:r2(x),y:r2(y)},a),s);
+function r2(n){ return Math.round(n*100)/100; }
+
+/* deterministic noise so a plate looks the same every time it is opened */
+function rng(seed){
+  let a=seed>>>0;
+  return function(){ a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296; };
+}
+const pick=(rand,arr)=>arr[Math.floor(rand()*arr.length)];
+const between=(rand,a,b)=>a+rand()*(b-a);
+
+/* ---- palette ---------------------------------------------------------------------- */
+const C={
+  skyTop:"#8E9AA0", skyMid:"#AEB4B2", skyLow:"#CFC9B8",
+  far:"#7F888C", far2:"#8E9599", mid:"#7A776E",
+  stoneL:"#D2CCBC", stone:"#BAB3A2", stoneD:"#948D7C", stoneX:"#6E6858",
+  brickL:"#9E7B68", brick:"#87614F", brickD:"#6A4A3C",
+  metal:"#A9AEB0", metalD:"#7C8285", glass:"#93A3A8", dark:"#1B1E22", dark2:"#2A2E33",
+  ink:"#20211F", green:"#4E6B3A", green2:"#63804A", green3:"#3A5430",
+  water:"#5A707A", waterL:"#7E939A", rust:"#8A5A2B", patina:"#4F7D6B",
+  paper:"#EDE9DC", warm:"#E8A54B"
+};
+
+/* ---- sky, haze, ground ------------------------------------------------------------ */
+function sky(o){
+  o=o||{};
+  return R(0,0,1200,700,"url(#svSky)")+
+   (o.rain?rain(o.seed||1):"")+
+   G(clouds(o.seed||7),{opacity:o.cloud==null?.5:o.cloud});
+}
+function clouds(seed){
+  const rand=rng(seed); let s="";
+  for(let i=0;i<7;i++){
+    const x=between(rand,-60,1200), y=between(rand,20,220),
+      w=between(rand,140,340), h=between(rand,18,46);
+    s+=EL(x,y,w,h,{fill:"#E6E2D6",opacity:r2(between(rand,.18,.42))});
+  }
+  return s;
+}
+function rain(seed){
+  const rand=rng(seed); let s="";
+  for(let i=0;i<140;i++){
+    const x=between(rand,-40,1240), y=between(rand,0,700), l=between(rand,10,26);
+    s+=LN(x,y,x-l*.28,y+l,{stroke:"#D8DCDB","stroke-width":.7,opacity:r2(between(rand,.1,.3))});
+  }
+  return s;
+}
+/* a receding row of dead towers on the horizon */
+function skyline(seed,o){
+  o=o||{}; const rand=rng(seed);
+  const base=o.base||470, fill=o.fill||C.far, n=o.count||14;
+  const x0=o.x0==null?-40:o.x0, x1=o.x1==null?1240:o.x1;
+  let s="",x=x0;
+  while(x<x1){
+    const w=between(rand,26,86), h=between(rand,40,o.max||220);
+    const top=base-h;
+    let d="M"+r2(x)+" "+r2(base)+"L"+r2(x)+" "+r2(top);
+    if(rand()<.3){ /* a broken crown */
+      const b=between(rand,8,26);
+      d+="L"+r2(x+w*.3)+" "+r2(top+b)+"L"+r2(x+w*.55)+" "+r2(top-b*.5)+
+         "L"+r2(x+w*.8)+" "+r2(top+b*1.4)+"L"+r2(x+w)+" "+r2(top+b*.4);
+    } else d+="L"+r2(x+w)+" "+r2(top);
+    d+="L"+r2(x+w)+" "+r2(base)+"Z";
+    s+=PT(d,{fill:fill,opacity:r2(between(rand,.5,.95))});
+    if(rand()<.5&&h>90)
+      s+=R(x+w*.4,top-between(rand,8,26),2,between(rand,8,26),fill,{opacity:.8});
+    x+=w*between(rand,.6,1.05);
+  }
+  return s;
+}
+/* asphalt plane with a vanishing point, cracks and standing water */
+function ground(o){
+  o=o||{}; const rand=rng(o.seed||3);
+  const hz=o.horizon||470, vp=o.vp==null?600:o.vp, col=o.fill||"#6E6C66";
+  let s=R(0,hz,1200,700-hz,col);
+  s+=R(0,hz,1200,26,"#5E5C57",{opacity:.55});
+  /* perspective lines */
+  let lines="";
+  for(let i=-6;i<=6;i++){
+    const bx=vp+i*230;
+    lines+=LN(vp,hz,bx,700,{stroke:"#8A887F","stroke-width":.8,opacity:.2});
+  }
+  s+=lines;
+  /* transverse joints */
+  for(let i=1;i<=8;i++){
+    const y=hz+Math.pow(i/8,2.1)*(700-hz);
+    s+=LN(0,y,1200,y,{stroke:"#8A887F","stroke-width":.7,opacity:.13});
+  }
+  s+=G(cracksField(o.seed||3,0,hz+14,1200,700-hz-14,o.cracks||22)+
+       potholes(o.seed||3,hz,o.pot||9)+
+       (o.weeds===false?"":weedLine(o.seed||3,hz+6,26)),{class:"decay"});
+  return s;
+}
+function potholes(seed,hz,n){
+  const rand=rng(seed+11); let s="";
+  for(let i=0;i<n;i++){
+    const y=hz+Math.pow(rand(),1.7)*(700-hz)+8, x=between(rand,-20,1220);
+    const w=between(rand,18,70)*(y-hz)/(700-hz)+8;
+    s+=EL(x,y,w,w*.32,{fill:"#4C4A46",opacity:.7});
+    s+=EL(x,y,w*.72,w*.22,{fill:C.water,opacity:.5});
+  }
+  return s;
+}
+function cracksField(seed,x,y,w,h,n){
+  const rand=rng(seed+3); let s="";
+  for(let i=0;i<n;i++) s+=crack(between(rand,x,x+w),between(rand,y,y+h),
+    between(rand,20,120),rand,{stroke:"#4A4844","stroke-width":between(rand,.5,1.3),
+    opacity:r2(between(rand,.25,.6))});
+  return s;
+}
+/* one jagged fissure */
+function crack(x,y,len,rand,a){
+  let d="M"+r2(x)+" "+r2(y), px=x,py=y,ang=between(rand,-Math.PI,Math.PI);
+  const steps=Math.max(3,Math.round(len/12));
+  for(let i=0;i<steps;i++){
+    ang+=between(rand,-.8,.8);
+    px+=Math.cos(ang)*len/steps; py+=Math.sin(ang)*len/steps*.55;
+    d+="L"+r2(px)+" "+r2(py);
+    if(rand()<.25){ /* a branch */
+      const bx=px+Math.cos(ang+1.1)*len/steps*1.2, by=py+Math.sin(ang+1.1)*len/steps*.6;
+      d+="M"+r2(px)+" "+r2(py)+"L"+r2(bx)+" "+r2(by)+"M"+r2(px)+" "+r2(py);
+    }
+  }
+  return PT(d,Object.assign({fill:"none","stroke-linecap":"round"},a));
+}
+function cracksOn(x,y,w,h,seed,n,col){
+  const rand=rng(seed+29); let s="";
+  for(let i=0;i<(n||6);i++)
+    s+=crack(between(rand,x,x+w),between(rand,y,y+h),between(rand,30,h*.8+40),rand,
+      {stroke:col||"#6B6558","stroke-width":between(rand,.5,1.2),opacity:.5});
+  return s;
+}
+
+/* ---- masonry ---------------------------------------------------------------------- */
+function stone(x,y,w,h,tone,o){
+  o=o||{};
+  let s=R(x,y,w,h,tone||C.stone,{stroke:o.stroke||"none"});
+  if(o.course!==false){
+    for(let cy=y+ (o.course||14); cy<y+h; cy+=(o.course||14))
+      s+=LN(x,cy,x+w,cy,{stroke:"#00000018","stroke-width":.7});
+  }
+  if(o.shade) s+=R(x+w*.66,y,w*.34,h,"#00000012");
+  return s;
+}
+/* soot and rain-streaking down a facade */
+function streaks(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+5); let s="";
+  for(let i=0;i<(o.n||14);i++){
+    const sx=between(rand,x,x+w), sw=between(rand,1.5,7), sh=between(rand,h*.2,h);
+    s+=R(sx,y,sw,sh,o.col||"#3E3B33",{opacity:r2(between(rand,.05,.16))});
+  }
+  return s;
+}
+function column(x,base,top,w,o){
+  o=o||{}; const tone=o.tone||C.stoneL;
+  let s=R(x-w/2,top+6,w,base-top-10,tone,{stroke:"none"});
+  for(let i=1;i<4;i++) s+=LN(x-w/2+w*i/4,top+8,x-w/2+w*i/4,base-6,
+    {stroke:"#00000014","stroke-width":.8});
+  s+=R(x-w*.72,top,w*1.44,7,o.capTone||C.stoneL);         /* capital */
+  s+=R(x-w*.66,base-6,w*1.32,7,o.capTone||C.stoneL);      /* base */
+  s+=R(x+w*.2,top+6,w*.3,base-top-10,"#00000012");
+  return s;
+}
+function colonnade(x0,x1,base,top,n,w,o){
+  let s=""; for(let i=0;i<n;i++) s+=column(x0+(x1-x0)*(n===1?.5:i/(n-1)),base,top,w,o);
+  return s;
+}
+function cornice(x,y,w,h,tone){
+  return R(x,y,w,h,tone||C.stoneL)+R(x-4,y+h-3,w+8,4,tone||C.stoneL)+
+    R(x,y+h-1,w,2,"#00000018");
+}
+/* a round-headed opening */
+function archPath(cx,spring,r,bottom){
+  return "M"+r2(cx-r)+" "+r2(bottom)+"L"+r2(cx-r)+" "+r2(spring)+
+    "A"+r2(r)+" "+r2(r)+" 0 0 1 "+r2(cx+r)+" "+r2(spring)+"L"+r2(cx+r)+" "+r2(bottom)+"Z";
+}
+/* voussoirs around an arch */
+function voussoirs(cx,spring,r,n,tone){
+  let s="";
+  for(let i=0;i<=n;i++){
+    const a=Math.PI+ (i/n)*Math.PI;
+    const x1=cx+Math.cos(a)*r, y1=spring+Math.sin(a)*r;
+    const x2=cx+Math.cos(a)*(r+11), y2=spring+Math.sin(a)*(r+11);
+    s+=LN(x1,y1,x2,y2,{stroke:"#00000020","stroke-width":.9});
+  }
+  s+=PT("M"+r2(cx-r-11)+" "+r2(spring)+"A"+r2(r+11)+" "+r2(r+11)+" 0 0 1 "+
+    r2(cx+r+11)+" "+r2(spring),{fill:"none",stroke:tone||"#00000018","stroke-width":1});
+  return s;
+}
+
+/* ---- windows ---------------------------------------------------------------------- */
+/* dark openings now; glass restored in the THEN layer */
+function windows(x,y,w,h,cols,rows,seed,o){
+  o=o||{}; const rand=rng(seed+17);
+  const gx=o.gx==null?.34:o.gx, gy=o.gy==null?.38:o.gy;
+  const cw=w/cols, ch=h/rows, ww=cw*(1-gx), wh=ch*(1-gy);
+  let now="",then="",dec="";
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const wx=x+c*cw+(cw-ww)/2, wy=y+r*ch+(ch-wh)/2;
+    if(ww<.7||wh<.7) continue;
+    now+=R(wx,wy,ww,wh,o.dark||C.dark,{opacity:r2(between(rand,.72,.95))});
+    then+=R(wx,wy,ww,wh,o.glass||C.glass,{opacity:r2(between(rand,.55,.85))});
+    const q=rand();
+    if(q<(o.broken==null?.3:o.broken)&&ww>3&&wh>3){
+      dec+=PG([[wx,wy],[wx+ww*.6,wy],[wx,wy+wh*.55]],{fill:"#5A5F63",opacity:.5});
+      dec+=PG([[wx+ww,wy+wh],[wx+ww*.45,wy+wh],[wx+ww,wy+wh*.4]],{fill:"#4A4F53",opacity:.4});
+    } else if(q>.94&&o.lit){
+      dec+=R(wx,wy,ww,wh,o.lit,{opacity:r2(between(rand,.35,.8))});
+    }
+  }
+  return now+G(then,{class:"intact"})+G(dec,{class:"decay"});
+}
+/* a single tall shopfront */
+function shopfront(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+41);
+  let s=R(x,y,w,h,"#2A2C30");
+  s+=G(R(x,y,w,h,"#9FB0B4",{opacity:.5}),{class:"intact"});
+  let dec="";
+  for(let i=0;i<5;i++){
+    const bx=between(rand,x,x+w);
+    dec+=PG([[bx,y],[bx+between(rand,10,40),y],[bx+between(rand,-16,16),y+h]],
+      {fill:"#1A1C1F",opacity:.55});
+  }
+  dec+=R(x,y+h-4,w,4,"#3B3E42");
+  s+=G(dec,{class:"decay"});
+  if(o.awning) s+=G(PG([[x,y],[x+w,y],[x+w-14,y+20],[x+14,y+20]],
+    {fill:o.awning,opacity:.9}),{class:"intact"});
+  return s;
+}
+function fireEscape(x,y,w,floors,o){
+  let s="";
+  for(let i=0;i<floors;i++){
+    const fy=y+i*(o&&o.step||46);
+    s+=R(x,fy,w,2.4,C.metalD,{opacity:.85});
+    for(let j=0;j<=6;j++) s+=LN(x+j*w/6,fy-14,x+j*w/6,fy,{stroke:C.metalD,
+      "stroke-width":.8,opacity:.75});
+    s+=LN(x,fy-14,x+w,fy-14,{stroke:C.metalD,"stroke-width":1,opacity:.75});
+    s+=LN(x+w*.62,fy,x+w*.9,fy+(o&&o.step||46),{stroke:C.metalD,"stroke-width":1.4,
+      opacity:.8,"stroke-dasharray":"3 3"});
+  }
+  return s;
+}
+
+/* ---- growth ----------------------------------------------------------------------- */
+function ivy(x,y,w,h,seed,o){
+  o=o||{}; const rand=rng(seed+23); const n=o.n||9; let s="";
+  for(let i=0;i<n;i++){
+    let px=between(rand,x,x+w), py=y+h;
+    const pts=[[px,py]], climb=between(rand,h*.3,h*1.02), steps=9;
+    let d="M"+r2(px)+" "+r2(py);
+    for(let k=0;k<steps;k++){
+      px+=between(rand,-11,11); py-=climb/steps;
+      pts.push([px,py]); d+="L"+r2(px)+" "+r2(py);
+    }
+    s+=PT(d,{fill:"none",stroke:C.green3,"stroke-width":r2(between(rand,.9,2)),
+      opacity:.8,"stroke-linecap":"round"});
+    pts.forEach(p=>{
+      const leaves=1+Math.floor(rand()*3);
+      for(let k=0;k<leaves;k++)
+        s+=EL(p[0]+between(rand,-7,7),p[1]+between(rand,-5,5),
+          between(rand,2.4,5.2),between(rand,1.8,3.6),
+          {fill:pick(rand,[C.green,C.green2,C.green3]),opacity:r2(between(rand,.55,.92))});
+    });
+  }
+  return s;
+}
+function sapling(x,y,scale,seed){
+  const rand=rng(seed+31); const h=34*scale; let s="";
+  s+=PT("M"+r2(x)+" "+r2(y)+"q"+r2(between(rand,-4,4))+" "+r2(-h*.6)+" "+
+    r2(between(rand,-6,6))+" "+r2(-h),{fill:"none",stroke:"#54443A",
+    "stroke-width":r2(1.4*scale),"stroke-linecap":"round"});
+  for(let i=0;i<7;i++){
+    const t=between(rand,.35,1);
+    s+=EL(x+between(rand,-13,13)*scale, y-h*t, between(rand,4,10)*scale,
+      between(rand,3,7)*scale,{fill:pick(rand,[C.green,C.green2,C.green3]),
+      opacity:r2(between(rand,.6,.92))});
+  }
+  return s;
+}
+function treeMass(x,y,w,h,seed,o){
+  const rand=rng(seed+37); let s="";
+  for(let i=0;i<(o&&o.n||16);i++){
+    s+=EL(between(rand,x,x+w),between(rand,y,y+h),between(rand,18,52),
+      between(rand,14,34),{fill:pick(rand,[C.green,C.green2,C.green3,"#44603A"]),
+      opacity:r2(between(rand,.6,.95))});
+  }
+  return s;
+}
+function weedLine(seed,y,n){
+  const rand=rng(seed+43); let s="";
+  for(let i=0;i<n;i++){
+    const x=between(rand,-20,1220), sc=between(rand,.25,.8);
+    s+=grass(x,y+between(rand,-6,90),sc,rand);
+  }
+  return s;
+}
+function grass(x,y,scale,rand){
+  let s="";
+  for(let i=0;i<6;i++){
+    const h=between(rand,10,26)*scale, lean=between(rand,-8,8)*scale;
+    s+=PT("M"+r2(x+i*2*scale)+" "+r2(y)+"q"+r2(lean/2)+" "+r2(-h*.7)+" "+r2(lean)+" "+r2(-h),
+      {fill:"none",stroke:pick(rand,[C.green2,C.green,"#6F8A4E"]),
+      "stroke-width":r2(1*scale),opacity:.8,"stroke-linecap":"round"});
+  }
+  return s;
+}
+
+/* ---- water ------------------------------------------------------------------------ */
+function flood(level,seed,o){
+  o=o||{}; const rand=rng(seed+53);
+  let s=R(0,level,1200,700-level,C.water,{opacity:o.opacity||.86});
+  s+=R(0,level,1200,3,C.waterL,{opacity:.5});
+  for(let i=0;i<40;i++){
+    const y=level+Math.pow(rand(),1.6)*(700-level), w=between(rand,20,180);
+    s+=R(between(rand,-40,1180),y,w,between(rand,.8,2.4),C.waterL,
+      {opacity:r2(between(rand,.1,.4))});
+  }
+  if(o.reflect) s+=R(0,level,1200,(700-level)*.5,"#FFFFFF",{opacity:.05});
+  return s;
+}
+
+/* ---- objects ---------------------------------------------------------------------- */
+function car(x,y,scale,seed,o){
+  o=o||{}; const rand=rng(seed+59), s=scale, body=o.col||
+    pick(rand,["#6E6A63","#5C5F63","#7A5B4A","#4F5A5E","#8A8377"]);
+  const P0=(a,b)=>[x+a*s,y+b*s];
+  const shell=[[0,-10],[2,-26],[16,-30],[30,-48],[64,-48],[78,-30],[96,-26],[98,-12],
+    [96,-4],[0,-4]].map(p=>P0(p[0],p[1]));
+  let g=EL(x+48*s,y+1,52*s,5*s,{fill:"#00000026"});
+  g+=PG(shell,{fill:body});
+  g+=PG([[34,-44],[62,-44],[72,-30],[24,-30]].map(p=>P0(p[0],p[1])),
+    {fill:"#23272B",opacity:.9});
+  g+=PG([[0,-10],[96,-6],[96,-4],[0,-4]].map(p=>P0(p[0],p[1])),{fill:"#000",opacity:.22});
+  [[24,-6],[74,-6]].forEach(w=>{
+    g+=EL(x+w[0]*s,y+w[1]*s,11*s,11*s,{fill:"#2A2C2E"});
+    g+=EL(x+w[0]*s,y+w[1]*s,5*s,5*s,{fill:"#4A4C4E"});
+  });
+  g+=G(streaks(x,y-46*s,96*s,42*s,seed,{col:C.rust,n:7})+
+    grass(x+8*s,y+1,s*.7,rand)+grass(x+88*s,y+1,s*.6,rand),{class:"decay"});
+  return G(g);
+}
+function busWreck(x,y,scale,seed){
+  const rand=rng(seed+61), s=scale, w=220*s, h=64*s;
+  let g=EL(x+w/2,y+2,w*.52,6*s,{fill:"#00000026"});
+  g+=PT("M"+r2(x)+" "+r2(y-8*s)+"L"+r2(x)+" "+r2(y-h+8*s)+
+    "q0 "+r2(-8*s)+" "+r2(10*s)+" "+r2(-8*s)+"L"+r2(x+w-10*s)+" "+r2(y-h)+
+    "q"+r2(10*s)+" 0 "+r2(10*s)+" "+r2(8*s)+"L"+r2(x+w)+" "+r2(y-8*s)+"Z",{fill:"#9A9184"});
+  g+=R(x+6*s,y-h+12*s,w-12*s,h*.34,"#23272B",{opacity:.88});
+  for(let i=1;i<6;i++) g+=LN(x+i*(w/6),y-h+12*s,x+i*(w/6),y-h+12*s+h*.34,
+    {stroke:"#9A9184","stroke-width":2.4*s});
+  g+=R(x,y-16*s,w,4*s,"#7E7568");
+  [[40,-8],[168,-8]].forEach(p=>{
+    g+=EL(x+p[0]*s,y+p[1]*s,13*s,13*s,{fill:"#2A2C2E"});
+    g+=EL(x+p[0]*s,y+p[1]*s,6*s,6*s,{fill:"#4A4C4E"});
+  });
+  g+=G(streaks(x,y-h,w,h,seed,{col:C.rust,n:11})+ivy(x,y-h,w,h,seed,{n:3})+
+    grass(x+w*.5,y+1,s*.8,rand),{class:"decay"});
+  return G(g);
+}
+function rubble(x,y,w,seed,o){
+  const rand=rng(seed+67); let s="";
+  const n=(o&&o.n)||28;
+  for(let i=0;i<n;i++){
+    const bx=x+between(rand,-w/2,w/2), by=y-Math.abs(between(rand,0,1))*(o&&o.h||26)*
+      (1-Math.abs(bx-x)/(w*.6));
+    const sz=between(rand,3,13);
+    s+=PG([[bx,by],[bx+sz,by-sz*.5],[bx+sz*1.3,by+sz*.4],[bx+sz*.4,by+sz*.7]],
+      {fill:pick(rand,[C.stone,C.stoneD,C.stoneL,"#A79F8C"]),opacity:r2(between(rand,.7,1))});
+  }
+  s+=EL(x,y+2,w*.55,5,{fill:"#00000018"});
+  return s;
+}
+function trafficSignal(x,y,scale,seed,o){
+  const h=110*scale;
+  let s=R(x-2*scale,y-h,4*scale,h,C.metalD,{opacity:.9});
+  s+=PT("M"+r2(x)+" "+r2(y-h)+"q"+r2(30*scale)+" 0 "+r2(46*scale)+" "+r2(14*scale),
+    {fill:"none",stroke:C.metalD,"stroke-width":r2(3*scale),opacity:.9});
+  const gx=x+46*scale, gy=y-h+14*scale;
+  s+=G(R(gx-6*scale,gy,12*scale,30*scale,"#2E3236")+
+    EL(gx,gy+7*scale,3*scale,3*scale,{fill:"#5A4038"})+
+    EL(gx,gy+15*scale,3*scale,3*scale,{fill:"#5A5238"})+
+    EL(gx,gy+23*scale,3*scale,3*scale,{fill:"#38503E"}),
+    {transform:o&&o.hang?"rotate(24 "+r2(gx)+" "+r2(gy)+")":null});
+  return s;
+}
+function lamp(x,y,scale,lean){
+  const h=150*scale;
+  return G(R(x-2*scale,y-h,4*scale,h,C.metalD,{opacity:.9})+
+    PT("M"+r2(x)+" "+r2(y-h)+"q"+r2(16*scale)+" "+r2(-8*scale)+" "+r2(30*scale)+" "+r2(4*scale),
+      {fill:"none",stroke:C.metalD,"stroke-width":r2(3*scale)})+
+    EL(x+30*scale,y-h+8*scale,6*scale,3*scale,{fill:"#4A4F52"}),
+    {transform:lean?"rotate("+lean+" "+r2(x)+" "+r2(y)+")":null});
+}
+function figure(x,y,scale,o){
+  o=o||{}; const h=54*scale, col=o.col||"#3A3B38";
+  return G(EL(x,y-h,4.4*scale,5*scale,{fill:col})+
+    R(x-4.6*scale,y-h+5*scale,9.2*scale,h*.42,col)+
+    R(x-4*scale,y-h*.52,3.4*scale,h*.5,col)+
+    R(x+.8*scale,y-h*.52,3.4*scale,h*.5,col)+
+    EL(x,y+1,7*scale,2*scale,{fill:"#00000022"}));
+}
+function birds(x,y,spread,n,seed,scale){
+  const rand=rng(seed+71); let s="";
+  for(let i=0;i<n;i++){
+    const bx=x+between(rand,-spread,spread), by=y+between(rand,-spread*.4,spread*.4),
+      w=between(rand,4,9)*(scale||1);
+    s+=PT("M"+r2(bx-w)+" "+r2(by)+"q"+r2(w*.5)+" "+r2(-w*.6)+" "+r2(w)+" 0"+
+      "q"+r2(w*.5)+" "+r2(-w*.6)+" "+r2(w)+" 0",
+      {fill:"none",stroke:"#2E3134","stroke-width":.9,opacity:r2(between(rand,.35,.8))});
+  }
+  return s;
+}
+function scaffold(x,y,w,h,seed){
+  const rand=rng(seed+73); let s="";
+  for(let i=0;i<=Math.round(w/40);i++) s+=LN(x+i*40,y,x+i*40,y+h,
+    {stroke:C.metalD,"stroke-width":1.6,opacity:.7});
+  for(let j=0;j<=Math.round(h/50);j++) s+=LN(x,y+j*50,x+w,y+j*50,
+    {stroke:C.metalD,"stroke-width":1.3,opacity:.7});
+  s+=PG([[x,y+h*.3],[x+w*.5,y+h*.2],[x+w*.55,y+h*.6],[x+w*.05,y+h*.7]],
+    {fill:"#7E8072",opacity:.35});
+  return s;
+}
+/* a painted-out sign board, the ghost of whatever it advertised */
+function deadSign(x,y,w,h,seed,label){
+  const rand=rng(seed+79);
+  let s=R(x,y,w,h,"#2E3236")+R(x,y,w,h,"#000",{opacity:.25});
+  for(let i=0;i<6;i++) s+=R(x+between(rand,0,w*.8),y+between(rand,0,h*.8),
+    between(rand,8,w*.3),between(rand,4,h*.3),"#3D4247",{opacity:.6});
+  if(label) s+=TX(x+w/2,y+h/2+4,label,{"text-anchor":"middle","font-size":Math.min(h*.5,18),
+    fill:"#575C61","font-family":"var(--mono)","letter-spacing":".16em",opacity:.7});
+  s+=R(x-3,y-3,w+6,h+6,"none",{stroke:C.metalD,"stroke-width":2,opacity:.55});
+  return s;
+}
+
+/* ---- atmosphere ------------------------------------------------------------------- */
+function defs(o){
+  o=o||{};
+  return T("defs",null,
+    T("linearGradient",{id:"svSky",x1:0,y1:0,x2:0,y2:1},
+      T("stop",{offset:"0%","stop-color":o.skyTop||C.skyTop})+
+      T("stop",{offset:"52%","stop-color":o.skyMid||C.skyMid})+
+      T("stop",{offset:"100%","stop-color":o.skyLow||C.skyLow}))+
+    T("radialGradient",{id:"svVig",cx:"50%",cy:"46%",r:"72%"},
+      T("stop",{offset:"58%","stop-color":"#000","stop-opacity":"0"})+
+      T("stop",{offset:"100%","stop-color":"#000","stop-opacity":"0.42"}))+
+    T("linearGradient",{id:"svHaze",x1:0,y1:0,x2:0,y2:1},
+      T("stop",{offset:"0%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0"})+
+      T("stop",{offset:"42%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0.6"})+
+      T("stop",{offset:"100%","stop-color":o.skyLow||C.skyLow,"stop-opacity":"0"}))+
+    T("filter",{id:"svGrain"},
+      T("feTurbulence",{type:"fractalNoise",baseFrequency:"0.85",numOctaves:"3",result:"n"})+
+      T("feColorMatrix",{type:"saturate",values:"0"})+
+      T("feComponentTransfer",null,T("feFuncA",{type:"linear",slope:"0.16"}))));
+}
+function haze(y,h){ return R(0,y,1200,h,"url(#svHaze)",{opacity:.75}); }
+function finish(){
+  return R(0,0,1200,700,"url(#svVig)")+
+    R(0,0,1200,700,"#B9B2A0",{opacity:.05,filter:"url(#svGrain)"});
+}
+
+NYC.svkit={T,G,R,PT,PG,LN,EL,TX,A,r2,rng,pick,between,C,
+  sky,clouds,rain,skyline,ground,potholes,cracksField,crack,cracksOn,
+  stone,streaks,column,colonnade,cornice,archPath,voussoirs,
+  windows,shopfront,fireEscape,
+  ivy,sapling,treeMass,weedLine,grass,
+  flood,car,busWreck,rubble,trafficSignal,lamp,figure,birds,scaffold,deadSign,
+  defs,haze,finish};
 })();
 </script>
 <script>
@@ -2545,7 +3063,8 @@ const USES={
   waggon:  {label:"Waggon yard and inn",  colour:"#96825E", storeys:[1,2]},
   temple:  {label:"Sanctuary",            colour:"#8E7BA8", storeys:[1,3]},
   ward:    {label:"Strangers' ward",      colour:"#A87A6A", storeys:[2,4]},
-  quarry:  {label:"Quarry and sulphur",   colour:"#6E655A", storeys:[0,1]}
+  quarry:  {label:"Quarry and sulphur",   colour:"#6E655A", storeys:[0,1]},
+  paddy:   {label:"Rice terrace",         colour:"#86A98D", storeys:[0,0]}
 };
 
 function assignUses(blocks,site,water,plan,S,rnd){
@@ -2602,7 +3121,7 @@ const HOUSES={dwelling:1, poor:1.22, craft:0.62, merchant:0.5, staple:0.22,
   waggon:0.25, garden:0.05,
   /* the sanctuary houses its own and nobody else; a ward is packed, because the people
      in it are not allowed to sleep anywhere better */
-  temple:0.34, ward:1.9, quarry:0.04};
+  temple:0.34, ward:1.9, quarry:0.04, paddy:0};
 
 function housePeople(blocks,site,plan,S){
   let weight=0;
@@ -3088,6 +3607,702 @@ A.city={ siteOf:siteOf, generate:generate, rng:rng, DENSITY:DENSITY, USES:USES,
 </script>
 <script>
 /* ===================================================================================
+   Adrinem — the village plate. The city generator lays out places the export names;
+   this lays out one it does not.
+
+   Cell 1308 carries no burg, no market, no road and 15,303 people spread over ground a
+   hundred miles across. The export says what the ground is and nothing about what
+   stands on it, so a settlement here is invention — but it is invention constrained by
+   the same readings, in the same order:
+
+     the river is south-west        neighbour 1307 carries river 206 at flux 415, the
+                                    largest within reach, bearing 158
+     the ground rises north-east    h23 here, h31 at neighbour 1394 on bearing 25
+     the country is wet and warm    Tropical seasonal forest, habitability 50
+     there is no road at all        no exported segment touches this cell
+     it is 53 days from its market  1,338 effective miles to Str'amar
+     the people are GODLINGS        the culture the export assigns this ground
+
+   Water off a river of that size, on a slope of that aspect, in that climate, is a
+   wet-rice terrace. Everything below follows from that and from one rule the author
+   supplies rather than reads — that rank here is height above the paddies — which is
+   labelled as such on the plate.
+   =================================================================================== */
+(function(){
+"use strict";
+const A=window.ADRINEM=window.ADRINEM||{};
+const C=A.cells, M=A.meta;
+const G=A.city._geom;
+const {vec,add,sub,mul,len,norm,dot,lerp,polyArea,centroid,D2R,hash2}=G;
+const TAU=Math.PI*2;
+
+/* ===================================================================================
+   THE FIGURES, WRITTEN DOWN
+   ---------------------------------------------------------------------------------
+   Five numbers do the work here and none of them is in the export, so they are all in
+   one place where they can be argued with.
+   =================================================================================== */
+const V={
+  slope:0.062,        /* the fall of the hillside — 6.2 per cent, 56 m over 900 m */
+  riser:0.45,         /* the step between one paddy terrace and the next, in metres */
+  crossBund:44,       /* how far apart the cross-bunds are, so a paddy is workable */
+  fieldWidth:1180,    /* the width of the terraced ground, along the contour */
+  fieldDepth:520,     /* how far the paddies climb from the river */
+  villageDepth:400,   /* how far the houses climb above the top bund */
+  feedPerHa:6.2,      /* people a hectare of wet rice keeps in a year */
+  plot:340,           /* the ground a household holds, in square metres */
+  raceFall:0.004      /* the fall of the head-race: it must run nearly level */
+};
+
+/* the five ranks, lowest first — the whole social order of the place, by elevation */
+const RANKS=[
+  {key:"foot",  name:"The Water-Foot",    band:[-99,1.5],
+   note:"Below the top bund, among the water. The sluice-keeper, the miller and the "+
+        "ferry live here, which is to say the people who decide when anyone else's "+
+        "field is flooded live at the bottom of the order."},
+  {key:"first", name:"The First Bund",    band:[1.5,7],
+   note:"The first dry ground. Newly-made households and the families who work another "+
+        "family's terraces."},
+  {key:"middle",name:"The Middle Ground", band:[7,14],
+   note:"Households holding terraces of their own, which is most of the village."},
+  {key:"high",  name:"The High Ground",   band:[14,21],
+   note:"Old holdings. Their terraces are the furthest from their doors and the "+
+        "nearest to the race, and both facts are the point."},
+  {key:"temple",name:"The Temple Terrace",band:[21,99],
+   note:"The sanctuary and the readers' households. Nothing may be built above the "+
+        "temple, so this band has a ceiling that no other one has, and the families on "+
+        "it hold no terraces at all."}
+];
+const rankOf=z=>RANKS.find(r=>z>=r.band[0]&&z<r.band[1])||RANKS[RANKS.length-1];
+
+/* ===================================================================================
+   THE SITE
+   =================================================================================== */
+function siteOf(cell,name){
+  const base=A.city.siteOf(cell);
+  const nb=A.neighboursOf(cell);
+  const bearingTo=j=>Math.atan2(C.y[j]-C.y[cell],C.x[j]-C.x[cell])/D2R;
+
+  /* the river: the neighbouring cell carrying the most water, and its bearing */
+  let riv=null;
+  nb.forEach(j=>{ if(C.riv[j]&&(!riv||C.flux[j]>C.flux[riv])) riv=j; });
+  /* and the biggest one within reach, in case no neighbour carries it */
+  if(!riv){
+    const bag=[]; A.near(C.x[cell],C.y[cell],70,bag);
+    bag.forEach(j=>{ if(C.riv[j]&&(!riv||C.flux[j]>C.flux[riv])) riv=j; });
+  }
+
+  /* the fall of the land: toward the river, away from the highest neighbour */
+  let high=null;
+  nb.forEach(j=>{ if(A.isLand(j)&&(!high||C.h[j]>C.h[high])) high=j; });
+  const upBearing=high!=null?bearingTo(high):(riv!=null?bearingTo(riv)+180:0);
+  const downBearing=riv!=null?bearingTo(riv):upBearing+180;
+
+  /* how remote: the nearest named place, and how long the market is */
+  let nearest=null,nd=Infinity;
+  A.burgs.forEach(b=>{
+    const d=Math.hypot(C.x[b.cell]-C.x[cell],C.y[b.cell]-C.y[cell])*M.scale;
+    if(d<nd){nd=d;nearest=b;}
+  });
+  let roads=0;
+  const R=A.roads;
+  for(let k=0;k<R.a.length;k++) if(R.a[k]===cell||R.b[k]===cell) roads++;
+
+  return Object.assign({},base,{
+    name:name, invented:true,
+    riverCell:riv, riverId:riv!=null?C.riv[riv]:0, riverFlux:riv!=null?C.flux[riv]:0,
+    riverBearing:riv!=null?bearingTo(riv):null,
+    upBearing:upBearing, downBearing:downBearing,
+    upHeight:high!=null?C.h[high]:C.h[cell],
+    nearestBurg:nearest?nearest.name:null, nearestBurgMi:Math.round(nd),
+    nearestBurgIn:nearest?A.stateOf(nearest.cell):null,
+    roadsHere:roads,
+    marketName:C.mkt[cell]>=0?(A.marketOf(C.mkt[cell])||{}).name:null,
+    marketMi:C.cost[cell], marketDays:C.cost[cell]>=0?C.cost[cell]/M.supplyDivisor:null,
+    cellPop:C.pop[cell]
+  });
+}
+
+/* ===================================================================================
+   THE GROUND
+   ---------------------------------------------------------------------------------
+   One straight hillside, read in two directions: u along the contour, w up the slope.
+   Elevation is w times the slope, plus a little wander so the contours are not ruled
+   lines — and the terraces follow the contours, because water does.
+   =================================================================================== */
+function frame(site){
+  const up=norm(vec(site.upBearing,1));            /* uphill */
+  const along=[-up[1],up[0]];                      /* along the contour */
+  /* the wander of the hillside, so contours bend the way ground does */
+  const wobble=u=>26*Math.sin(u/230)+11*Math.sin(u/86+1.4);
+  return {
+    up:up, along:along,
+    /* map-space point from (u along the contour, w up the slope) */
+    at:(u,w)=>add(mul(along,u),mul(up,w+wobble(u))),
+    /* how high above the river, in metres */
+    z:w=>Math.max(0,w)*V.slope,
+    wobble:wobble
+  };
+}
+
+/* ===================================================================================
+   THE WORKS
+   =================================================================================== */
+function build(cell,name){
+  const site=siteOf(cell,name||"Ourasen");
+  const F=frame(site);
+  const blocks=[], streets=[], landmarks=[];
+  const HW=V.fieldWidth/2;
+
+  /* --- the river, along the foot of the slope ------------------------------------ */
+  const riverW=-90;                                /* below the lowest paddy */
+  const river=[];
+  for(let u=-HW*1.5;u<=HW*1.5;u+=40)
+    river.push(F.at(u,riverW-30*Math.sin(u/310)-16*Math.sin(u/97+2.2)));
+  /* wide enough to read as the thing the whole place is built on */
+  const riverWidth=34+Math.min(70,site.riverFlux/9);
+
+  /* --- the weir and the head-race ------------------------------------------------
+     The race must run almost level to carry water along the hill, so it climbs the
+     slope only as fast as its own fall allows: it leaves the weir high upstream and
+     arrives at the top of the paddies having dropped a few centimetres in a kilometre.
+     That is why it is the most valuable line on the plate. */
+  const weirU=-HW*1.16, weirW=riverW+18;
+  const raceTopW=V.fieldDepth;                     /* the top bund of the paddies */
+  const race=[];
+  for(let k=0;k<=54;k++){
+    const t=k/54;
+    const u=lerp([weirU,0],[HW*1.05,0],t)[0];
+    /* rises quickly out of the weir, then holds the contour */
+    const w=weirW+(raceTopW-weirW)*Math.min(1,Math.pow(t/0.22,0.85))
+      -(t>0.22?(t-0.22)*V.raceFall*V.fieldWidth/V.slope:0);
+    race.push(F.at(u,w));
+  }
+  streets.push({pts:race,cls:"way",name:"The Head-Race"});
+
+  /* --- the paddies: terraces along the contour, cross-bunded into fields ---------- */
+  const terraceTread=V.riser/V.slope;              /* 7.3 m on this hill */
+  const rows=Math.floor(V.fieldDepth/terraceTread);
+  let paddyArea=0;
+  for(let r=0;r<rows;r++){
+    const w0=r*terraceTread, w1=w0+terraceTread*0.86;
+    /* the field narrows toward the top, where the race can no longer reach across */
+    const half=HW*(1-0.22*Math.pow(r/rows,1.7));
+    const cells=Math.max(4,Math.round(half*2/V.crossBund));
+    for(let c=0;c<cells;c++){
+      const u0=-half+c*(half*2/cells), u1=u0+(half*2/cells)*0.94;
+      const poly=[F.at(u0,w0),F.at(u1,w0),F.at(u1,w1),F.at(u0,w1)];
+      const area=polyArea(poly);
+      paddyArea+=area;
+      blocks.push({poly:poly, c:centroid(poly), area:area, use:"paddy",
+        fu:(u0+u1)/2, fw:(w0+w1)/2, fdu:(u1-u0)/2, fdw:(w1-w0)/2,
+        w:(w0+w1)/2, z:F.z((w0+w1)/2), terrace:r, storeys:0, coverage:0,
+        people:0, floor:0, roofed:0});
+    }
+  }
+  const paddyHa=paddyArea/10000;
+  const fed=Math.round(paddyHa*V.feedPerHa);
+
+  /* --- the households, in bands above the top bund -------------------------------- */
+  const houses=Math.max(8,Math.round(fed/5.1));    /* about five to a household */
+  const plots=[];
+  let placed=0, guard=0;
+
+  /* The water-people first, and below the top bund on purpose: the sluice-keeper, the
+     miller and the ferry families live among the paddies. By this village's rule that
+     puts them at the bottom of the order, and by the fact of the hillside it puts every
+     household above them downstream of what they do. */
+  const footCount=Math.max(3,Math.round(houses*0.14));
+  for(let k=0;k<footCount;k++){
+    const u=(hash2(k*17+9,k*3.3)*2-1)*HW*0.74;
+    const w=raceTopW-30-hash2(k*5+1,u)*90;
+    plots.push({p:F.at(u,w),u:u,w:w}); placed++;
+  }
+
+  while(placed<houses&&guard++<4000){
+    const s=hash2(placed*7+1,guard*13.7);
+    const s2=hash2(guard*3+5,placed*11.3);
+    /* households thin out steeply with height: the high ground is held by very few */
+    const t=Math.pow(s,2.1);
+    const w=raceTopW+26+t*V.villageDepth;
+    const half=HW*(0.92-0.40*t);
+    const u=(s2*2-1)*half;
+    const p=F.at(u,w);
+    if(plots.some(q=>Math.hypot(q.p[0]-p[0],q.p[1]-p[1])<21)) continue;
+    plots.push({p:p,u:u,w:w});
+    placed++;
+  }
+  plots.forEach((pl,ix)=>{
+    const z=F.z(pl.w)-F.z(raceTopW);               /* height above the top bund */
+    const rank=rankOf(z);
+    const k=Math.sqrt(V.plot)*(0.72+0.5*(RANKS.indexOf(rank)/4));
+    const a=(hash2(ix*5+3,pl.u)-0.5)*0.5;
+    const co=Math.cos(a)*k/2, si=Math.sin(a)*k/2;
+    const poly=[
+      add(pl.p,[-co+si,-si-co]), add(pl.p,[co+si,si-co]),
+      add(pl.p,[co-si,si+co]),  add(pl.p,[-co-si,-si+co])];
+    blocks.push({poly:poly, c:pl.p.slice(), area:polyArea(poly), use:"dwelling",
+      fu:pl.u, fw:pl.w, fdu:k/2, fdw:k/2,
+      w:pl.w, z:z, rank:rank.key, rankName:rank.name,
+      reader:rank.key==="temple", waterFoot:rank.key==="foot",
+      storeys:1+(hash2(pl.u,pl.w)<0.30?1:0),
+      coverage:0.42+0.10*(RANKS.indexOf(rank)/4),
+      /* mostly timber; the older and higher the holding, the more stone in its footing */
+      stone:0.10+0.55*(RANKS.indexOf(rank)/4)});
+  });
+
+  /* --- the temple, at the top ----------------------------------------------------- */
+  const templeW=raceTopW+V.villageDepth+70;
+  const templeP=F.at(0,templeW);
+  const templeZ=F.z(templeW)-F.z(raceTopW);
+  const tk=34;
+  blocks.push({poly:[add(templeP,[-tk,-tk]),add(templeP,[tk,-tk]),
+    add(templeP,[tk,tk]),add(templeP,[-tk,tk])],
+    c:templeP.slice(), area:tk*tk*4, use:"temple",
+    fu:0, fw:templeW, fdu:tk, fdw:tk, w:templeW, z:templeZ,
+    rank:"temple", rankName:"The Temple Terrace", storeys:2, coverage:0.62, stone:0.86});
+
+  /* --- the paths: one up the hill, one along each rank ---------------------------- */
+  const spine=[];
+  for(let w=riverW;w<=templeW+40;w+=26) spine.push(F.at(6*Math.sin(w/120),w));
+  streets.push({pts:spine,cls:"great",name:"The Stair"});
+  RANKS.forEach((r,ix)=>{
+    if(ix===0) return;
+    const w=raceTopW+30+(r.band[0]/V.slope);
+    if(w>templeW) return;
+    const line=[];
+    for(let u=-HW*0.86;u<=HW*0.86;u+=32) line.push(F.at(u,w));
+    streets.push({pts:line,cls:"ring",name:r.name});
+  });
+  /* and the bund walks between the terraces, every eighth one */
+  for(let r=0;r<rows;r+=8){
+    const line=[];
+    for(let u=-HW;u<=HW;u+=34) line.push(F.at(u,r*terraceTread));
+    streets.push({pts:line,cls:"minor",name:null});
+  }
+
+  /* --- what is named -------------------------------------------------------------- */
+  const put=(nm,kind,p,note)=>landmarks.push({name:nm,kind:kind,p:p,note:note});
+  put("The Weir","harbour",F.at(weirU,weirW),
+    "Where the water is taken. River "+site.riverId+" carries a flux of "+
+    site.riverFlux+" past this hill — the largest within reach of the cell — and the "+
+    "whole village is downstream of this one stone sill.");
+  put("The Head-Race","harbour",race[Math.round(race.length*0.5)],
+    "A channel that must fall about "+(V.raceFall*100).toFixed(1)+" metres in a "+
+    "hundred to work at all, so it holds the contour where the hillside falls "+
+    (V.slope*100).toFixed(1)+" in a hundred. It reaches the top bund and every terrace "+
+    "below is fed from it in turn.");
+  put("The Sluice-Keeper's House","civic",F.at(HW*0.22,raceTopW-40),
+    "The office that opens the gates. By the rule of this place its holder lives at "+
+    "the water and therefore near the bottom of the order, and by the fact of the "+
+    "hillside every household above depends on him. The village has never resolved "+
+    "this and the plate cannot either.");
+  put("The Mill","yard",F.at(-HW*0.52,riverW+42),
+    "On the race where it still has fall to spare, below the lowest bund.");
+  put("The Threshing Floor","staple",F.at(HW*0.06,raceTopW+16),
+    "Flat, hard and level, on the top bund where the whole field can reach it.");
+  put("The Granary","store",F.at(-HW*0.16,raceTopW+64),
+    "Raised on stone staddles against the wet and the rats. "+
+    paddyHa.toFixed(0)+" hectares of terrace pass through it.");
+  put("The Ford","harbour",F.at(HW*0.62,riverW-8),
+    "There is no bridge. There is no road either: no exported segment touches this "+
+    "cell, and the nearest named place is "+(site.nearestBurg||"nowhere")+", "+
+    site.nearestBurgMi.toLocaleString()+" miles off.");
+  put("The Temple of the Godlings","temple",templeP,
+    "At the top, because the rule of this place is that height is rank, and nothing "+
+    "may be built above it. The culture the export assigns this ground is "+
+    site.culture+"; what it believes is the author's.");
+  put("The Readers' Houses","civic",F.at(-58,templeW-52),
+    "The households on the temple terrace. They hold no terraces, take a share of every "+
+    "one below, and are the only families in the village whose rank cannot rise, "+
+    "because there is no ground above them.");
+  put("The Burial Terrace","civic",F.at(HW*0.42,templeW-120),
+    "High, dry and out of the water — which under this village's rule is also the most "+
+    "honourable ground it has.");
+  put("The Grove","garden",F.at(-HW*0.66,raceTopW+150),
+    "Left standing. Tropical seasonal forest is what all this was, and what the "+
+    "terraces were cut out of.");
+
+  /* --- the account ---------------------------------------------------------------- */
+  const byRank={};
+  blocks.filter(b=>b.rank).forEach(b=>{
+    const r=byRank[b.rank]||(byRank[b.rank]={key:b.rank,name:b.rankName,houses:0,
+      people:0,lowZ:Infinity,highZ:-Infinity});
+    r.houses++; r.lowZ=Math.min(r.lowZ,b.z); r.highZ=Math.max(r.highZ,b.z);
+  });
+  /* people, spread over the households the paddies can feed */
+  const houseBlocks=blocks.filter(b=>b.use==="dwelling");
+  houseBlocks.forEach((b,ix)=>{
+    b.people=Math.max(2,Math.round(fed/houseBlocks.length*(0.7+0.6*hash2(ix,b.w))));
+    b.roofed=b.area*b.coverage; b.floor=b.roofed*b.storeys;
+  });
+  let total=houseBlocks.reduce((n,b)=>n+b.people,0);
+  /* trim the rounding onto the largest household so the total is exactly what the
+     terraces feed */
+  if(houseBlocks.length) houseBlocks[0].people+=fed-total;
+  Object.keys(byRank).forEach(k=>{
+    byRank[k].people=houseBlocks.filter(b=>b.rank===k)
+      .reduce((n,b)=>n+b.people,0);
+  });
+
+  const byUse={};
+  blocks.forEach(b=>{
+    const u=byUse[b.use]||(byUse[b.use]={blocks:0,area:0,people:0,floor:0});
+    u.blocks++; u.area+=b.area; u.people+=(b.people||0); u.floor+=(b.floor||0);
+  });
+
+  return {
+    archetype:"village", site:site, V:V, F:F, RANKS:RANKS,
+    plan:{archetype:"village", centre:F.at(0,raceTopW), staple:F.at(0,raceTopW),
+      streets:streets, rays:[], rings:[], quayPts:[], corridor:null},
+    water:{river:river, riverWidth:riverWidth, race:race,
+      riverW:riverW, room:()=>999, townside:()=>true},
+    S:{spread:V.fieldWidth, wallR:Infinity, sacredR:0, reach:V.fieldWidth,
+       quayClear:0, ring0:0, raceTopW:raceTopW, templeW:templeW, riverW:riverW,
+       terraceTread:terraceTread},
+    wall:{ring:[],towers:[],gates:[]}, inner:null,
+    blocks:blocks, streets:streets, landmarks:landmarks, byUse:byUse, byRank:byRank,
+    doctrine:null,
+    stats:{
+      population:fed, inside:fed, outside:0,
+      households:houseBlocks.length,
+      blocks:blocks.length, streets:streets.length, landmarks:landmarks.length,
+      paddyHa:paddyHa, terraces:rows, paddies:blocks.filter(b=>b.use==="paddy").length,
+      areaHa:blocks.reduce((n,b)=>n+b.area,0)/10000,
+      wallHa:0, floorHa:houseBlocks.reduce((n,b)=>n+b.floor,0)/10000,
+      densityInside:fed/(paddyHa||1), densityOutside:0,
+      wallGates:0, wallTowers:0, quayM:0, innerGates:0,
+      raceM:(function(){let d=0;for(let i=1;i<race.length;i++)
+        d+=len(sub(race[i],race[i-1])); return d;})(),
+      riseM:F.z(templeW)-F.z(riverW), feedPerHa:V.feedPerHa
+    }
+  };
+}
+
+/* which cells the author has put a village on. Not from the export. */
+const HAMLETS={1308:"Ourasen"};
+
+A.village={ build:build, siteOf:siteOf, RANKS:RANKS, V:V, HAMLETS:HAMLETS,
+  has:cell=>!!HAMLETS[cell], nameOf:cell=>HAMLETS[cell]||null };
+})();
+</script>
+<script>
+/* ===================================================================================
+   Adrinem — the model view. The survey sheet draws New York in three dimensions twice:
+   the street-level plates, built from a kit of masonry, glazing and growth primitives
+   in js/sv-kit.js, and the throw-line section in the projection console, which takes
+   block footprints and their real heights and returns a drawn elevation.
+
+   That kit is pure drawing — it reads no New York data at all — so it is carried over
+   here unchanged and this file adds to it what a wet-rice village on a hillside needs
+   and Manhattan did not: terraces, timber frames, thatch, stilts, and a stone plinth.
+
+   Two drawings come out of it, from the same numbers the plan is drawn from:
+
+     the model    an axonometric of the whole village, terraces first and the temple
+                  last, painted back to front
+     the section  a side elevation up the slope in the idiom of the throw-line section:
+                  the river at one end, the temple at the other, and every household
+                  marked at the height that decides its rank
+
+   Heights are drawn at three times the plan scale. Nothing else is exaggerated, and
+   the caption says so.
+   =================================================================================== */
+(function(){
+"use strict";
+const A=window.ADRINEM=window.ADRINEM||{};
+const K=(window.NYC&&window.NYC.svkit)||null;   /* the kit, carried over from the sheet */
+
+/* If the kit is not on the page, the model cannot be drawn. Say so rather than
+   half-drawing it. */
+function ready(){ return !!K; }
+
+const VZ=3;                       /* heights against plan */
+const OX=0.34, OY=0.62;           /* how far a metre up the slope moves the drawing */
+
+/* ---- the timber palette. sv-kit's stone and water are used as they are ------------ */
+const P={
+  thatch:"#B7A06A", thatchD:"#96814F", thatchX:"#77653C",
+  wall:"#8C6C46", wallD:"#74583A", wallX:"#5A452C",
+  post:"#54402A", frame:"#6B5335",
+  stone:"#BAB3A2", stoneD:"#948D7C", stoneL:"#D2CCBC", stoneX:"#6E6858",
+  paddy:"#86A98D", paddyD:"#6E9077", bund:"#A79A72", bundD:"#8A7E5A",
+  river:"#6D8892", riverL:"#8DA5AC",
+  ground:"#AFA684", groundD:"#948C6C",
+  leaf:"#5E7A4A", leafD:"#46603A", ink:"#2C2C2A"
+};
+
+/* =================================================================================== */
+/*  the projection                                                                     */
+/*  u runs along the contour, w up the slope, z up out of the ground — all in metres    */
+/* =================================================================================== */
+const px=(u,w)=>u+w*OX;
+const py=(u,w,z)=>-w*OY-(z||0)*VZ;
+const pt=(u,w,z)=>[px(u,w),py(u,w,z)];
+const depth=w=>w;                 /* larger w is further away, so it is drawn first */
+
+/* =================================================================================== */
+/*  primitives — the kit's idiom: functions that return SVG strings                    */
+/* =================================================================================== */
+function quad(a,b,c,d,fill,o){
+  return K.PG([a,b,c,d],Object.assign({fill:fill},o||{}));
+}
+
+/* a flat sheet of water sitting in a terrace, with the bund that holds it in */
+function paddy(u0,u1,w0,w1,z,seed){
+  const top=quad(pt(u0,w0,z),pt(u1,w0,z),pt(u1,w1,z),pt(u0,w1,z),
+    seed%3===0?P.paddyD:P.paddy,{stroke:P.bundD,"stroke-width":.5});
+  /* the downhill face of the bund, drawn at its real height */
+  const face=quad(pt(u0,w0,z),pt(u1,w0,z),pt(u1,w0,z-0.45),pt(u0,w0,z-0.45),P.bund,
+    {stroke:P.bundD,"stroke-width":.4});
+  /* the shine, because a flooded terrace is a mirror and that is how you know it is wet */
+  const sh=K.LN(px(u0+2,w0+1),py(u0+2,w0+1,z),px(u1-2,w0+1),py(u1-2,w0+1,z),
+    {stroke:"#CFE0D2","stroke-width":.7,opacity:.5});
+  return face+top+sh;
+}
+
+/* a box: the side, the downhill face and the top, in that order */
+function box(u0,u1,w0,w1,base,h,cols){
+  const t=base+h;
+  const side=quad(pt(u1,w0,base),pt(u1,w1,base),pt(u1,w1,t),pt(u1,w0,t),cols[2]);
+  const front=quad(pt(u0,w0,base),pt(u1,w0,base),pt(u1,w0,t),pt(u0,w0,t),cols[1]);
+  const top=quad(pt(u0,w0,t),pt(u1,w0,t),pt(u1,w1,t),pt(u0,w1,t),cols[0]);
+  return side+front+top;
+}
+
+/* a hipped thatch roof over a footprint */
+function thatch(u0,u1,w0,w1,base,rise){
+  const wm=(w0+w1)/2, um=(u0+u1)/2, r=base+rise;
+  const eave=0.55;
+  const A0=pt(u0-eave,w0-eave,base), B0=pt(u1+eave,w0-eave,base);
+  const C0=pt(u1+eave,w1+eave,base), D0=pt(u0-eave,w1+eave,base);
+  const R0=pt(um-(u1-u0)*0.18,wm,r), R1=pt(um+(u1-u0)*0.18,wm,r);
+  return K.PG([D0,C0,R1,R0],{fill:P.thatchX})+          /* the far slope */
+         K.PG([B0,C0,R1],{fill:P.thatchD})+             /* the side */
+         K.PG([A0,B0,R1,R0],{fill:P.thatch,stroke:P.thatchX,"stroke-width":.4})+
+         K.LN(R0[0],R0[1],R1[0],R1[1],{stroke:P.thatchX,"stroke-width":.9});
+}
+
+/* a house: a stone footing, timber posts standing it out of the wet, plank walls,
+   thatch over. The share of stone rises with the holding. */
+function house(b,F,S,seed){
+  const rnd=K.rng(seed);
+  const w=b.fw, side=Math.sqrt(b.area*b.coverage);
+  const u=b.fu, hw=side/2;
+  const g0=F.z(w);                             /* the ground it stands on */
+  const stilt=0.9+rnd()*0.5;
+  const wallH=2.5+rnd()*0.9+(b.storeys>1?2.2:0);
+  const stone=b.stone||0.2;
+  let g="";
+  /* the plinth — the bit of stonework */
+  g+=box(u-hw*1.06,u+hw*1.06,w-hw*1.06,w+hw*1.06,g0,0.35+stone*0.75,
+    [P.stoneL,P.stone,P.stoneD]);
+  /* the posts */
+  const ph=g0+stilt+0.35+stone*0.75;
+  [[u-hw*0.82,w-hw*0.82],[u+hw*0.82,w-hw*0.82],[u+hw*0.82,w+hw*0.82],
+   [u-hw*0.82,w+hw*0.82]].forEach(([pu,pw])=>{
+    g+=box(pu-0.3,pu+0.3,pw-0.3,pw+0.3,g0+0.35+stone*0.75,stilt,
+      [P.frame,P.post,P.wallX]);
+  });
+  /* the frame */
+  g+=box(u-hw,u+hw,w-hw,w+hw,ph,wallH,[P.wall,P.wall,P.wallD]);
+  /* plank lines, so it reads as timber and not as a block */
+  for(let k=1;k<4;k++){
+    const zz=ph+wallH*k/4;
+    g+=K.LN(px(u-hw,w-hw),py(u-hw,w-hw,zz),px(u+hw,w-hw),py(u+hw,w-hw,zz),
+      {stroke:P.wallX,"stroke-width":.35,opacity:.7});
+  }
+  /* a door onto the downhill side, because that is where the terraces are */
+  g+=quad(pt(u-hw*0.22,w-hw,ph),pt(u+hw*0.22,w-hw,ph),
+          pt(u+hw*0.22,w-hw,ph+wallH*0.62),pt(u-hw*0.22,w-hw,ph+wallH*0.62),P.wallX);
+  g+=thatch(u-hw,u+hw,w-hw,w+hw,ph+wallH,1.5+hw*0.42);
+  return {d:g,depth:w};
+}
+
+/* the temple: a stone platform, a timber hall, and a roof in two falls */
+function temple(b,F,S){
+  const w=b.fw, u=b.fu, side=Math.sqrt(b.area*b.coverage), hw=side/2;
+  const g0=F.z(w);
+  let g="";
+  /* three stone steps, which is the only masonry of any size in the village */
+  for(let k=0;k<3;k++){
+    const e=hw*(1.5-k*0.16);
+    g+=box(u-e,u+e,w-e,w+e,g0+k*0.55,0.55,[P.stoneL,P.stone,P.stoneD]);
+  }
+  const base=g0+1.65;
+  g+=box(u-hw,u+hw,w-hw,w+hw,base,4.4,[P.wall,P.wall,P.wallD]);
+  /* a colonnade of timber posts along the downhill face */
+  for(let k=0;k<=6;k++){
+    const pu=u-hw+ (hw*2)*k/6;
+    g+=box(pu-0.34,pu+0.34,w-hw-0.9,w-hw-0.2,base,4.4,[P.frame,P.post,P.wallX]);
+  }
+  g+=thatch(u-hw*1.12,u+hw*1.12,w-hw*1.12,w+hw*1.12,base+4.4,2.6);
+  g+=thatch(u-hw*0.72,u+hw*0.72,w-hw*0.72,w+hw*0.72,base+4.4+2.6,2.4);
+  return {d:g,depth:w};
+}
+
+function tree(u,w,g0,seed){
+  const rnd=K.rng(seed), h=g0+4+rnd()*3.5, r=1.6+rnd()*1.1;
+  let g=box(u-0.28,u+0.28,w-0.28,w+0.28,g0,(h-g0)*0.55,[P.frame,P.post,P.wallX]);
+  g+=K.EL(px(u,w),py(u,w,h),r*2.1,r*1.15,{fill:P.leafD});
+  g+=K.EL(px(u,w-r*0.4),py(u,w-r*0.4,h+r*0.4),r*1.7,r*0.95,{fill:P.leaf});
+  return {d:g,depth:w};
+}
+
+/* =================================================================================== */
+/*  the model                                                                          */
+/* =================================================================================== */
+function model(v){
+  if(!ready()) return null;
+  const F=v.F, S=v.S, V=v.V;
+  /* Every block carries the (u, w) it was laid out at, so the model reads the same
+     numbers the plan did rather than trying to recover them from a centroid. */
+  const parts=[];
+  const add=(d,dep)=>parts.push({d:d,depth:dep});
+
+  /* --- the river, at the foot ---------------------------------------------------- */
+  const rw=S.riverW-30, rww=v.water.riverWidth;
+  add(quad(pt(-V.fieldWidth*0.8,rw-rww,0),pt(V.fieldWidth*0.8,rw-rww,0),
+           pt(V.fieldWidth*0.8,rw,0),pt(-V.fieldWidth*0.8,rw,0),P.river),rw-rww);
+  for(let k=0;k<26;k++){
+    const u=-V.fieldWidth*0.75+k*(V.fieldWidth*1.5/26);
+    add(K.LN(px(u,rw-rww*0.7),py(u,rw-rww*0.7,0),px(u+22,rw-rww*0.55),
+      py(u+22,rw-rww*0.55,0),{stroke:P.riverL,"stroke-width":1.1,opacity:.55}),rw-rww*0.6);
+  }
+
+  /* --- the hillside itself, drawn first so everything else stands on it ----------- */
+  const topW=S.templeW+170, HWm=V.fieldWidth*0.62;
+  add(quad(pt(-HWm,rw,0),pt(HWm,rw,0),
+           pt(HWm*0.86,topW,F.z(topW)),pt(-HWm*0.86,topW,F.z(topW)),P.ground),topW+400);
+  /* a few contour lines, so a flat wash reads as a slope */
+  for(let w=120;w<topW;w+=150){
+    const k=1-0.14*(w/topW);
+    add(K.LN(px(-HWm*k,w),py(-HWm*k,w,F.z(w)),px(HWm*k,w),py(HWm*k,w,F.z(w)),
+      {stroke:P.groundD,"stroke-width":.8,opacity:.45}),topW+399);
+  }
+  /* the flat between the river and the lowest bund */
+  add(quad(pt(-HWm,rw,0),pt(HWm,rw,0),pt(HWm,0,0),pt(-HWm,0,0),P.ground),rw+1);
+
+  /* --- the terraces, lowest first so each is overlapped by the one below ---------- */
+  const paddies=v.blocks.filter(b=>b.use==="paddy");
+  paddies.sort((a,b)=>b.fw-a.fw);
+  paddies.forEach((b,ix)=>{
+    add(paddy(b.fu-b.fdu,b.fu+b.fdu,b.fw-b.fdw,b.fw+b.fdw,b.z,ix),b.fw);
+  });
+
+  /* --- the head-race, holding the contour above the top bund ---------------------- */
+  const raceZ=F.z(S.raceTopW)+0.5, rHalf=V.fieldWidth*0.52;
+  add(quad(pt(-rHalf,S.raceTopW+4,raceZ+0.6),pt(rHalf,S.raceTopW+4,raceZ+0.6),
+           pt(rHalf,S.raceTopW+13,raceZ+0.6),pt(-rHalf,S.raceTopW+13,raceZ+0.6),
+           P.bund),S.raceTopW+9);
+  add(quad(pt(-rHalf,S.raceTopW+6,raceZ),pt(rHalf,S.raceTopW+6,raceZ),
+           pt(rHalf,S.raceTopW+11,raceZ),pt(-rHalf,S.raceTopW+11,raceZ),
+           P.riverL),S.raceTopW+8.5);
+
+  /* --- the grove ------------------------------------------------------------------ */
+  for(let k=0;k<26;k++){
+    const u=-V.fieldWidth*0.46+K.rng(k*31+7)()*V.fieldWidth*0.16;
+    const w=S.raceTopW+90+K.rng(k*13+3)()*180;
+    const t=tree(u,w,F.z(w),k*17+5); add(t.d,t.depth);
+  }
+
+  /* --- the houses and the temple -------------------------------------------------- */
+  v.blocks.filter(b=>b.use==="dwelling").forEach((b,ix)=>{
+    const h=house(b,F,S,ix*29+11); add(h.d,h.depth);
+  });
+  const tb=v.blocks.find(b=>b.use==="temple");
+  if(tb){ const t=temple(tb,F,S); add(t.d,t.depth); }
+
+  /* --- paint it back to front ----------------------------------------------------- */
+  parts.sort((a,b)=>b.depth-a.depth);
+  const body=parts.map(p=>p.d).join("");
+
+  /* --- fit ------------------------------------------------------------------------ */
+  const corners=[
+    pt(-V.fieldWidth*0.8,rw-rww,0), pt(V.fieldWidth*0.8,rw-rww,0),
+    pt(-V.fieldWidth*0.7,S.templeW+120,F.z(S.templeW+120)),
+    pt(V.fieldWidth*0.7,S.templeW+120,F.z(S.templeW+120)),
+    pt(0,S.templeW,F.z(S.templeW)+16)];
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  corners.forEach(c=>{ x0=Math.min(x0,c[0]); x1=Math.max(x1,c[0]);
+    y0=Math.min(y0,c[1]); y1=Math.max(y1,c[1]); });
+  const pad=60;
+  return {svg:body, view:[x0-pad,y0-pad,(x1-x0)+pad*2,(y1-y0)+pad*2]};
+}
+
+/* =================================================================================== */
+/*  the section — the throw-line elevation, pointed up a hillside                       */
+/* =================================================================================== */
+function section(v,W,H){
+  if(!ready()) return "";
+  const F=v.F, S=v.S, V=v.V;
+  W=W||760; H=H||190;
+  const L=44,B=30,T=16,R=14;
+  const w0=S.riverW-40, w1=S.templeW+80;
+  const zTop=F.z(w1)-F.z(w0);
+  const X=w=>L+(W-L-R)*((w-w0)/(w1-w0));
+  const Y=z=>H-B-(H-B-T)*(z/(zTop*1.12));
+
+  let g='<svg viewBox="0 0 '+W+' '+H+'" class="sect vsect">';
+  /* the hillside itself */
+  let d="M"+X(w0)+" "+Y(0);
+  for(let w=w0;w<=w1;w+=12) d+="L"+X(w)+" "+Y(F.z(w)-F.z(w0));
+  d+="L"+X(w1)+" "+Y(0)+"Z";
+  g+='<path d="'+d+'" fill="#CFC7AE" stroke="#8A8474" stroke-width="1"/>';
+
+  /* the river, the paddies and the top bund */
+  g+='<rect x="'+X(w0)+'" y="'+(Y(0)-6)+'" width="'+(X(S.riverW)-X(w0))+
+     '" height="6" fill="'+P.river+'"/>';
+  const bundZ=F.z(S.raceTopW)-F.z(w0);
+  g+='<rect x="'+X(0)+'" y="'+Y(bundZ)+'" width="'+(X(S.raceTopW)-X(0))+
+     '" height="'+(Y(0)-Y(bundZ))+'" fill="'+P.paddy+'" opacity=".5"/>';
+  /* every terrace riser, at its real height */
+  for(let r=0;r<v.stats.terraces;r++){
+    const w=r*S.terraceTread;
+    g+='<line x1="'+X(w)+'" y1="'+Y(F.z(w)-F.z(w0))+'" x2="'+X(w)+'" y2="'+
+       Y(F.z(w)-F.z(w0)-V.riser)+'" stroke="'+P.bundD+'" stroke-width=".6"/>';
+  }
+  g+='<line x1="'+X(S.raceTopW)+'" y1="'+Y(bundZ)+'" x2="'+X(S.raceTopW)+'" y2="'+
+     (Y(bundZ)-9)+'" stroke="'+P.riverL+'" stroke-width="2.4"/>';
+
+  /* the households, each at the height that decides its rank */
+  const RK={foot:"#6E8892",first:"#96825E",middle:"#8F8459",high:"#B4894E",
+    temple:"#8E7BA8"};
+  v.blocks.filter(b=>b.use==="dwelling").forEach(b=>{
+    const z=F.z(b.fw)-F.z(w0), x=X(b.fw);
+    g+='<rect x="'+(x-1.6)+'" y="'+(Y(z)-7)+'" width="3.2" height="7" fill="'+
+       (RK[b.rank]||"#8F8459")+'"><title>'+b.rankName+" — "+b.z.toFixed(1)+
+       ' m above the top bund, '+b.people+' people</title></rect>';
+  });
+  /* the rank boundaries */
+  v.RANKS.forEach(r=>{
+    if(r.band[0]<0||r.band[0]>90) return;
+    const w=S.raceTopW+r.band[0]/V.slope;
+    if(w>w1) return;
+    const z=F.z(w)-F.z(w0);
+    g+='<line x1="'+X(w)+'" y1="'+Y(z)+'" x2="'+X(w)+'" y2="'+T+
+       '" stroke="#8A8474" stroke-width=".5" stroke-dasharray="3 3"/>';
+    g+='<text transform="rotate(-90 '+(X(w)+3)+' '+(T+4)+')" x="'+(X(w)+3)+'" y="'+
+       (T+4)+'" class="bl">'+r.name.replace(/^The /,"")+'</text>';
+  });
+  /* the temple */
+  const tz=F.z(S.templeW)-F.z(w0);
+  g+='<rect x="'+(X(S.templeW)-6)+'" y="'+(Y(tz)-14)+'" width="12" height="14" fill="'+
+     P.stone+'" stroke="'+P.stoneX+'" stroke-width=".8"/>';
+  g+='<text x="'+X(S.templeW)+'" y="'+(Y(tz)-18)+'" class="ax">TEMPLE</text>';
+
+  g+='<text x="4" y="'+(Y(zTop)+4)+'" class="ax lft">'+Math.round(zTop)+' m</text>';
+  g+='<text x="4" y="'+(Y(0)-2)+'" class="ax lft">river</text>';
+  g+='<line x1="'+L+'" y1="'+Y(0)+'" x2="'+(W-R)+'" y2="'+Y(0)+'" class="gl"/>';
+  g+='</svg>';
+  return g;
+}
+
+A.model={ ready:ready, model:model, section:section, VZ:VZ, palette:P };
+})();
+</script>
+<script>
+/* ===================================================================================
    Adrinem — the city plate viewer. Opens over the world sheet, draws what
    adrinem-city.js generated, and lets it be read block by block.
 
@@ -3146,12 +4361,13 @@ function draw(c){
   svg.insertBefore(defs,root);
 
   const S=c.S, W=c.water, R=S.reach*1.9;
+  const village=c.archetype==="village";
 
   /* ---- the country the city stands in ---- */
   L.ground.appendChild(el("rect",{x:-R,y:-R,width:R*2,height:R*2,fill:"#E7E2CE"}));
 
   /* ---- the marsh, on the bearing the export put it ---- */
-  if(c.site.marshBearing!=null){
+  if(!village&&c.site.marshBearing!=null){
     const g=A.city._geom, b=c.site.marshBearing, st=c.plan.staple;
     const pts=[];
     for(let k=0;k<=22;k++){
@@ -3165,6 +4381,18 @@ function draw(c){
     L.marsh.appendChild(el("path",{d:path(pts)+"Z",fill:"url(#reed)","fill-opacity":.85}));
   }
 
+  if(village){
+    /* a river along the foot of the slope, and the channel taken out of it */
+    L.water.appendChild(el("path",{d:path(W.river),fill:"none",stroke:"#6D8892",
+      "stroke-width":W.riverWidth,"stroke-linecap":"round","stroke-linejoin":"round"}));
+    L.water.appendChild(el("path",{d:path(W.river),fill:"none",stroke:"#8DA5AC",
+      "stroke-width":W.riverWidth*0.45,"stroke-linecap":"round",
+      "stroke-linejoin":"round","stroke-opacity":.5}));
+    L.water.appendChild(el("path",{d:path(W.race),fill:"none",stroke:"#8DA5AC",
+      "stroke-width":7,"stroke-linecap":"round","stroke-linejoin":"round"}));
+    L.water.appendChild(el("path",{d:path(W.race),fill:"none",stroke:"#4E7C96",
+      "stroke-width":2.4,"stroke-linecap":"round","stroke-linejoin":"round"}));
+  } else {
   /* ---- the water: the open sea, and the basin cut into it ---- */
   const coast=[];
   for(let s=-R;s<=R;s+=60) coast.push(W.coastOf(s));
@@ -3183,11 +4411,12 @@ function draw(c){
   /* the spit that shelters the mouth */
   L.water.appendChild(el("path",{d:path(W.spit),fill:"none",stroke:"#E7E2CE",
     "stroke-width":3,"stroke-opacity":0}));
+  }
 
   /* ---- the streets, drawn as the ground they take up.
          A street stops at the water like everything else, so each line is broken into
          the runs of it that are on land. ---- */
-  const dry=p=>W.room(p)>S.quayClear*0.35;
+  const dry=p=>village||W.room(p)>S.quayClear*0.35;
   function onLand(pts,closed){
     const list=closed?pts.concat([pts[0]]):pts;
     const runs=[]; let run=[];
@@ -3211,7 +4440,7 @@ function draw(c){
   });
 
   /* ---- the market square itself: the one piece of open paved ground ---- */
-  L.block.appendChild(el("circle",{cx:c.plan.staple[0],cy:c.plan.staple[1],
+  if(!village) L.block.appendChild(el("circle",{cx:c.plan.staple[0],cy:c.plan.staple[1],
     r:S.ring0*0.92,fill:"#D8C9A2",stroke:"#A2947A","stroke-width":4}));
 
   /* ---- the blocks ---- */
@@ -3363,8 +4592,8 @@ function makeView(svg,root,L){
        and the open shore are pulled in afterwards, but only so far: a beacon a mile
        out must not shrink the city to a thumbnail to make room for itself. */
     city.blocks.forEach(b=>b.poly.forEach(eat));
-    city.wall.ring.forEach(eat);
-    city.water.basin.forEach(eat);
+    (city.wall.ring||[]).forEach(eat);
+    (city.water.basin||city.water.river||[]).forEach(eat);
     const cx=(x0+x1)/2, cy=(y0+y1)/2, hw=(x1-x0)/2, hh=(y1-y0)/2;
     city.landmarks.forEach(m=>{
       x0=Math.min(x0,Math.max(m.p[0],cx-hw*1.3)); x1=Math.max(x1,Math.min(m.p[0],cx+hw*1.3));
@@ -3526,6 +4755,25 @@ function fillKey(){
         .map(c=>'<i style="background:'+c+';width:9px;margin:0;border-radius:0"></i>').join("")+
       '</span>0 → 770 A HECTARE<br>';
   }
+  if(city.archetype==="village"){
+    h+='<b>THE ORDER OF THE PLACE</b>';
+    const RK={foot:"#6E8892",first:"#96825E",middle:"#8F8459",high:"#B4894E",
+      temple:"#8E7BA8"};
+    city.RANKS.forEach(r=>{
+      const b=city.byRank[r.key];
+      h+='<i style="background:'+RK[r.key]+'"></i>'+r.name.toUpperCase()+
+        ' <span style="opacity:.6">'+(b?b.houses+' hh':'—')+'</span><br>';
+    });
+    h+='<b>ON THE PLATE</b>'+
+      '<i style="background:#6D8892"></i>THE RIVER<br>'+
+      '<i style="background:#4E7C96"></i>THE HEAD-RACE<br>'+
+      '<i style="background:'+STREET.great+'"></i>THE STAIR &nbsp;'+
+      '<i style="background:'+STREET.ring+'"></i>A RANK WALK<br>'+
+      '<i style="background:'+STREET.minor+'"></i>BUND WALKS<br>'+
+      '<b>KEYS</b>F FABRIC &nbsp; M MODEL &nbsp; A ACCOUNT<br>K KEY &nbsp; ESC OUT';
+    q("cpKey").innerHTML=h;
+    return;
+  }
   h+='<b>ON THE PLATE</b>'+
     '<i style="background:'+STREET.quay+'"></i>QUAY &nbsp;'+
     '<i style="background:'+STREET.great+'"></i>GREAT STREET<br>'+
@@ -3601,6 +4849,8 @@ function fillAccount(force){
   const s=city.stats, st=city.site, doc=city.doctrine;
   const row=(k,v)=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>';
   const pc=n=>Math.round(n/s.population*100)+"%";
+
+  if(city.archetype==="village"){ fillVillageAccount(s,st,row); return; }
 
   let h='<dl class="acct">'+
     row("People",s.population.toLocaleString())+
@@ -3734,10 +4984,159 @@ function fillAccount(force){
 }
 const COMPASS=["east","south-east","south","south-west","west","north-west","north",
   "north-east"];
+/* A village the export does not contain has to account for itself differently: what
+   was read, and then — kept well apart — what was supplied. */
+function fillVillageAccount(s,st,row){
+  const V=city.V;
+  let h='<dl class="acct">'+
+    row("People",s.population.toLocaleString())+
+    row("Households",s.households)+
+    row("Rice terrace",s.paddyHa.toFixed(1)+" ha")+
+    row("Terraces",s.terraces+" of "+V.riser+" m")+
+    row("Paddies",s.paddies.toLocaleString())+
+    row("Head-race",Math.round(s.raceM).toLocaleString()+" m")+
+    row("River to temple",Math.round(s.riseM)+" m of rise")+
+    row("Plots drawn",s.blocks.toLocaleString())+
+    '</dl>';
+
+  h+='<p class="grp">THE ORDER, BY HEIGHT</p><ul class="why">';
+  city.RANKS.forEach(r=>{
+    const b=city.byRank[r.key];
+    h+='<li><b>'+esc(r.name)+(b?' · '+b.houses+' households, '+
+      b.people+' people':' · none')+'</b><span>'+
+      (b?b.lowZ.toFixed(1)+" to "+b.highZ.toFixed(1)+" m above the top bund. ":"")+
+      esc(r.note)+'</span></li>';
+  });
+  h+='</ul>';
+
+  h+='<p class="grp">WHAT THE EXPORT SAYS</p><ul class="why">';
+  const why=[
+    ["River "+st.riverId+" runs "+bear(st.riverBearing)+" at flux "+st.riverFlux,
+     "the largest flow within reach of the cell, and the reason anything is here"],
+    ["The ground rises "+bear(st.upBearing),
+     "height "+st.upHeight+" against "+st.height+" on this cell — the slope the "+
+     "terraces are cut into and the ladder the order is read off"],
+    ["The biome is "+st.biome+", habitability "+A.biomeOf(st.cell).hab,
+     "wet, warm and worth clearing"],
+    ["No road touches this cell",
+     st.roadsHere+" exported road segments — the nearest named place is "+
+     (st.nearestBurg||"nowhere")+" in "+(st.nearestBurgIn||"—")+", "+
+     st.nearestBurgMi.toLocaleString()+" miles off"],
+    ["Its market is "+(st.marketName||"none")+", "+
+     (st.marketDays!=null?Math.round(st.marketDays)+" days away":"unreachable"),
+     Math.round(st.marketMi).toLocaleString()+" effective miles. Nothing grown here "+
+     "travels; it is eaten here"],
+    ["The culture is "+st.culture,
+     "the people the export assigns this ground, in "+st.province+", "+st.state]
+  ];
+  why.forEach(([a,b])=>h+='<li><b>'+esc(a)+'</b><span>'+esc(b)+'</span></li>');
+  h+='</ul>';
+
+  h+='<p class="grp">WHAT THE AUTHOR SUPPLIES</p>'+
+    '<p class="empty">There is no burg on this cell. The village, its name and its '+
+    'religion are invention — set against the readings above, but not read from '+
+    'them.</p><ul class="why">';
+  const made=[
+    ["That there is a village here at all","the export gives 15,303 people spread "+
+      "over ground a hundred miles across and names none of them"],
+    ["Its name, "+city.site.name,"invented; change it in js/adrinem-village.js"],
+    ["Rank is height above the paddies","the one rule the plan is built on. It puts "+
+      "the sluice-keeper at the bottom and the readers at the top, and the section "+
+      "under the model draws every household at the height that decides it"],
+    ["Nothing may stand above the temple","which is why the highest band has a "+
+      "ceiling and holds "+((city.byRank.temple||{}).houses||0)+" households"],
+    [V.feedPerHa+" people to the hectare of wet rice","the figure the population is "+
+      "solved from — "+s.paddyHa.toFixed(1)+" ha feeds "+s.population+
+      ". The land decides how many live here, not the other way about"],
+    ["A hillside of "+(V.slope*100).toFixed(1)+" in a hundred","chosen so a "+
+      V.riser+" m riser gives a workable "+Math.round(city.S.terraceTread)+" m tread"]
+  ];
+  made.forEach(([a,b])=>h+='<li><b>'+esc(a)+'</b><span>'+esc(b)+'</span></li>');
+  h+='</ul>';
+
+  h+='<p class="empty">Press <b>MDL</b> for the model: the same numbers drawn in three '+
+    'dimensions by the kit the survey sheet uses for its street-level plates.</p>';
+  q("cpAcct").innerHTML=h;
+}
+
 function dirOf(deg){
   return deg==null?"nowhere":COMPASS[(Math.round(((deg%360)+360)%360/45))%8];
 }
 function bear(deg){ return deg==null?"nowhere":"to the "+dirOf(deg); }
+
+/* =================================================================================== */
+/*  the model                                                                          */
+/*  The kit that draws it comes from the survey sheet; all this does is fit it, let it  */
+/*  be moved about, and say underneath what has been exaggerated.                       */
+/* =================================================================================== */
+let modelOn=false, mv=null;
+function setModel(on){
+  modelOn=!!on;
+  q("cpModel").classList.toggle("on",modelOn);
+  q("cpModelBtn").setAttribute("aria-pressed",String(modelOn));
+  if(!modelOn||!city||city.archetype!=="village") return;
+  if(!A.model||!A.model.ready()){
+    q("cpModelWrap").innerHTML='<p class="empty" style="padding:20px">The drawing kit '+
+      'did not load, so the model cannot be drawn.</p>';
+    return;
+  }
+  const m=A.model.model(city);
+  if(!m) return;
+  q("cpModelWrap").innerHTML='<svg id="cpModelSvg" xmlns="http://www.w3.org/2000/svg" '+
+    'viewBox="'+m.view.join(" ")+'" preserveAspectRatio="xMidYMid meet">'+m.svg+'</svg>';
+  q("cpModelSect").innerHTML=A.model.section(city);
+  const s=city.stats, V=city.V;
+  q("cpModelCap").innerHTML=
+    '<b>'+esc(city.site.name)+' — the model and the slope</b><br>'+
+    'Drawn from the same numbers as the plan, by the kit the survey sheet uses for its '+
+    'street-level plates. Heights are at '+A.model.VZ+'× the plan scale and nothing '+
+    'else is exaggerated. The hillside falls '+(V.slope*100).toFixed(1)+' in a hundred, '+
+    'so a terrace riser of '+V.riser+' m gives a tread of '+
+    Math.round(city.S.terraceTread)+' m; there are '+s.terraces+' of them. '+
+    'The river is '+Math.round(s.riseM)+' m below the temple, and every household in '+
+    'the section is drawn at the height that decides its rank.';
+  fitModel(m.view);
+}
+function fitModel(view){
+  const wrap=q("cpModelWrap"), svg=q("cpModelSvg");
+  if(!svg) return;
+  let vb=view.slice();
+  const apply=()=>svg.setAttribute("viewBox",vb.join(" "));
+  if(mv) { wrap.removeEventListener("wheel",mv.wheel); wrap.removeEventListener("pointerdown",mv.down); }
+  const toView=(cx,cy)=>{
+    const r=wrap.getBoundingClientRect();
+    /* preserveAspectRatio="meet" letterboxes, so work out the drawn box first */
+    const sc=Math.min(r.width/vb[2],r.height/vb[3]);
+    const dw=vb[2]*sc, dh=vb[3]*sc;
+    return [vb[0]+((cx-r.left)-(r.width-dw)/2)/sc,
+            vb[1]+((cy-r.top)-(r.height-dh)/2)/sc];
+  };
+  const wheel=e=>{
+    e.preventDefault();
+    const k=Math.pow(1.0016,e.deltaY);
+    const [ax,ay]=toView(e.clientX,e.clientY);
+    const nw=Math.max(view[2]*0.06,Math.min(view[2]*2.2,vb[2]*k));
+    const nk=nw/vb[2];
+    vb=[ax-(ax-vb[0])*nk, ay-(ay-vb[1])*nk, vb[2]*nk, vb[3]*nk];
+    apply();
+  };
+  let last=null;
+  const move=e=>{
+    if(!last) return;
+    const r=wrap.getBoundingClientRect();
+    const sc=Math.min(r.width/vb[2],r.height/vb[3]);
+    vb[0]-=(e.clientX-last.x)/sc; vb[1]-=(e.clientY-last.y)/sc;
+    last={x:e.clientX,y:e.clientY}; apply();
+  };
+  const up=()=>{ last=null; wrap.classList.remove("drag");
+    removeEventListener("pointermove",move); removeEventListener("pointerup",up); };
+  const down=e=>{ last={x:e.clientX,y:e.clientY}; wrap.classList.add("drag");
+    addEventListener("pointermove",move); addEventListener("pointerup",up); };
+  wrap.addEventListener("wheel",wheel,{passive:false});
+  wrap.addEventListener("pointerdown",down);
+  mv={wheel:wheel,down:down,reset(){ vb=view.slice(); apply(); }};
+  apply();
+}
 
 /* =================================================================================== */
 /*  open and close                                                                     */
@@ -3750,21 +5149,28 @@ function open(cell){
   /* let the panel paint before the generator takes the thread */
   setTimeout(()=>{
     const t0=performance.now();
-    city=A.city.generate(cell);
+    city=(A.village&&A.village.has(cell))?A.village.build(cell):A.city.generate(cell);
     const ms=Math.round(performance.now()-t0);
     if(!city){ host.classList.remove("on"); return; }
-    const st=city.site;
+    const st=city.site, s=city.stats;
     q("cpName").textContent=st.name;
-    q("cpSub").textContent=
-      st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
-      st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
-      city.stats.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
+    q("cpSub").textContent=city.archetype==="village"
+      ? st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
+        s.population.toLocaleString()+" PEOPLE IN "+s.households+" HOUSEHOLDS · "+
+        s.paddyHa.toFixed(0)+" HA OF TERRACE · "+
+        s.blocks.toLocaleString()+" PLOTS GENERATED IN "+ms+" MS"
+      : st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
+        st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
+        s.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
     draw(city);
+    setModel(false);
+    q("cpModelBtn").style.display=
+      (city.archetype==="village"&&A.model&&A.model.ready())?"":"none";
     fillKey(); acctFor=null; q("cpAcct").innerHTML=""; hideRead();
     if(window.TOUR) window.TOUR.maybePlate();
   },30);
 }
-function close(){ q("cityPlate").classList.remove("on"); }
+function close(){ q("cityPlate").classList.remove("on"); setModel(false); }
 
 function boot(){
   q("cpClose").onclick=close;
@@ -3788,7 +5194,8 @@ function boot(){
   };
   q("cpIn").onclick=()=>view&&view.zoomAt(1.4,innerWidth/2,innerHeight/2);
   q("cpOut").onclick=()=>view&&view.zoomAt(1/1.4,innerWidth/2,innerHeight/2);
-  q("cpRst").onclick=()=>view&&view.fit();
+  q("cpRst").onclick=()=>{ if(modelOn&&mv) mv.reset(); else if(view) view.fit(); };
+  q("cpModelBtn").onclick=()=>setModel(!modelOn);
   /* While the plate is up it owns the keyboard — the world sheet underneath must not
      also act on the key. Caught on the way down, before the sheet's own listener. */
   addEventListener("keydown",e=>{
@@ -3801,12 +5208,18 @@ function boot(){
     else if(k==="k") q("cpKeyBtn").click();
     else if(k==="a") q("cpAcctBtn").click();
     else if(k==="r") q("cpRst").click();
+    else if(k==="m"&&q("cpModelBtn").style.display!=="none") q("cpModelBtn").click();
   },true);
   addEventListener("resize",()=>{ if(view&&q("cityPlate").classList.contains("on")) view.fit(); });
 }
 
 A.cityview={open:open, close:close, boot:boot,
-  has:cell=>{ const b=A.burgOf(cell); return !!(b&&A.portOf(cell)&&A.marketOf(cell)); }};
+  has:cell=>{
+    if(A.village&&A.village.has(cell)) return true;
+    const b=A.burgOf(cell);
+    return !!(b&&A.portOf(cell)&&A.marketOf(cell));
+  },
+  kindAt:cell=>(A.village&&A.village.has(cell))?"village":"city"};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot);
 else boot();
 })();
@@ -3875,12 +5288,14 @@ function btn(label,cls,fn){
 function showCell(i){
   sel=i; selPin=null;
   const burg=A.burgOf(i), mkt=A.marketOf(i), port=A.portOf(i), bio=A.biomeOf(i);
-  q("sNm").textContent = burg ? burg.name : A.isLand(i) ? bio.name : "Open water";
+  const hamlet=A.village&&A.village.nameOf(i);
+  q("sNm").textContent = burg ? burg.name : hamlet ? hamlet
+    : A.isLand(i) ? bio.name : "Open water";
   q("sMeta").textContent = describe(i)+" · CELL "+i;
 
   const code=q("sCode");
   code.textContent = mkt ? "MARKET CENTRE" : burg ? "SETTLEMENT"
-    : A.isLand(i) ? bio.name.toUpperCase() : "SEA";
+    : hamlet ? "VILLAGE" : A.isLand(i) ? bio.name.toUpperCase() : "SEA";
   code.style.background = mkt?"#7A4A22":burg?"#2C2C2A":PAL.biome(bio.name);
   code.style.color = (mkt||burg)?"var(--paper)":"#2C2C2A";
 
@@ -3896,6 +5311,10 @@ function showCell(i){
       (A.cityview&&A.cityview.has(i)?
         " A market on a harbour: the ground under it is drawn on its own plate.":""));
     if(C.riv[i]) lines.push("A river runs through it, carrying "+C.flux[i]+" of flux.");
+    if(hamlet) lines.push("The export names no burg here. "+hamlet+" is a village set "+
+      "on this ground by the author, laid out from what the export does say about it — "+
+      "the river, the slope, the climate and how far it is from anywhere — and drawn "+
+      "on its own plate.");
     if(C.mkt[i]>=0){
       const m=A.marketOf(C.mkt[i]);
       lines.push(C.cost[i]<=0 ? "This is the market itself."
@@ -3913,7 +5332,8 @@ function showCell(i){
 
   const acts=q("sActs"); acts.innerHTML="";
   if(A.cityview&&A.cityview.has(i))
-    acts.appendChild(btn("◉ CITY PLATE","pri",()=>A.cityview.open(i)));
+    acts.appendChild(btn(A.cityview.kindAt(i)==="village"?"◉ VILLAGE PLATE":"◉ CITY PLATE",
+      "pri",()=>A.cityview.open(i)));
   acts.appendChild(btn("⌖ CENTRE","",()=>map.flyTo(C.x[i],C.y[i],Math.max(map.scale,4))));
   if(A.isLand(i)){
     acts.appendChild(btn("→ WAY TO","",()=>setEnd("to",i,true)));
@@ -3981,6 +5401,12 @@ function refreshPins(){
 /* =================================================================================== */
 function index(){
   const out=[];
+  if(A.village) Object.keys(A.village.HAMLETS).forEach(k=>{
+    const cell=+k;
+    out.push({name:A.village.nameOf(cell), sub:"VILLAGE · "+
+      A.provinceOf(cell).toUpperCase()+" · "+A.stateOf(cell).toUpperCase(),
+      cell:cell, zoom:6});
+  });
   A.burgs.forEach(b=>{
     const mkt=A.marketOf(b.cell);
     out.push({name:b.name, sub:(mkt?"MARKET CENTRE · ":"SETTLEMENT · ")+
@@ -4862,10 +6288,11 @@ const ADRINEM_STEPS=[
   "A market centre that is also a harbour carries a <b>◉ CITY PLATE</b> on its note. "+
   "It generates the ground under the dot — streets, quays, blocks, the wall and its "+
   "gates and about thirty named places — in about a third of a second.<br><br>"+
-  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land, or "+
+  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land; "+
   "<b>Rithi</b>, the only through-route in Adrinem, whose road is bent round a "+
-  "sanctuary it may not cross. The plate has a short walk of its own the first time "+
-  "you open one."},
+  "sanctuary it may not cross; or <b>Ourasen</b>, a rice-terrace village on a cell the "+
+  "export names nothing on, which comes with a three-dimensional model. The plate has "+
+  "a short walk of its own the first time you open one."},
 
  {el:".sheetsw", title:"Two sheets",
   body:"This switch moves between Adrinem and <b>NYC 2050</b>, a survey sheet of a New "+
@@ -4910,6 +6337,15 @@ const PLATE_STEPS=[
   "decided.<br><br>Where a city's plan also depends on something the map file does not "+
   "contain — a realm's religion, say — that is listed separately and labelled as the "+
   "author's premise, so the two kinds of claim never get mixed up."},
+
+ {title:"And a village", body:
+  "Not every plate is a city. <b>Ourasen</b> in Boru sits on a cell the export names "+
+  "nothing on at all — its plate is laid out from the river beside it, the slope it "+
+  "climbs and how far it is from anywhere, and everything the export could not supply "+
+  "is listed separately under ACCT as the author's.<br><br>"+
+  "It carries a <b>MDL</b> button the cities do not: the same numbers drawn in three "+
+  "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
+  "section under it putting every household at the height that decides its rank."},
 
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+

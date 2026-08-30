@@ -527,6 +527,24 @@ svg.sect .ax.lft{text-anchor:start}
 @media (max-width:520px){
   .tourcard{width:calc(100vw - 24px)}
 }
+
+/* ---------- the model view --------------------------------------------------------- */
+.cpmodel{position:absolute;inset:0;z-index:2;background:#E7E2CE;display:none;
+  flex-direction:column}
+.cpmodel.on{display:flex}
+.cpmodel .mwrap{flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab}
+.cpmodel .mwrap.drag{cursor:grabbing}
+.cpmodel .mwrap svg{width:100%;height:100%;display:block}
+.cpmodel .msect{flex:0 0 auto;padding:6px 12px 0;background:rgba(250,249,245,.9);
+  border-top:1px solid var(--rule)}
+.cpmodel .msect svg{width:100%;height:auto;max-height:190px;display:block}
+.cpmodel .mcap{flex:0 0 auto;padding:6px 14px 9px;background:rgba(250,249,245,.9);
+  font-family:var(--mono);font-size:9.5px;line-height:1.65;color:var(--muted);
+  letter-spacing:.02em}
+.cpmodel .mcap b{color:var(--ink);font-family:var(--cond);font-size:11.5px;
+  letter-spacing:.03em}
+svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:start;
+  letter-spacing:.04em}
 </style>
 </head>
 <body>
@@ -8265,10 +8283,11 @@ const ADRINEM_STEPS=[
   "A market centre that is also a harbour carries a <b>◉ CITY PLATE</b> on its note. "+
   "It generates the ground under the dot — streets, quays, blocks, the wall and its "+
   "gates and about thirty named places — in about a third of a second.<br><br>"+
-  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land, or "+
+  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land; "+
   "<b>Rithi</b>, the only through-route in Adrinem, whose road is bent round a "+
-  "sanctuary it may not cross. The plate has a short walk of its own the first time "+
-  "you open one."},
+  "sanctuary it may not cross; or <b>Ourasen</b>, a rice-terrace village on a cell the "+
+  "export names nothing on, which comes with a three-dimensional model. The plate has "+
+  "a short walk of its own the first time you open one."},
 
  {el:".sheetsw", title:"Two sheets",
   body:"This switch moves between Adrinem and <b>NYC 2050</b>, a survey sheet of a New "+
@@ -8313,6 +8332,15 @@ const PLATE_STEPS=[
   "decided.<br><br>Where a city's plan also depends on something the map file does not "+
   "contain — a realm's religion, say — that is listed separately and labelled as the "+
   "author's premise, so the two kinds of claim never get mixed up."},
+
+ {title:"And a village", body:
+  "Not every plate is a city. <b>Ourasen</b> in Boru sits on a cell the export names "+
+  "nothing on at all — its plate is laid out from the river beside it, the slope it "+
+  "climbs and how far it is from anywhere, and everything the export could not supply "+
+  "is listed separately under ACCT as the author's.<br><br>"+
+  "It carries a <b>MDL</b> button the cities do not: the same numbers drawn in three "+
+  "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
+  "section under it putting every household at the height that decides its rank."},
 
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+

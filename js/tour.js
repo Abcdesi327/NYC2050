@@ -366,10 +366,11 @@ const ADRINEM_STEPS=[
   "A market centre that is also a harbour carries a <b>◉ CITY PLATE</b> on its note. "+
   "It generates the ground under the dot — streets, quays, blocks, the wall and its "+
   "gates and about thirty named places — in about a third of a second.<br><br>"+
-  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land, or "+
+  "Try <b>Oem'rek</b>, a merchant port whose sister city cannot be reached by land; "+
   "<b>Rithi</b>, the only through-route in Adrinem, whose road is bent round a "+
-  "sanctuary it may not cross. The plate has a short walk of its own the first time "+
-  "you open one."},
+  "sanctuary it may not cross; or <b>Ourasen</b>, a rice-terrace village on a cell the "+
+  "export names nothing on, which comes with a three-dimensional model. The plate has "+
+  "a short walk of its own the first time you open one."},
 
  {el:".sheetsw", title:"Two sheets",
   body:"This switch moves between Adrinem and <b>NYC 2050</b>, a survey sheet of a New "+
@@ -414,6 +415,15 @@ const PLATE_STEPS=[
   "decided.<br><br>Where a city's plan also depends on something the map file does not "+
   "contain — a realm's religion, say — that is listed separately and labelled as the "+
   "author's premise, so the two kinds of claim never get mixed up."},
+
+ {title:"And a village", body:
+  "Not every plate is a city. <b>Ourasen</b> in Boru sits on a cell the export names "+
+  "nothing on at all — its plate is laid out from the river beside it, the slope it "+
+  "climbs and how far it is from anywhere, and everything the export could not supply "+
+  "is listed separately under ACCT as the author's.<br><br>"+
+  "It carries a <b>MDL</b> button the cities do not: the same numbers drawn in three "+
+  "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
+  "section under it putting every household at the height that decides its rank."},
 
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+

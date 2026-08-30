@@ -406,6 +406,77 @@ where the plan is struck from, what the rules say may stand where, and what gets
 Adding a third archetype is those three things and nothing else.
 
 
+
+### A village the export does not contain: Ourasen
+
+The two city plates lay out places the map file names. Cell 1308 names nothing: no burg,
+no market, no road, and 15,303 people spread over ground a hundred miles across. So
+**Ourasen** is invention — but invention constrained by the same readings, in the same
+order, and the plate keeps the two kinds of claim apart under **ACCT**.
+
+**What the export says**
+
+| Reading | What it decides |
+| --- | --- |
+| Neighbour 1307 carries river 206 at flux 415, bearing 158 | the largest flow within reach, and the reason anything is here |
+| h23 on the cell, h31 at neighbour 1394 on bearing 25 | the slope the terraces are cut into, rising north-east |
+| Tropical seasonal forest, habitability 50 | wet, warm and worth clearing |
+| No exported road segment touches the cell | there is a ford and no bridge |
+| 1,338 effective miles to Str'amar — 53 days | nothing grown here travels; it is eaten here |
+| The culture is GODLINGS, in Ouro, Boru | whose the temple is |
+
+Water off a river that size, on a slope of that aspect, in that climate, is a wet-rice
+terrace. Everything else follows from that.
+
+**What the author supplies** — listed as such on the plate: that there is a village here
+at all, its name, and one rule — **rank is height above the paddies**.
+
+That rule does the work. A weir takes water off the river and a head-race carries it
+along the contour, because a channel that must fall 0.4 m in a hundred cannot cross a
+hillside that falls 6.2; it reaches the top bund and every terrace below is fed from it
+in turn. The 0.45 m riser the terraces are built to gives a 7 m tread on that slope, so
+there are **71 terraces cut into 1,753 paddies over 45 hectares**. And the population is
+not chosen: at 6.2 people to the hectare of wet rice, that ground feeds **280 people in
+55 households**, and the households are placed to fit them.
+
+Then the rule sorts them by height:
+
+| | Households | People | Above the top bund |
+| --- | --- | --- | --- |
+| The Water-Foot | 8 | 40 | −7 to −4 m |
+| The First Bund | 23 | 115 | +2 to +7 m |
+| The Middle Ground | 10 | 57 | +7 to +13 m |
+| The High Ground | 10 | 49 | +14 to +21 m |
+| The Temple Terrace | 5 | 19 | +21 to +29 m |
+
+The sluice-keeper lives at the Water-Foot, which by the rule puts him at the bottom of
+the order and by the fact of the hillside puts every household above him downstream of
+what he does each morning. The village has never resolved this and the plate does not
+either.
+
+### The model — the survey sheet's kit, carried across
+
+NYC 2050 draws in three dimensions twice: the street-level plates, built from a kit of
+masonry, glazing and growth primitives in `js/sv-kit.js`, and the throw-line section in
+the projection console, which takes block footprints and their real heights and returns
+a drawn elevation. **That kit reads no New York data at all**, so it is loaded on the
+Adrinem sheet unchanged and `js/adrinem-model.js` adds to it what a hillside village
+needs and Manhattan did not: terraces, timber frames, thatch, stilts and a stone plinth.
+
+Press **MDL** on Ourasen's plate for two drawings, both off the same numbers as the plan:
+
+* **The model** — an axonometric of the whole village, painted back to front: the river,
+  the hillside, 1,753 flooded terraces lowest-first, the head-race holding its contour,
+  the grove, the houses, and the temple last. Houses are timber on stilts over a stone
+  footing, and the share of stone rises with the holding, so the oldest and highest are
+  the stoniest. The temple is the only masonry of any size — three stone steps, a timber
+  hall on a colonnade, and a roof in two falls. Drag and scroll to move about it.
+* **The section** — the throw-line elevation pointed up a hillside: the river at one end,
+  the temple at the other, every terrace riser at its true height, the rank boundaries
+  ruled across, and **every household drawn at the height that decides its rank**.
+
+Heights are at 3× the plan scale and nothing else is exaggerated; the caption says so.
+
 ## Finding your way round either sheet
 
 Both sheets carry a great deal and almost none of it announces itself, so each opens
@@ -466,7 +537,9 @@ js/adrinem-map.js      the plate renderer and the view state
 js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
 js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names,
                        both archetypes, and the doctrine table
-js/adrinem-cityview.js the city plate viewer
+js/adrinem-cityview.js the city and village plate viewer
+js/adrinem-village.js  the village generator: river, race, terraces, ranks
+js/adrinem-model.js    the axonometric and the slope section, on the survey sheet's kit
 js/tour.js             the guided walk, and the step scripts for both sheets
 tools/pack_adrinem.py  the exports -> js/adrinem-data.js
 
