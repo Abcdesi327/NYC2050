@@ -514,6 +514,71 @@ badly it suffers when the water stops, what a people can do about the supernatur
 invented to be plausible and internally consistent, and they are in three named tables at
 the top of `js/adrinem-sim.js` where they can be argued with.
 
+## The same question at plate scale
+
+The world console asks what a hazard does to a continent. The plate console asks what one
+does to **one place**, and it has a better answer than any other scale in this project,
+because a plate has something a continent does not: exactly one line it lives on.
+
+| | |
+| --- | --- |
+| **Ourasen** | the head-race — water, and it runs one way, downhill from a weir |
+| **Oem'rek** | the Long Quay — everything the province sells |
+| **Rithi** | the Through-Way — a third of the continent's overland trade |
+
+Open any plate and press **SIM**, or **S**. A village gets seven hazards and a city five.
+Every plot is scored on three things the plan already knew about it: **what it is made
+of**, how many **storeys** it carries, and — at Ourasen — **how high up the hill it
+stands**. Stone helps against fire and hurts under a shock, thatch does the reverse, and a
+flooded terrace will not burn at all, so the same event runs through a place in a
+different order depending on what the place is built from. A force-8 shock at Rithi takes
+132 of 132 sanctuary blocks and leaves a green rim of single-storey ground at the
+periphery; the sanctuary is the most exposed thing on the plate precisely because it is
+the only thing built properly.
+
+### And then what stopped working
+
+The run breaks the line in places, and the plan draws the break in red with the stretch
+beyond it dashed. At a city that closes the crossing or stops the berths behind it. At a
+village the reading is directional, and this is the whole point of the exercise:
+
+> Water runs one way. **Every terrace drawn from beyond the first break goes dry, however
+> far from the damage it is.** Those terraces are coloured separately from the damage —
+> they are not damaged, nothing touched them.
+
+And because Ourasen's 280 people were *solved* from what its terraces feed — 45.2 ha at
+6.2 people to the hectare — hectares lost convert straight back into people the place can
+no longer keep:
+
+| At Ourasen (1,809 plots, 55 houses, 280 people) | Plots hit | Killed | Race | Terraces dry | It can feed |
+| --- | --- | --- | --- | --- | --- |
+| Fire, wind 55, 90% dry | 3–56 | 3–140 | holds | 0 | **280 of 280** |
+| The hillside goes, full depth | 391 | 3 | cut 62% | 682 | **109 of 280** |
+| The river up 6 m, four days | 270 | 0 | cut at the weir | 1,753 | **0 of 280** |
+| Earth shock, force 7 | 1,809 | 42 | cut 13% | 1,698 | **9 of 280** |
+| **The waters refuse, at 35%** | **0** | **0** | cut 34% | 1,318 | **70 of 280** |
+
+The last row is the one to look at. It burns nothing, breaks nothing and hurts nobody —
+and it empties three quarters of the village. The fire is the opposite case: at its worst
+it kills 140 people, every household on the plate, and leaves the village's living
+entirely intact, because a flooded paddy does not burn and the terraces are nineteen plots
+in twenty. And the spate is a third case again: it takes 270 plots and kills nobody, but
+it goes over **the weir**, which stands in the river at the bottom of a hill whose houses
+it never reaches — and with the weir gone the whole hillside has no water at all.
+
+The fire's range is not noise. Run it from each of the 55 houses in turn and it behaves
+like a percolation problem: at wind 15 and 50% dryness it takes a mean of 3 plots and
+never more than 10; at 35 and 75% the mean is 19 and the worst case is 52; at 70 and 95%
+the mean is 51 and it has taken every house from most starts. Between those, **where it
+starts matters more than the weather does**.
+
+The states are carried into the axonometric model and its section as well, so **MDL** on
+a village shows the same run in three dimensions — every house washed with what is left
+of it, standing on terraces coloured by whether they still have water.
+
+The vulnerability tables are invented, like the world sheet's, and they are in one place:
+the top of `js/adrinem-plate-sim.js`.
+
 ## Finding your way round either sheet
 
 Both sheets carry a great deal and almost none of it announces itself, so each opens
@@ -534,9 +599,10 @@ the box and shows you the results. Nothing is described that is not also shown. 
   by, the layers, the seven contingency projections and the two halves of what they
   report, the way-finder and what it does when there is no way, the reach, the index and
   the account, marks, and where the city plates are.
-* **A city plate** — six, run the first time you open one: reading a block and a named
+* **A city plate** — eight, run the first time you open one: reading a block and a named
   place, colouring the fabric, the key, the account and its separation of what the
-  export says from what an author's premise says, and why the two archetypes differ.
+  export says from what an author's premise says, the projection console and the two
+  halves of what it reports, and why the two archetypes differ.
 
 `localStorage` remembers that you have seen each of them. `TOUR.reset()` in the console
 puts them back.
@@ -577,6 +643,7 @@ js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, name
 js/adrinem-cityview.js the city and village plate viewer
 js/adrinem-village.js  the village generator: river, race, terraces, ranks
 js/adrinem-model.js    the axonometric and the slope section, on the survey sheet's kit
+js/adrinem-plate-sim.js  seven hazards at plate scale, and the line each plate lives on
 js/tour.js             the guided walk, and the step scripts for both sheets
 tools/pack_adrinem.py  the exports -> js/adrinem-data.js
 
@@ -618,6 +685,11 @@ something — without that, a grid produces a staircase, because every zigzag
 between two points on a lattice is exactly the same length.
 
 ## Adding a hazard
+
+There are now three hazard tables and they are independent: `js/sim.js` (New York, six),
+`js/adrinem-sim.js` (Adrinem's continent, seven) and `js/adrinem-plate-sim.js` (one plate,
+seven — each declaring the archetypes it applies to in a `plates:` list, so a landslide
+offers itself on a hillside village and not in a walled city on flat ground).
 
 `HAZARDS` in `js/sim.js` holds the six. A hazard is a name, a blurb, a list of
 slider parameters, whether it needs a point on the sheet, and a `focus` zoom.

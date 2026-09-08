@@ -600,6 +600,45 @@ svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:s
 #projTime .log .start{color:var(--muted)}
 #projTime .log .loss{color:var(--z1)}
 #projTime .counts .sep{display:inline-block;width:5px}
+
+/* ---------- the projection console on a plate -------------------------------------- */
+.cpsim{z-index:46}
+.cpline{z-index:46}
+#cpSimHazards .hkind{margin:9px 0 4px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;color:var(--muted)}
+#cpSimHazards .hkind:first-child{margin-top:0}
+#cpSimHazards .hrow{display:flex;flex-wrap:wrap;gap:5px}
+#cpSimReport .rep-h{margin:13px 0 5px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--rule);
+  padding-bottom:4px}
+#cpSimReport .rep-note{font-size:12.5px;line-height:1.55;color:#44443F;margin:12px 0 0;
+  padding:10px 11px;background:#F2F0E7;border-radius:9px}
+#cpSimTime .counts i{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin:0 3px 0 7px;vertical-align:-1px}
+#cpSimTime .counts .sep{display:inline-block;width:5px}
+#cpSimTime .counts .dd{margin-left:10px;color:var(--z1)}
+#cpSimTime .log .loss{color:var(--z1)}
+#cpSimTime .log .start{color:var(--muted)}
+/* The line the plate lives on, traced over whatever the plan already drew there — a
+   channel at a village, a quay or a road at a city — so the strokes are given in pixels
+   and held there at every zoom. */
+#cpMap .lifeline{fill:none;stroke:#2C2C2A;stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:1 7;stroke-opacity:.55;vector-effect:non-scaling-stroke}
+#cpMap .lifecut{fill:none;stroke:#8F2222;stroke-width:11;stroke-linecap:round;
+  vector-effect:non-scaling-stroke}
+/* the stretch beyond the first break, which carries nothing however sound it looks */
+#cpMap .lifedead{fill:none;stroke:#8F2222;stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:9 8;stroke-opacity:.8;vector-effect:non-scaling-stroke}
+#cpMap .cpick circle{fill:none;stroke:#8F2222;stroke-width:2.6;stroke-opacity:.95;
+  vector-effect:non-scaling-stroke}
+@media (max-width:620px){
+  /* the console takes the whole screen at this width, so the scrubber waits behind it
+     rather than sitting across the report; close the console and it is there */
+  .cpsim.on ~ .cpline{z-index:44}
+}
+#cpStage.picking{cursor:crosshair}
+#cpStage.picking::after{content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 3px rgba(143,34,34,.5)}
 </style>
 </head>
 <body>
@@ -7392,6 +7431,30 @@ const PLATE_STEPS=[
   "It carries a <b>MDL</b> button the cities do not: the same numbers drawn in three "+
   "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
   "section under it putting every household at the height that decides its rank."},
+
+ {title:"SIM — what happens to this place", wait:420,
+  spot:()=>union("#cpSimBtn","#cpSimPanel"),
+  before(){ toggle("cpSimBtn",true); }, after(){ toggle("cpSimBtn",false); },
+  body:"The world sheet's projection console, pointed at one plate. Choose a hazard — "+
+  "flood, fire, an earth shock, a hillside going, a dragon, a blood tide, or the "+
+  "waters simply refusing — set what it does, put it somewhere if it needs a place, "+
+  "and run it. Press <b>S</b> for the same thing.<br><br>"+
+  "Every plot is scored on what it is <b>made of</b>, how many <b>storeys</b> it "+
+  "carries and how <b>high up the hill</b> it stands, so a stone sanctuary and a "+
+  "thatched house on stilts come out of a fire and out of a shock in opposite orders."},
+
+ {title:"And then what stopped working", body:
+  "The report is in two halves and the second is the one to read. Every plate is built "+
+  "on exactly one line — Ourasen's <b>head-race</b>, Oem'rek's <b>Long Quay</b>, "+
+  "Rithi's <b>Through-Way</b> — and the run breaks it in places.<br><br>"+
+  "At a village the water runs one way, so <b>every terrace drawn from beyond the "+
+  "first break goes dry however far from the damage it is</b>. Those terraces are "+
+  "coloured separately from the damage, because nothing touched them. And because "+
+  "Ourasen's people were worked out from what its terraces feed, hectares lost convert "+
+  "straight back into <b>people the place can no longer keep</b> — usually a far larger "+
+  "number than the event killed.<br><br>"+
+  "Try <b>REFUSE</b>: it burns nothing, breaks nothing and hurts nobody, and it still "+
+  "empties two thirds of the village."},
 
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+
