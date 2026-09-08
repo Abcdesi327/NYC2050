@@ -511,8 +511,10 @@ function fillKey(){
     swatch(PAL.road.trail)+'TRAIL<br>'+
     swatch(PAL.river)+'RIVER, THICKENED BY FLUX<br>'+
     swatch("#7A3E8F")+'YOUR MARKS AND ANY WAY FOUND'+
+    '<b>PROJECTION</b>'+
+    A.sim.STATES.map(st=>swatch(st[2])+st[0]).join("<br>")+'<br>'+
     '<b>KEYS</b>/ SEARCH &nbsp; G GROUND &nbsp; K KEY<br>'+
-    'W WAY &nbsp; P PIN &nbsp; B INDEX &nbsp; R ROADS<br>ESC OUT';
+    'S SIM &nbsp; W WAY &nbsp; P PIN &nbsp; B INDEX<br>R ROADS &nbsp; ESC OUT';
   q("key").innerHTML=h;
 }
 function ramp(list,lo,hi){
@@ -532,6 +534,10 @@ function boot(){
       if(pinMode){ dropMark(x,y); setPin(false); return; }
       if(pickFor){ if(!A.isLand(cell)){ toast("That end is in the water"); return; }
         setEnd(pickFor,cell); setPick(null); return; }
+      if(A.projui&&A.projui.pickActive){
+        if(!A.isLand(cell)){ toast("Put it on land"); return; }
+        A.projui.setPoint(cell); return;
+      }
       if(cell>=0) showCell(cell);
     },
     onBurg(b){ showCell(b.cell); },
@@ -593,6 +599,10 @@ function boot(){
   q("tabIndex").onclick=()=>openDrawer("index");
   q("tabMarks").onclick=()=>openDrawer("marks");
   q("tabAccount").onclick=()=>openDrawer("account");
+  if(A.projui){
+    A.projui.init(map);
+    q("projBtn").onclick=()=>A.projui.isOpen()?A.projui.close():A.projui.open();
+  }
   q("wayBtn").onclick=()=>q("wayPanel").classList.contains("on")?closeWay():openWay();
   q("wayClose").onclick=closeWay;
   q("reachBtn").onclick=()=>{
@@ -676,11 +686,13 @@ function boot(){
     else if(k==="g") q("grndBtn").click();
     else if(k==="k") q("keyBtn").click();
     else if(k==="w") q("wayBtn").click();
+    else if(k==="s"&&A.projui) q("projBtn").click();
     else if(k==="p") q("pinBtn").click();
     else if(k==="b") q("listBtn").click();
     else if(k==="r") q("rdBtn").click();
     else if(e.key==="Escape"){
       closeSheet(); closeDrawer(); closeWay(); setPin(false); setPick(null);
+      if(A.projui) A.projui.close();
       q("key").classList.remove("on"); q("keyBtn").setAttribute("aria-pressed","false");
     }
   });
