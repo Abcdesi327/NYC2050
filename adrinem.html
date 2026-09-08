@@ -46,6 +46,7 @@
   <button id="rivBtn" class="sm" aria-pressed="true" aria-label="Toggle rivers">RIV</button>
   <button id="brdBtn" class="sm" aria-pressed="true" aria-label="Toggle realm and province marches">BRD</button>
   <button id="grtBtn" class="sm" aria-pressed="false" aria-label="Toggle the graticule">GRT</button>
+  <button id="projBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
   <button id="wayBtn" class="sm" aria-pressed="false" aria-label="Find a way across">WAY</button>
   <button id="reachBtn" class="sm" aria-pressed="false" aria-label="Cast a reach">RCH</button>
   <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
@@ -72,6 +73,34 @@
     <button id="mkPaste">IMPORT</button>
     <button id="mkClear">CLEAR</button>
   </div>
+</div>
+
+<div class="simp" id="projPanel">
+  <header>
+    <h2>Contingency projection</h2>
+    <button id="projClose" aria-label="Close the console">&times;</button>
+  </header>
+  <div class="body">
+    <div id="projHazards"></div>
+    <p class="hname" id="projName"></p>
+    <p class="blurb" id="projBlurb"></p>
+    <div id="projParams"></div>
+    <div class="pointrow" id="projPointRow">
+      <button id="projPick" aria-pressed="false">SET POINT</button>
+      <span id="projPointRef"></span>
+    </div>
+    <button id="projRun" class="run">RUN PROJECTION</button>
+    <div id="projReport"></div>
+  </div>
+</div>
+
+<div class="timeline" id="projTime">
+  <button id="projPlay" aria-label="Play the projection">&#9654;</button>
+  <input type="range" id="projScrub" min="1" max="12" value="12" aria-label="Month">
+  <span class="hh" id="projMonth">MONTH 12</span>
+  <span class="counts" id="projCounts"></span>
+  <button id="projReset" class="txt">CLEAR</button>
+  <div class="log" id="projLog"></div>
 </div>
 
 <div class="simp rtp" id="wayPanel">
@@ -162,6 +191,8 @@
 <script src="js/adrinem-world.js"></script>
 <script src="js/adrinem-route.js"></script>
 <script src="js/adrinem-map.js"></script>
+<script src="js/adrinem-sim.js"></script>
+<script src="js/adrinem-sim-ui.js"></script>
 <script src="js/sv-kit.js"></script>
 <script src="js/adrinem-city.js"></script>
 <script src="js/adrinem-village.js"></script>

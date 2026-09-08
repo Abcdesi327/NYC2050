@@ -583,6 +583,23 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
   letter-spacing:.03em}
 svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:start;
   letter-spacing:.04em}
+
+/* ---------- the Adrinem projection console ----------------------------------------- */
+#projHazards .hkind{margin:9px 0 4px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;color:var(--muted)}
+#projHazards .hkind:first-child{margin-top:0}
+#projHazards .hrow{display:flex;flex-wrap:wrap;gap:5px}
+#projReport .rep-h{margin:13px 0 5px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--rule);
+  padding-bottom:4px}
+#projReport .rep-note{font-size:12.5px;line-height:1.55;color:#44443F;margin:12px 0 0;
+  padding:10px 11px;background:#F2F0E7;border-radius:9px}
+#projTime .counts i{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin:0 3px 0 7px;vertical-align:-1px}
+#projTime .counts .dd{margin-left:10px;color:var(--z1)}
+#projTime .log .start{color:var(--muted)}
+#projTime .log .loss{color:var(--z1)}
+#projTime .counts .sep{display:inline-block;width:5px}
 </style>
 </head>
 <body>
@@ -7257,6 +7274,27 @@ const ADRINEM_STEPS=[
   "province marches. <b>GRT</b> a graticule, off the longitude and latitude the export "+
   "carried."},
 
+ {title:"SIM — contingency projections", wait:380,
+  spot:()=>union("#projBtn","#projPanel"),
+  before(){ panel("projBtn","projPanel",true); },
+  body:"Seven hazards over twelve months across the cell field. Four natural — a long "+
+  "drought, a river in spate, a pestilence, a firestorm — and three that are not: a "+
+  "dragon out of the Coves, the blood tide, and a riving of the land.<br><br>"+
+  "Choose one, set its sliders, put it somewhere if it needs a somewhere, and run it. "+
+  "The sheet recolours to the outcome and the scrubber along the bottom walks the "+
+  "twelve months."},
+
+ {title:"What a projection reports", wait:240,
+  spot:()=>union("#projPanel"),
+  after(){ panel("projBtn","projPanel",false); },
+  body:"Two halves, and the second is the point. <b>What it took</b> — ground, people, "+
+  "burgs. <b>What stopped working</b> — the router run again over the ground that is "+
+  "left, giving market pairs that can no longer reach each other, ground that has lost "+
+  "the market that fed it, and how many days further the food now travels.<br><br>"+
+  "The two are not the same thing said twice. A drought empties places without cutting "+
+  "between them and all 92 reachable market pairs hold; a riving across Rithi kills far "+
+  "fewer people and takes 53 of those 92 away."},
+
  {title:"WAY — find a way across", wait:340,
   spot:()=>union("#wayBtn","#wayPanel"),
   before(){ panel("wayBtn","wayPanel",true); },
@@ -7306,8 +7344,9 @@ const ADRINEM_STEPS=[
   "York left to the water. It has a walk of its own."},
 
  {title:"Keys", body:
-  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>W</b> way<br>"+
-  "<b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads &nbsp; <b>Esc</b> out."+
+  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>S</b> sim<br>"+
+  "<b>W</b> way &nbsp; <b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads<br>"+
+  "<b>Esc</b> out."+
   "<br><br>"+RAIL+" The <b>?</b> at the bottom of it starts this walk again whenever "+
   "you want it."}
 ];

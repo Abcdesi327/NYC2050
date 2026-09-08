@@ -575,3 +575,20 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
   letter-spacing:.03em}
 svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:start;
   letter-spacing:.04em}
+
+/* ---------- the Adrinem projection console ----------------------------------------- */
+#projHazards .hkind{margin:9px 0 4px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;color:var(--muted)}
+#projHazards .hkind:first-child{margin-top:0}
+#projHazards .hrow{display:flex;flex-wrap:wrap;gap:5px}
+#projReport .rep-h{margin:13px 0 5px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--rule);
+  padding-bottom:4px}
+#projReport .rep-note{font-size:12.5px;line-height:1.55;color:#44443F;margin:12px 0 0;
+  padding:10px 11px;background:#F2F0E7;border-radius:9px}
+#projTime .counts i{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin:0 3px 0 7px;vertical-align:-1px}
+#projTime .counts .dd{margin-left:10px;color:var(--z1)}
+#projTime .log .start{color:var(--muted)}
+#projTime .log .loss{color:var(--z1)}
+#projTime .counts .sep{display:inline-block;width:5px}

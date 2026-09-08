@@ -328,6 +328,27 @@ const ADRINEM_STEPS=[
   "province marches. <b>GRT</b> a graticule, off the longitude and latitude the export "+
   "carried."},
 
+ {title:"SIM — contingency projections", wait:380,
+  spot:()=>union("#projBtn","#projPanel"),
+  before(){ panel("projBtn","projPanel",true); },
+  body:"Seven hazards over twelve months across the cell field. Four natural — a long "+
+  "drought, a river in spate, a pestilence, a firestorm — and three that are not: a "+
+  "dragon out of the Coves, the blood tide, and a riving of the land.<br><br>"+
+  "Choose one, set its sliders, put it somewhere if it needs a somewhere, and run it. "+
+  "The sheet recolours to the outcome and the scrubber along the bottom walks the "+
+  "twelve months."},
+
+ {title:"What a projection reports", wait:240,
+  spot:()=>union("#projPanel"),
+  after(){ panel("projBtn","projPanel",false); },
+  body:"Two halves, and the second is the point. <b>What it took</b> — ground, people, "+
+  "burgs. <b>What stopped working</b> — the router run again over the ground that is "+
+  "left, giving market pairs that can no longer reach each other, ground that has lost "+
+  "the market that fed it, and how many days further the food now travels.<br><br>"+
+  "The two are not the same thing said twice. A drought empties places without cutting "+
+  "between them and all 92 reachable market pairs hold; a riving across Rithi kills far "+
+  "fewer people and takes 53 of those 92 away."},
+
  {title:"WAY — find a way across", wait:340,
   spot:()=>union("#wayBtn","#wayPanel"),
   before(){ panel("wayBtn","wayPanel",true); },
@@ -377,8 +398,9 @@ const ADRINEM_STEPS=[
   "York left to the water. It has a walk of its own."},
 
  {title:"Keys", body:
-  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>W</b> way<br>"+
-  "<b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads &nbsp; <b>Esc</b> out."+
+  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>S</b> sim<br>"+
+  "<b>W</b> way &nbsp; <b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads<br>"+
+  "<b>Esc</b> out."+
   "<br><br>"+RAIL+" The <b>?</b> at the bottom of it starts this walk again whenever "+
   "you want it."}
 ];

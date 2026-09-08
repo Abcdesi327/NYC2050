@@ -73,7 +73,7 @@ function init(opts){
   const svg=opts.svg, stage=opts.stage;
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
-  ["sea","ground","reach","grat","river","march","coast","road","route",
+  ["sea","ground","proj","reach","grat","river","march","coast","road","haz","route",
    "burg","pin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
@@ -310,6 +310,51 @@ function init(opts){
   }
   function clearRoute(){ clear(L.route); }
 
+  /* --- a projection: the sheet recoloured to what a hazard did ------------------ */
+  function drawProjection(frame){
+    clear(L.proj);
+    if(!frame) return;
+    const d=outlines(), S=A.sim.STATES, by=S.map(()=>[]);
+    for(let i=0;i<A.count;i++){
+      const ix=frame.state[i];
+      if(ix===255||ix===S.length-1) continue;      /* water, and ground still held */
+      by[ix].push(d[i]);
+    }
+    by.forEach((frags,ix)=>{
+      if(!frags.length) return;
+      L.proj.appendChild(el("path",{d:frags.join(""),fill:S[ix][2],
+        "fill-opacity":.86,"shape-rendering":"crispEdges"}));
+    });
+    /* ground that has stopped being ground at all */
+    const gone=[];
+    for(let i=0;i<A.count;i++) if(frame.drowned&&frame.drowned[i]) gone.push(d[i]);
+    if(gone.length) L.proj.appendChild(el("path",{d:gone.join(""),fill:PAL.deep,
+      stroke:"#3A4A52","stroke-width":.8,"shape-rendering":"crispEdges"}));
+  }
+  function clearProjection(){ clear(L.proj); clear(L.haz); }
+
+  /* --- the shape of the event itself, over the top ------------------------------- */
+  function drawHazard(geom){
+    clear(L.haz);
+    if(!geom) return;
+    if(geom.line){
+      const g=geom.line;
+      L.haz.appendChild(el("path",{d:"M"+g.x1+" "+g.y1+"L"+g.x2+" "+g.y2,fill:"none",
+        stroke:"#FAF9F5","stroke-width":g.w+3,"stroke-opacity":.5,
+        "stroke-linecap":"round"}));
+      L.haz.appendChild(el("path",{d:"M"+g.x1+" "+g.y1+"L"+g.x2+" "+g.y2,fill:"none",
+        stroke:g.colour||"#8F2222","stroke-width":g.w,"stroke-opacity":.75,
+        "stroke-linecap":"round"}));
+    }
+    if(geom.at!=null){
+      const x=C.x[geom.at], y=C.y[geom.at];
+      L.haz.appendChild(el("circle",{cx:x,cy:y,r:6,fill:"none",stroke:"#FAF9F5",
+        "stroke-width":4.5,"vector-effect":"non-scaling-stroke"}));
+      L.haz.appendChild(el("circle",{cx:x,cy:y,r:6,fill:"none",stroke:"#8F2222",
+        "stroke-width":2.2,"vector-effect":"non-scaling-stroke"}));
+    }
+  }
+
   /* --- a reach: everything within so many days of one place --- */
   function drawReach(dist,bands){
     clear(L.reach);
@@ -389,6 +434,8 @@ function init(opts){
     highlight:highlight, clearHighlight:clearHighlight,
     drawRoute:drawRoute, clearRoute:clearRoute,
     drawReach:drawReach, clearReach:clearReach,
+    drawProjection:drawProjection, clearProjection:clearProjection,
+    drawHazard:drawHazard,
     renderPins:renderPins,
     modes:MODES,
     setMode(m){ if(!MODES[m]) return; mode=m; paintGround(); },

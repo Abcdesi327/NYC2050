@@ -583,6 +583,23 @@ ul.why span{display:block;font-family:var(--mono);font-size:9px;color:var(--mute
   letter-spacing:.03em}
 svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:start;
   letter-spacing:.04em}
+
+/* ---------- the Adrinem projection console ----------------------------------------- */
+#projHazards .hkind{margin:9px 0 4px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;color:var(--muted)}
+#projHazards .hkind:first-child{margin-top:0}
+#projHazards .hrow{display:flex;flex-wrap:wrap;gap:5px}
+#projReport .rep-h{margin:13px 0 5px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--rule);
+  padding-bottom:4px}
+#projReport .rep-note{font-size:12.5px;line-height:1.55;color:#44443F;margin:12px 0 0;
+  padding:10px 11px;background:#F2F0E7;border-radius:9px}
+#projTime .counts i{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin:0 3px 0 7px;vertical-align:-1px}
+#projTime .counts .dd{margin-left:10px;color:var(--z1)}
+#projTime .log .start{color:var(--muted)}
+#projTime .log .loss{color:var(--z1)}
+#projTime .counts .sep{display:inline-block;width:5px}
 </style>
 </head>
 <body>
@@ -624,6 +641,7 @@ svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:s
   <button id="rivBtn" class="sm" aria-pressed="true" aria-label="Toggle rivers">RIV</button>
   <button id="brdBtn" class="sm" aria-pressed="true" aria-label="Toggle realm and province marches">BRD</button>
   <button id="grtBtn" class="sm" aria-pressed="false" aria-label="Toggle the graticule">GRT</button>
+  <button id="projBtn" class="sm" aria-pressed="false" aria-label="Contingency projections">SIM</button>
   <button id="wayBtn" class="sm" aria-pressed="false" aria-label="Find a way across">WAY</button>
   <button id="reachBtn" class="sm" aria-pressed="false" aria-label="Cast a reach">RCH</button>
   <button id="pinBtn" class="sm" aria-pressed="false" aria-label="Drop a mark">PIN</button>
@@ -650,6 +668,34 @@ svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:s
     <button id="mkPaste">IMPORT</button>
     <button id="mkClear">CLEAR</button>
   </div>
+</div>
+
+<div class="simp" id="projPanel">
+  <header>
+    <h2>Contingency projection</h2>
+    <button id="projClose" aria-label="Close the console">&times;</button>
+  </header>
+  <div class="body">
+    <div id="projHazards"></div>
+    <p class="hname" id="projName"></p>
+    <p class="blurb" id="projBlurb"></p>
+    <div id="projParams"></div>
+    <div class="pointrow" id="projPointRow">
+      <button id="projPick" aria-pressed="false">SET POINT</button>
+      <span id="projPointRef"></span>
+    </div>
+    <button id="projRun" class="run">RUN PROJECTION</button>
+    <div id="projReport"></div>
+  </div>
+</div>
+
+<div class="timeline" id="projTime">
+  <button id="projPlay" aria-label="Play the projection">&#9654;</button>
+  <input type="range" id="projScrub" min="1" max="12" value="12" aria-label="Month">
+  <span class="hh" id="projMonth">MONTH 12</span>
+  <span class="counts" id="projCounts"></span>
+  <button id="projReset" class="txt">CLEAR</button>
+  <div class="log" id="projLog"></div>
 </div>
 
 <div class="simp rtp" id="wayPanel">
@@ -1301,7 +1347,7 @@ function init(opts){
   const svg=opts.svg, stage=opts.stage;
   const gRoot=el("g",{}); svg.appendChild(gRoot);
   const L={};
-  ["sea","ground","reach","grat","river","march","coast","road","route",
+  ["sea","ground","proj","reach","grat","river","march","coast","road","haz","route",
    "burg","pin","halo","lab"].forEach(k=>{L[k]=el("g",{}); gRoot.appendChild(L[k]);});
 
   const defs=el("defs",{});
@@ -1538,6 +1584,51 @@ function init(opts){
   }
   function clearRoute(){ clear(L.route); }
 
+  /* --- a projection: the sheet recoloured to what a hazard did ------------------ */
+  function drawProjection(frame){
+    clear(L.proj);
+    if(!frame) return;
+    const d=outlines(), S=A.sim.STATES, by=S.map(()=>[]);
+    for(let i=0;i<A.count;i++){
+      const ix=frame.state[i];
+      if(ix===255||ix===S.length-1) continue;      /* water, and ground still held */
+      by[ix].push(d[i]);
+    }
+    by.forEach((frags,ix)=>{
+      if(!frags.length) return;
+      L.proj.appendChild(el("path",{d:frags.join(""),fill:S[ix][2],
+        "fill-opacity":.86,"shape-rendering":"crispEdges"}));
+    });
+    /* ground that has stopped being ground at all */
+    const gone=[];
+    for(let i=0;i<A.count;i++) if(frame.drowned&&frame.drowned[i]) gone.push(d[i]);
+    if(gone.length) L.proj.appendChild(el("path",{d:gone.join(""),fill:PAL.deep,
+      stroke:"#3A4A52","stroke-width":.8,"shape-rendering":"crispEdges"}));
+  }
+  function clearProjection(){ clear(L.proj); clear(L.haz); }
+
+  /* --- the shape of the event itself, over the top ------------------------------- */
+  function drawHazard(geom){
+    clear(L.haz);
+    if(!geom) return;
+    if(geom.line){
+      const g=geom.line;
+      L.haz.appendChild(el("path",{d:"M"+g.x1+" "+g.y1+"L"+g.x2+" "+g.y2,fill:"none",
+        stroke:"#FAF9F5","stroke-width":g.w+3,"stroke-opacity":.5,
+        "stroke-linecap":"round"}));
+      L.haz.appendChild(el("path",{d:"M"+g.x1+" "+g.y1+"L"+g.x2+" "+g.y2,fill:"none",
+        stroke:g.colour||"#8F2222","stroke-width":g.w,"stroke-opacity":.75,
+        "stroke-linecap":"round"}));
+    }
+    if(geom.at!=null){
+      const x=C.x[geom.at], y=C.y[geom.at];
+      L.haz.appendChild(el("circle",{cx:x,cy:y,r:6,fill:"none",stroke:"#FAF9F5",
+        "stroke-width":4.5,"vector-effect":"non-scaling-stroke"}));
+      L.haz.appendChild(el("circle",{cx:x,cy:y,r:6,fill:"none",stroke:"#8F2222",
+        "stroke-width":2.2,"vector-effect":"non-scaling-stroke"}));
+    }
+  }
+
   /* --- a reach: everything within so many days of one place --- */
   function drawReach(dist,bands){
     clear(L.reach);
@@ -1617,6 +1708,8 @@ function init(opts){
     highlight:highlight, clearHighlight:clearHighlight,
     drawRoute:drawRoute, clearRoute:clearRoute,
     drawReach:drawReach, clearReach:clearReach,
+    drawProjection:drawProjection, clearProjection:clearProjection,
+    drawHazard:drawHazard,
     renderPins:renderPins,
     modes:MODES,
     setMode(m){ if(!MODES[m]) return; mode=m; paintGround(); },
@@ -1627,6 +1720,801 @@ function init(opts){
 }
 
 A.map={init:init, MODES:MODES};
+})();
+</script>
+<script>
+/* ===================================================================================
+   Adrinem — contingency projections. The survey sheet runs six hazards across a city
+   over twenty-four hours and scores every site twice: what the event broke, and what
+   stopped working because something else broke. This is the same engine at a different
+   scale — a continent over twelve months — and the second half of it is the point here
+   just as it is there.
+
+   What breaks first is cells: ground burnt, drowned, emptied or unmade. What breaks
+   second is the network. A cell struck hard enough is closed to traffic, and the router
+   is then run again over what is left — the same router that reproduces the exported
+   figures to within 0.006 per cent. Out of that come the things a realm would actually
+   notice: markets that can no longer reach each other, ground that has lost the market
+   that fed it, and how many more days the food now has to travel.
+
+   Nothing here is a prediction. The vulnerabilities are invented to be plausible and
+   internally consistent; where a figure is chosen rather than read, it is in a table at
+   the top of this file with a name on it.
+   =================================================================================== */
+(function(){
+"use strict";
+const A=window.ADRINEM=window.ADRINEM||{};
+const C=A.cells, M=A.meta, D=A.data;
+const MONTHS=12;
+
+/* ---- the five states a piece of ground can be in --------------------------------- */
+const STATES=[["LOST",.80,"#6E1A1A"],["STRICKEN",.55,"#8F2222"],["HARMED",.32,"#C4472A"],
+              ["TOUCHED",.14,"#E08A24"],["HELD",0,"#3F6B3A"]];
+const stateIndex=f=>{ for(let i=0;i<STATES.length;i++) if(f>=STATES[i][1]) return i;
+  return STATES.length-1; };
+const stateOf=f=>STATES[stateIndex(f)][0];
+const stateColour=f=>STATES[stateIndex(f)][2];
+/* Ground this badly hurt no longer carries traffic — but only where the hazard is the
+   kind that blocks a road. A drought does not close a road; it makes it easier. A
+   pestilence does not close one either, which is exactly why it travels. So each
+   hazard declares it, and the two that do not are the two whose damage is all in the
+   second order. */
+const CLOSED_AT=0.62;
+/* and a market centre this badly hurt stops being a market: its catchment has to find
+   another one or go without */
+const MARKET_DOWN_AT=0.55;
+
+/* ===================================================================================
+   HOW EACH KIND OF GROUND TAKES IT
+   ---------------------------------------------------------------------------------
+   Two tables, both invented. FLAM is how readily a biome carries fire; DRY is how
+   badly it suffers when the water stops. Marine and Glacier are in both so nothing has
+   to special-case them.
+   =================================================================================== */
+const FLAM={
+  "Glacier":0, "Marine":0, "Snowy":.06, "Wetland":.16, "Tropical rainforest":.22,
+  "Temperate rainforest":.26, "Dragon Tundra":.22, "Hot desert":.26, "Cold desert":.30,
+  "Coastal":.34, "Barrens":.32, "Volcanic":.42, "Blood Fields":.50, "Glades":.60,
+  "Temperate deciduous forest":.66, "Taiga":.70, "Tropical seasonal forest":.72,
+  "Grassland":.80, "Savanna":.86, "Dead Forrest":.96
+};
+const DRY={
+  "Glacier":.05, "Marine":0, "Snowy":.20, "Tropical rainforest":.22,
+  "Temperate rainforest":.16, "Dragon Tundra":.40, "Taiga":.34, "Coastal":.40,
+  "Temperate deciduous forest":.46, "Tropical seasonal forest":.52, "Glades":.50,
+  "Wetland":.56, "Blood Fields":.60, "Volcanic":.62, "Grassland":.70,
+  "Dead Forrest":.72, "Savanna":.80, "Barrens":.86, "Cold desert":.90, "Hot desert":.95
+};
+/* what a people can do about the supernatural. Also invented, also stated. */
+const WARD={ "ANGELS":.45, "GODLINGS":.30, "DRAGON RIDGERS":.55, "DEMONS":.15,
+  "SHIFTERS":.20, "HUMANS":0, "HALFLINGS":.05, "Wildlands":0 };
+
+const flamOf=i=>FLAM[A.biomeOf(i).name]!=null?FLAM[A.biomeOf(i).name]:.5;
+const dryOf=i=>DRY[A.biomeOf(i).name]!=null?DRY[A.biomeOf(i).name]:.5;
+const wardOf=i=>WARD[A.cultureOf(i)]||0;
+
+/* ===================================================================================
+   THE HAZARDS
+   =================================================================================== */
+const HAZARDS=[
+ {id:"drought", closes:false, kind:"natural", name:"Long drought", short:"DROUGHT",
+  point:false, focus:0,
+  blurb:"No point to place: the rain simply does not come. What decides the damage is "+
+        "what the ground was already living on — the biome, the flux the export gives "+
+        "each cell, and whether a river runs through it. The deserts barely notice. "+
+        "The wetlands are ruined.",
+  params:[
+   {id:"severity",label:"SEVERITY",min:1,max:5,step:1,val:3},
+   {id:"onset",   label:"ONSET",min:1,max:8,step:1,val:3,unit:" mo"},
+   {id:"rivers",  label:"RIVERS FAIL TOO",min:0,max:1,step:1,val:1,onoff:true}]},
+
+ {id:"spate", closes:true, kind:"natural", name:"River spate", short:"SPATE",
+  point:true, focus:2.2, pointLabel:"HEADWATER",
+  blurb:"One river comes down. It runs by its own id through the cells the export "+
+        "gives it, carrying its flux, and takes the low ground either side with it. "+
+        "The cells it drowns are the flattest and most peopled on the sheet, because "+
+        "that is where rivers put them.",
+  params:[
+   {id:"crest", label:"CREST",min:1,max:5,step:1,val:3},
+   {id:"spread",label:"OUT OF BANK",min:0,max:3,step:1,val:1,unit:" cells"},
+   {id:"months",label:"IN SPATE",min:1,max:6,step:1,val:2,unit:" mo"}]},
+
+ {id:"plague", closes:false, kind:"natural", name:"Pestilence", short:"PLAGUE",
+  point:true, focus:2, pointLabel:"FIRST CASE",
+  blurb:"The only hazard on this sheet that travels the way trade does. It moves out "+
+        "along the least-cost network at a stated number of effective miles a month, "+
+        "so the places it reaches first are the places the roads were built to reach — "+
+        "and the ground beyond every market's reach may never see it at all.",
+  params:[
+   {id:"speed",    label:"TRAVELS",min:200,max:2000,step:100,val:800,unit:" mi/mo"},
+   {id:"mortality",label:"MORTALITY",min:5,max:60,step:5,val:25,unit:" %"},
+   {id:"quarantine",label:"QUARANTINE",min:0,max:1,step:1,val:0,onoff:true}]},
+
+ {id:"firestorm", closes:true, kind:"natural", name:"Firestorm", short:"FIRE",
+  point:true, focus:2.4, pointLabel:"IGNITION",
+  blurb:"Fire moves with the wind, stops at water, and moves at the speed the ground "+
+        "will carry it. The Dead Forrest carries it almost perfectly; a rainforest "+
+        "barely carries it at all.",
+  params:[
+   {id:"wind",   label:"WIND",min:0,max:90,step:5,val:40,unit:" km/h"},
+   {id:"bearing",label:"WIND FROM",min:0,max:315,step:45,val:270,bearing:true},
+   {id:"dry",    label:"DRYNESS",min:10,max:100,step:5,val:70,unit:" %"}]},
+
+ {id:"dragon", closes:true, kind:"supernatural", name:"A dragon out of the Coves", short:"DRAGON",
+  point:true, focus:2, pointLabel:"WHERE IT LIFTS",
+  blurb:"It does not spread; it goes somewhere. A line laid across the sheet on a "+
+        "bearing, of a stated reach and breadth, burning what it crosses and leaving "+
+        "everything to either side alone. The Dragon Ridgers know how to answer one "+
+        "and almost nobody else does.",
+  params:[
+   {id:"bearing",label:"IT FLIES",min:0,max:315,step:45,val:90,bearing:true},
+   {id:"reach",  label:"REACH",min:200,max:3000,step:100,val:1200,unit:" mi"},
+   {id:"wing",   label:"BREADTH",min:1,max:5,step:1,val:2,unit:" cells"},
+   {id:"passes", label:"PASSES",min:1,max:6,step:1,val:3}]},
+
+ {id:"blood", closes:true, kind:"supernatural", name:"The blood tide", short:"BLOOD",
+  point:true, focus:1.6, pointLabel:"WHERE IT RISES",
+  blurb:"Ground stops being what it was. It creeps cell to cell, faster over what is "+
+        "already dead or already Blood Fields, slower uphill, and a people with a "+
+        "ward against it holds longer. Nothing it takes comes back inside the year.",
+  params:[
+   {id:"rise",  label:"RISE",min:1,max:5,step:1,val:3},
+   {id:"reach", label:"REACH",min:1,max:12,step:1,val:6,unit:" cells/mo"},
+   {id:"uphill",label:"CLIMBS",min:0,max:1,step:1,val:0,onoff:true}]},
+
+ {id:"riving", closes:true, kind:"supernatural", name:"A riving of the land", short:"RIVING",
+  point:true, focus:1.4, pointLabel:"WHERE IT OPENS",
+  blurb:"The sheet's own worst case, because it is the one the network cannot route "+
+        "around. A line of ground ceases to be ground. Everything either side of it is "+
+        "unharmed and may now be unreachable — which is the whole argument of the "+
+        "world sheet, run backwards.",
+  params:[
+   {id:"bearing",label:"IT OPENS",min:0,max:315,step:45,val:0,bearing:true},
+   {id:"length", label:"LENGTH",min:200,max:3000,step:100,val:1400,unit:" mi"},
+   {id:"width",  label:"WIDTH",min:1,max:4,step:1,val:1,unit:" cells"},
+   {id:"flood",  label:"THE SEA COMES IN",min:0,max:1,step:1,val:1,onoff:true}]}
+];
+const hazardById=id=>HAZARDS.find(h=>h.id===id);
+
+/* ===================================================================================
+   THE RUN
+   =================================================================================== */
+function run(spec){
+  const H=hazardById(spec.hazard);
+  if(!H) return null;
+  A.build();
+  const N=A.count, p=spec.params||{};
+  const dmg=new Float32Array(N);
+  const drowned=new Uint8Array(N);        /* ground that is not ground any more */
+  const frames=[], events=[];
+  const note=(t,text,kind)=>events.push({t:t,text:text,kind:kind||"note"});
+  const bearingVec=d=>[Math.cos(d*Math.PI/180),Math.sin(d*Math.PI/180)];
+  const at=spec.point!=null?spec.point:-1;
+  const dist=(i,j)=>Math.hypot(C.x[i]-C.x[j],C.y[i]-C.y[j])*M.scale;
+
+  /* ---- set-up: everything a hazard needs worked out once ------------------------- */
+  const ctx={};
+  if(H.id==="plague"&&at>=0){
+    /* the network's own distances, so the thing travels the way trade does */
+    ctx.reach=A.route.from(at).dist;
+    note(0,"First case at "+placeName(at)+".","start");
+  }
+  if(H.id==="spate"&&at>=0){
+    ctx.river=C.riv[at];
+    ctx.stem=[];
+    for(let i=0;i<N;i++) if(C.riv[i]&&C.riv[i]===ctx.river) ctx.stem.push(i);
+    if(!ctx.stem.length){ /* not on a river: take the biggest one within reach */
+      let best=-1; const bag=[]; A.near(C.x[at],C.y[at],80,bag);
+      bag.forEach(j=>{ if(C.riv[j]&&(best<0||C.flux[j]>C.flux[best])) best=j; });
+      if(best>=0){ ctx.river=C.riv[best];
+        for(let i=0;i<N;i++) if(C.riv[i]===ctx.river) ctx.stem.push(i); }
+    }
+    note(0,ctx.stem.length?("River "+ctx.river+" rises — "+ctx.stem.length+
+      " cells carry it."):"No river runs within reach of that point.","start");
+  }
+  if((H.id==="dragon"||H.id==="riving")&&at>=0){
+    const v=bearingVec(p.bearing||0);
+    ctx.line={x:C.x[at],y:C.y[at],vx:v[0],vy:v[1],
+      len:(H.id==="dragon"?p.reach:p.length)/M.scale};
+    note(0,(H.id==="dragon"?"It lifts from ":"The ground opens at ")+placeName(at)+
+      ", running "+compass(p.bearing||0)+".","start");
+  }
+  if(H.id==="blood"&&at>=0){ dmg[at]=1; note(0,"It rises at "+placeName(at)+".","start"); }
+  if(H.id==="firestorm"&&at>=0){ dmg[at]=1; note(0,"Ignition at "+placeName(at)+".","start"); }
+  if(H.id==="drought") note(0,"The rains fail across the sheet.","start");
+
+  /* ---- twelve months ------------------------------------------------------------- */
+  for(let mo=1;mo<=MONTHS;mo++){
+    step(H,mo,dmg,drowned,p,ctx,at,dist,bearingVec,note);
+    frames.push(snapshot(dmg,drowned,mo));
+  }
+
+  /* ---- what it took directly ------------------------------------------------------ */
+  const report=direct(dmg,drowned,H,note);
+  /* ---- and what stopped working because of it ------------------------------------ */
+  report.network=network(dmg,drowned,H,note);
+  narrate(report,H,p,at);
+  events.sort((a,b)=>a.t-b.t);
+
+  return {hazard:H, spec:spec, months:MONTHS, frames:frames, events:events,
+    report:report, point:at, closed:report.network.closedList};
+}
+
+/* ---- one month ------------------------------------------------------------------- */
+function step(H,mo,dmg,drowned,p,ctx,at,dist,bearingVec,note){
+  const N=A.count;
+  const bump=(i,v)=>{ if(v>dmg[i]) dmg[i]=Math.min(1,v); };
+
+  if(H.id==="drought"){
+    const bite=Math.min(1,Math.max(0,(mo-(p.onset||3)+1)/5))*(p.severity/5)*0.78;
+    if(bite<=0) return;
+    for(let i=0;i<N;i++){
+      if(!A.isLand(i)) continue;
+      let f=dryOf(i)*bite;
+      /* a river or a good flux carries a cell a long way through a dry year */
+      if(C.riv[i]&&!p.rivers) f*=0.30;
+      else if(C.riv[i]) f*=0.62;
+      f*=1-Math.min(0.45,C.flux[i]/900);
+      bump(i,f);
+    }
+    if(mo===(p.onset||3)) note(mo,"The rains have not come. The dry ground goes first.","loss");
+  }
+
+  else if(H.id==="spate"){
+    if(mo>(p.months||2)) return;
+    const crest=(p.crest||3)/5;
+    const front=new Set(ctx.stem||[]);
+    (ctx.stem||[]).forEach(i=>{
+      bump(i,Math.min(1,crest*(0.55+Math.min(0.6,C.flux[i]/500))));
+    });
+    /* out of bank: the low ground either side */
+    let ring=new Set(front);
+    for(let k=0;k<(p.spread||1);k++){
+      const next=new Set();
+      ring.forEach(i=>A.neighboursOf(i).forEach(j=>{
+        if(!A.isLand(j)||front.has(j)) return;
+        const drop=Math.max(0,C.h[i]-C.h[j]+4)/22;     /* it goes downhill */
+        bump(j,crest*(0.45-k*0.12)*(0.4+Math.min(1,drop)));
+        next.add(j); front.add(j);
+      }));
+      ring=next;
+    }
+    if(mo===1) note(1,"The river is out of its banks.","loss");
+  }
+
+  else if(H.id==="plague"){
+    if(!ctx.reach) return;
+    const front=(p.speed||800)*mo*(p.quarantine?0.55:1);
+    const lethal=(p.mortality||25)/100;
+    for(let i=0;i<A.count;i++){
+      if(!A.isLand(i)||!isFinite(ctx.reach[i])||ctx.reach[i]>front) continue;
+      /* it is a disease of people: empty ground barely registers it */
+      const crowd=Math.min(1,(C.pop[i]/9000)+(A.burgOf(i)?0.5:0));
+      const age=Math.min(1,(front-ctx.reach[i])/900);
+      bump(i,lethal*1.9*crowd*age);
+    }
+    if(mo===1) note(1,"It is out of the first town and on the road.","loss");
+    if(mo===6) note(6,"It has run as far as the network reaches.","note");
+  }
+
+  else if(H.id==="firestorm"){
+    const wind=bearingVec(p.bearing||0), sp=(p.wind||40), dryf=(p.dry||70)/100;
+    const jump=1+Math.floor(sp/28);
+    for(let k=0;k<jump;k++){
+      const lit=[];
+      for(let i=0;i<A.count;i++) if(dmg[i]>0.25&&A.isLand(i)) lit.push(i);
+      lit.forEach(i=>{
+        A.neighboursOf(i).forEach(j=>{
+          if(!A.isLand(j)) return;                       /* fire stops at water */
+          const dx=C.x[j]-C.x[i], dy=C.y[j]-C.y[i], l=Math.hypot(dx,dy)||1;
+          /* downwind is where it goes; upwind it creeps */
+          const with_=(dx/l)*(-wind[0])+(dy/l)*(-wind[1]);
+          const p2=flamOf(j)*dryf*(0.30+0.70*Math.max(0,with_));
+          if(p2>0.12) bump(j,Math.min(1,dmg[i]*0.92*p2*2.1));
+        });
+      });
+    }
+    if(mo===2) note(2,"The fire has taken the wind.","loss");
+  }
+
+  else if(H.id==="dragon"){
+    if(!ctx.line||mo>(p.passes||3)) return;
+    const L=ctx.line, wing=(p.wing||2)*A.spacing;
+    for(let i=0;i<A.count;i++){
+      if(!A.isLand(i)) continue;
+      const rx=C.x[i]-L.x, ry=C.y[i]-L.y;
+      const along=rx*L.vx+ry*L.vy;
+      if(along<0||along>L.len) continue;
+      const off=Math.abs(rx*(-L.vy)+ry*L.vx);
+      if(off>wing) continue;
+      const bite=(1-off/wing)*(1-0.25*along/L.len)*(0.55+0.45*flamOf(i));
+      bump(i,Math.min(1,dmg[i]+bite*(1-wardOf(i))));
+    }
+    if(mo===1) note(1,"It has made its first pass.","loss");
+    if(mo===(p.passes||3)) note(mo,"It does not come back.","note");
+  }
+
+  else if(H.id==="blood"){
+    const rise=(p.rise||3)/5;
+    for(let k=0;k<(p.reach||6);k++){
+      const edge=[];
+      for(let i=0;i<A.count;i++) if(dmg[i]>0.4&&A.isLand(i)) edge.push(i);
+      edge.forEach(i=>A.neighboursOf(i).forEach(j=>{
+        if(!A.isLand(j)||dmg[j]>0.9) return;
+        const nm=A.biomeOf(j).name;
+        let take=rise*(nm==="Blood Fields"||nm==="Dead Forrest"?1.4:
+                       nm==="Glades"?0.45:1);
+        if(!p.uphill&&C.h[j]>C.h[i]) take*=0.35;        /* it runs downhill */
+        take*=1-wardOf(j);
+        if(take>0.05) bump(j,Math.min(1,dmg[i]*0.95*take*1.6));
+      }));
+    }
+    if(mo===3) note(3,"It is no longer contained by the ground it started on.","loss");
+  }
+
+  else if(H.id==="riving"){
+    if(!ctx.line||mo>2) return;
+    const L=ctx.line, wide=(p.width||1)*A.spacing*0.7;
+    for(let i=0;i<A.count;i++){
+      if(!A.isLand(i)) continue;
+      const rx=C.x[i]-L.x, ry=C.y[i]-L.y;
+      const along=rx*L.vx+ry*L.vy;
+      if(along<0||along>L.len) continue;
+      const off=Math.abs(rx*(-L.vy)+ry*L.vx);
+      if(off>wide) continue;
+      dmg[i]=1;
+      if(p.flood) drowned[i]=1;
+    }
+    if(mo===1) note(1,p.flood?"The sea is in it.":"The ground has opened.","loss");
+  }
+}
+
+/* ---- a month's picture, small enough to keep twelve of ---------------------------- */
+function snapshot(dmg,drowned,mo){
+  const st=new Uint8Array(A.count);
+  const tally={LOST:0,STRICKEN:0,HARMED:0,TOUCHED:0,HELD:0};
+  let dead=0;
+  for(let i=0;i<A.count;i++){
+    if(!A.isLand(i)){ st[i]=255; continue; }
+    const ix=stateIndex(dmg[i]);
+    st[i]=ix; tally[STATES[ix][0]]++;
+    dead+=C.pop[i]*mortality(dmg[i]);
+  }
+  return {month:mo, state:st, tally:tally, dead:Math.round(dead),
+    drowned:drowned.slice()};
+}
+/* how much of a cell's people a given amount of damage takes. Invented, and gentle at
+   the bottom: ground can be badly hurt without everyone on it dying. */
+const mortality=f=>f<=0.14?0:Math.pow((f-0.14)/0.86,1.9)*0.55;
+
+/* ---- what the event took ---------------------------------------------------------- */
+function direct(dmg,drowned,H,note){
+  const r={byState:{LOST:0,STRICKEN:0,HARMED:0,TOUCHED:0,HELD:0},
+    dead:0, landHit:0, burgs:[], markets:[], realms:{}, unmade:0};
+  for(let i=0;i<A.count;i++){
+    if(!A.isLand(i)) continue;
+    const nm=STATES[stateIndex(dmg[i])][0];
+    r.byState[nm]++;
+    if(dmg[i]>=0.14) r.landHit++;
+    if(drowned[i]) r.unmade++;
+    r.dead+=C.pop[i]*mortality(dmg[i]);
+    if(dmg[i]>=0.32){
+      const st=A.stateOf(i);
+      r.realms[st]=(r.realms[st]||0)+1;
+      const b=A.burgOf(i);
+      if(b) r.burgs.push({name:b.name,pop:b.pop,state:st,f:dmg[i],
+        market:!!A.marketOf(i)});
+    }
+  }
+  r.dead=Math.round(r.dead);
+  r.burgs.sort((a,b)=>b.pop-a.pop);
+  r.markets=r.burgs.filter(b=>b.market);
+  return r;
+}
+
+/* ---- and what stopped working ----------------------------------------------------
+   The heart of it. Ground hurt past CLOSED_AT carries no traffic, so the router is run
+   again over what is left: one sweep from all seventeen markets for the catchments and
+   the supply surface, and seventeen trees for the pairs. The difference against the
+   exported figures is the second-order damage. ------------------------------------- */
+function network(dmg,drowned,H,note){
+  const N=A.count;
+  const closed=new Uint8Array(N);
+  const closedList=[];
+  for(let i=0;i<N;i++)
+    if(A.isLand(i)&&(drowned[i]||(H.closes&&dmg[i]>=CLOSED_AT))){
+      closed[i]=1; closedList.push(i); }
+
+  const passable=i=>A.isLand(i)&&!closed[i];
+  /* A market whose own ground is stricken stops being a market, whether or not the
+     roads to it are open. That is how a drought or a pestilence reaches the network:
+     not by blocking a road but by emptying the place the road went to. */
+  const down=m=>closed[m.cell]||dmg[m.cell]>=MARKET_DOWN_AT;
+  const marketCells=D.markets.filter(m=>!down(m)).map(m=>m.cell);
+  const lostMarkets=D.markets.filter(down);
+
+  const {dist,owner}=sweep(marketCells,passable);
+
+  let cutOff=0, cutPop=0, wasBeyond=0, daysAdded=0, daysCells=0;
+  const lostCatchment={};
+  for(let i=0;i<N;i++){
+    if(!A.isLand(i)) continue;
+    const hadMarket=C.mkt[i]>=0;
+    if(!hadMarket){ wasBeyond++; continue; }
+    if(closed[i]) continue;                       /* that cell's own trouble is direct */
+    if(owner[i]<0||!isFinite(dist[i])){
+      cutOff++; cutPop+=C.pop[i];
+      const nm=(A.marketOf(C.mkt[i])||{}).name;
+      if(nm) lostCatchment[nm]=(lostCatchment[nm]||0)+1;
+      continue;
+    }
+    const add=(dist[i]-C.cost[i])/M.supplyDivisor;
+    if(add>0.5){ daysAdded+=add; daysCells++; }
+  }
+
+  /* The pairs, counted against the baseline rather than in the abstract. 44 of the 136
+     market pairs never had an overland way between them and still do not; reporting
+     those as severed would be a lie about what the event did. So only the pairs the
+     export gives a cost for are examined, and a pair is severed if either end has
+     stopped keeping a market or the ground between them will no longer carry it. */
+  const all=D.markets.map(m=>m.cell);
+  const reachedBefore=(a,b)=>D.pairs[a+"->"+b]!=null;
+  const alive=new Set(marketCells);
+  const trees={};
+  let pairsBefore=0, pairsNow=0;
+  const severed=[];
+  for(let x=0;x<all.length;x++) for(let y=x+1;y<all.length;y++){
+    const a=all[x], b=all[y];
+    if(!reachedBefore(a,b)) continue;
+    pairsBefore++;
+    if(!alive.has(a)||!alive.has(b)){ severed.push([name(a),name(b)]); continue; }
+    if(!trees[a]) trees[a]=treeFrom(a,passable);
+    if(isFinite(trees[a][b])) pairsNow++;
+    else severed.push([name(a),name(b)]);
+  }
+
+  return {closed:closedList.length, closedList:closedList, blocks:!!H.closes,
+    lostMarkets:lostMarkets.map(m=>m.name), marketsLeft:marketCells.length,
+    pairsBefore:Math.round(pairsBefore), pairsNow:pairsNow,
+    severed:severed, cutOff:cutOff, cutPop:Math.round(cutPop),
+    lostCatchment:lostCatchment,
+    daysAdded:daysCells?daysAdded/daysCells:0, daysCells:daysCells};
+  function name(c){ return (A.marketOf(c)||{}).name||("cell "+c); }
+}
+
+/* one multi-source sweep, and one tree, both over the ground that is left ----------- */
+function heapPush(h,k,v){ h.push([k,v]); let i=h.length-1;
+  while(i>0){ const pI=(i-1)>>1; if(h[pI][0]<=h[i][0]) break;
+    const t=h[pI]; h[pI]=h[i]; h[i]=t; i=pI; } }
+function heapPop(h){ const top=h[0], last=h.pop();
+  if(h.length){ h[0]=last; let i=0;
+    for(;;){ const l=2*i+1,r=l+1; let s=i;
+      if(l<h.length&&h[l][0]<h[s][0]) s=l;
+      if(r<h.length&&h[r][0]<h[s][0]) s=r;
+      if(s===i) break; const t=h[s]; h[s]=h[i]; h[i]=t; i=s; } }
+  return top; }
+
+function sweep(sources,passable){
+  const n=A.count, dist=new Float64Array(n).fill(Infinity);
+  const owner=new Int32Array(n).fill(-1), done=new Uint8Array(n), h=[];
+  sources.forEach(s=>{ dist[s]=0; owner[s]=s; heapPush(h,0,s); });
+  while(h.length){
+    const [d,u]=heapPop(h);
+    if(done[u]) continue; done[u]=1;
+    const nb=A.neighboursOf(u);
+    for(let i=0;i<nb.length;i++){
+      const v=nb[i];
+      if(!passable(v)||done[v]) continue;
+      const nd=d+A.route.edgeCost(u,v);
+      if(nd<dist[v]){ dist[v]=nd; owner[v]=owner[u]; heapPush(h,nd,v); }
+    }
+  }
+  return {dist:dist,owner:owner};
+}
+function treeFrom(src,passable){
+  const n=A.count, dist=new Float64Array(n).fill(Infinity), done=new Uint8Array(n), h=[];
+  dist[src]=0; heapPush(h,0,src);
+  while(h.length){
+    const [d,u]=heapPop(h);
+    if(done[u]) continue; done[u]=1;
+    const nb=A.neighboursOf(u);
+    for(let i=0;i<nb.length;i++){
+      const v=nb[i];
+      if(!passable(v)||done[v]) continue;
+      const nd=d+A.route.edgeCost(u,v);
+      if(nd<dist[v]){ dist[v]=nd; heapPush(h,nd,v); }
+    }
+  }
+  return dist;
+}
+
+/* ---- the write-up ----------------------------------------------------------------- */
+function narrate(r,H,p,at){
+  const n=r.network, out=[];
+  out.push(r.landHit.toLocaleString()+" land cells of "+
+    D.report.land_cells.toLocaleString()+" are touched, "+
+    (r.byState.LOST+r.byState.STRICKEN).toLocaleString()+" of them stricken or lost.");
+  if(r.dead>0) out.push(r.dead.toLocaleString()+" people are gone.");
+  if(r.unmade) out.push(r.unmade+" cells are no longer land at all.");
+
+  const realms=Object.keys(r.realms).sort((a,b)=>r.realms[b]-r.realms[a]).slice(0,3);
+  if(realms.length) out.push("It falls hardest on "+realms.join(", ")+".");
+  if(r.markets.length) out.push(r.markets.length+" market centre"+
+    (r.markets.length===1?" is":"s are")+" hit — "+
+    r.markets.slice(0,4).map(b=>b.name).join(", ")+
+    (r.markets.length>4?", and others":"")+".");
+
+  const lost=n.pairsBefore-n.pairsNow;
+  out.push("");
+  if(n.closed) out.push(n.closed.toLocaleString()+" cells no longer carry traffic.");
+  else if(H.closes) out.push("No ground is hurt badly enough to close a road.");
+  else out.push("Nothing here blocks a road — this is not that kind of event — so what "+
+    "it does to the network it does by emptying places, not by cutting between them.");
+  if(n.lostMarkets.length) out.push(n.lostMarkets.length+" of the 17 market centres "+
+    "stop keeping a market: "+n.lostMarkets.slice(0,5).join(", ")+
+    (n.lostMarkets.length>5?", and others":"")+".");
+  if(lost>0) out.push(lost+" of the "+n.pairsBefore+
+    " market pairs that could be reached over land no longer can"+
+    (n.severed.length?" — including "+n.severed.slice(0,3)
+      .map(s=>s[0]+" and "+s[1]).join(", ")+".":"."));
+  else if(n.closed) out.push("The network holds: every market pair that could reach "+
+    "each other still can.");
+  if(n.cutOff>0) out.push(n.cutOff.toLocaleString()+" cells carrying "+
+    n.cutPop.toLocaleString()+" people have lost the market that fed them, and that "+
+    "is ground the event never touched.");
+  if(n.daysCells>0) out.push("For another "+n.daysCells.toLocaleString()+
+    " cells the food now travels "+n.daysAdded.toFixed(1)+" days further.");
+  if(!n.cutOff&&!lost&&n.closed) out.push("Nothing is cut off. The roads went round it.");
+  r.text=out.filter(x=>x!=="").join(" ");
+  r.lines=out;
+}
+
+/* ---- naming a place, for the log -------------------------------------------------- */
+function placeName(i){
+  const b=A.burgOf(i);
+  if(b) return b.name;
+  const pv=A.provinceOf(i), st=A.stateOf(i);
+  return (pv||st||"open ground")+" (cell "+i+")";
+}
+function compass(d){
+  return ["east","south-east","south","south-west","west","north-west","north",
+    "north-east"][(Math.round(((d%360)+360)%360/45))%8];
+}
+
+A.sim={HAZARDS,STATES,MONTHS,CLOSED_AT,FLAM,DRY,WARD,run,stateOf,stateIndex,stateColour,
+  hazardById,mortality,placeName};
+})();
+</script>
+<script>
+/* ===================================================================================
+   Adrinem — the projection console and the month scrubber. The survey sheet's console,
+   pointed at a continent: choose a hazard, set what it does, put it somewhere if it
+   needs a somewhere, and run twelve months across the cell field.
+
+   The report is in two halves and the second is the one worth reading: what the event
+   took, and then what stopped working because of it — markets that can no longer reach
+   each other, ground that has lost the market that fed it, and how much further the
+   food now has to travel.
+   =================================================================================== */
+(function(){
+"use strict";
+const A=window.ADRINEM=window.ADRINEM||{};
+const q=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
+  '"':"&quot;"}[c]));
+
+let map=null, hazard=null, params={}, point=null, result=null, step=0, playing=null;
+const api={pickActive:false};
+
+/* ---- the hazard grid, split the way the sheet splits them ------------------------- */
+function buildGrid(){
+  const wrap=q("projHazards"); wrap.innerHTML="";
+  [["natural","NATURAL"],["supernatural","SUPERNATURAL"]].forEach(([kind,label])=>{
+    const h=document.createElement("p"); h.className="hkind"; h.textContent=label;
+    wrap.appendChild(h);
+    const row=document.createElement("div"); row.className="hrow";
+    A.sim.HAZARDS.filter(H=>H.kind===kind).forEach(H=>{
+      const b=document.createElement("button");
+      b.className="chip"; b.textContent=H.short; b.dataset.id=H.id;
+      b.onclick=()=>choose(H.id);
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function choose(id){
+  hazard=A.sim.hazardById(id);
+  if(!hazard) return;
+  params={}; hazard.params.forEach(p=>params[p.id]=p.val);
+  point=null; clear(false);
+  [...q("projHazards").querySelectorAll(".chip")].forEach(b=>
+    b.classList.toggle("on",b.dataset.id===id));
+  q("projName").textContent=hazard.name;
+  q("projBlurb").textContent=hazard.blurb;
+  q("projPointRow").style.display=hazard.point?"":"none";
+  q("projPick").textContent=hazard.pointLabel?("SET "+hazard.pointLabel):"SET POINT";
+  setPick(false);
+  showPoint();
+  buildParams();
+}
+
+function buildParams(){
+  const box=q("projParams"); box.innerHTML="";
+  hazard.params.forEach(p=>{
+    const row=document.createElement("div"); row.className="prow";
+    const lab=document.createElement("label");
+    lab.innerHTML=p.label+"<b></b>";
+    const inp=document.createElement("input");
+    inp.type="range"; inp.min=p.min; inp.max=p.max; inp.step=p.step; inp.value=params[p.id];
+    const show=()=>{
+      const v=+inp.value;
+      lab.querySelector("b").textContent=p.onoff?(v?"YES":"NO"):
+        p.bearing?compass(v):(v+(p.unit||""));
+    };
+    inp.addEventListener("input",()=>{ params[p.id]=+inp.value; show(); });
+    show();
+    row.appendChild(lab); row.appendChild(inp); box.appendChild(row);
+  });
+}
+const compass=d=>["E","SE","S","SW","W","NW","N","NE"][(Math.round(((d%360)+360)%360/45))%8]+
+  " ("+d+"°)";
+
+/* ---- putting it somewhere -------------------------------------------------------- */
+function setPick(on){
+  api.pickActive=!!on;
+  q("projPick").setAttribute("aria-pressed",String(api.pickActive));
+  q("stage").classList.toggle("picking",api.pickActive);
+}
+function setPoint(cell){
+  point=cell; setPick(false); showPoint();
+  map&&map.drawHazard({at:cell});
+}
+function showPoint(){
+  const el=q("projPointRef");
+  el.textContent=point==null?"— not set —":A.sim.placeName(point);
+}
+
+/* ---- run ------------------------------------------------------------------------- */
+function runNow(){
+  if(!hazard) return;
+  if(hazard.point&&point==null){ toast("This one needs a point on the sheet."); return; }
+  q("projRun").disabled=true; q("projRun").textContent="RUNNING…";
+  setTimeout(()=>{
+    try{
+      result=A.sim.run({hazard:hazard.id,point:point,params:Object.assign({},params)});
+    }catch(e){ result=null; console.error(e); }
+    q("projRun").disabled=false; q("projRun").textContent="RUN PROJECTION";
+    if(!result){ q("projReport").innerHTML=
+      '<div class="rterr">The projection did not run.</div>'; return; }
+    q("projTime").classList.add("on");
+    show(A.sim.MONTHS);
+    report();
+  },30);
+}
+
+function show(n){
+  if(!result) return;
+  step=Math.max(1,Math.min(A.sim.MONTHS,n));
+  const f=result.frames[step-1];
+  map&&map.drawProjection(f);
+  q("projScrub").value=step;
+  q("projMonth").textContent="MONTH "+String(step).padStart(2,"0");
+  const t=f.tally;
+  q("projCounts").innerHTML=
+    A.sim.STATES.slice(0,4).map(s=>'<i style="background:'+s[2]+'"></i>'+
+      (t[s[0]]||0)).join('<b class="sep"></b>')+
+    '<span class="dd">'+f.dead.toLocaleString()+' gone</span>';
+  const log=q("projLog");
+  log.innerHTML=result.events.filter(e=>e.t<=step).slice(-6).map(e=>
+    '<span class="'+e.kind+'">M'+String(e.t).padStart(2,"0")+'</span> '+esc(e.text))
+    .join("<br>")||"—";
+}
+
+function report(){
+  const r=result.report, n=r.network;
+  const row=(k,v)=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>';
+  let h='<p class="rep-h">WHAT IT TOOK</p><dl class="acct">'+
+    row("Land cells touched",r.landHit.toLocaleString()+" of "+
+      A.data.report.land_cells.toLocaleString())+
+    row("Stricken or lost",(r.byState.LOST+r.byState.STRICKEN).toLocaleString())+
+    row("People gone",r.dead.toLocaleString())+
+    (r.unmade?row("No longer land",r.unmade+" cells"):"")+
+    row("Burgs hit",r.burgs.length)+
+    '</dl>';
+
+  h+='<p class="rep-h">WHAT STOPPED WORKING</p><dl class="acct">'+
+    row("Cells closed to traffic",n.closed.toLocaleString())+
+    row("Markets keeping a market",n.marketsLeft+" of "+A.data.markets.length)+
+    row("Market pairs reachable",n.pairsNow+" of "+n.pairsBefore)+
+    row("Ground cut off",n.cutOff.toLocaleString()+" cells, "+
+      n.cutPop.toLocaleString()+" people")+
+    (n.daysCells?row("Supply lengthened","+"+n.daysAdded.toFixed(1)+" days for "+
+      n.daysCells.toLocaleString()+" cells"):"")+
+    '</dl>';
+
+  if(n.severed.length){
+    h+='<p class="rep-h">PAIRS SEVERED</p><ul class="why">';
+    n.severed.slice(0,8).forEach(s=>h+='<li><b>'+esc(s[0])+' — '+esc(s[1])+
+      '</b><span>no overland way between them any more</span></li>');
+    if(n.severed.length>8) h+='<li><span>and '+(n.severed.length-8)+' more</span></li>';
+    h+='</ul>';
+  }
+  const lc=Object.keys(n.lostCatchment);
+  if(lc.length){
+    h+='<p class="rep-h">CATCHMENTS BROKEN</p><ul class="why">';
+    lc.sort((a,b)=>n.lostCatchment[b]-n.lostCatchment[a]).slice(0,6).forEach(k=>
+      h+='<li><b>'+esc(k)+'</b><span>'+n.lostCatchment[k]+
+        ' cells can no longer reach it</span></li>');
+    h+='</ul>';
+  }
+  if(r.burgs.length){
+    h+='<p class="rep-h">THE WORST OF IT</p><ul class="why">';
+    r.burgs.slice(0,7).forEach(b=>h+='<li><b>'+esc(b.name)+' · '+
+      b.pop.toLocaleString()+'</b><span>'+esc(b.state)+' — '+
+      A.sim.stateOf(b.f)+(b.market?", a market centre":"")+'</span></li>');
+    h+='</ul>';
+  }
+  h+='<p class="rep-note">'+esc(r.text)+'</p>';
+  h+='<p class="rtfoot">Twelve months over '+
+    A.data.report.land_cells.toLocaleString()+' land cells. What stopped working is '+
+    'the router run again over the ground that is left — the same router that '+
+    'reproduces the exported network to within 0.006 per cent. None of it is a '+
+    'prediction: the vulnerabilities are invented to be plausible and are written '+
+    'down in js/adrinem-sim.js.</p>';
+  q("projReport").innerHTML=h;
+}
+
+/* ---- the scrubber ----------------------------------------------------------------- */
+function play(){
+  if(playing) return stop();
+  q("projPlay").textContent="❚❚";
+  if(step>=A.sim.MONTHS) show(1);
+  playing=setInterval(()=>{
+    if(step>=A.sim.MONTHS) return stop();
+    show(step+1);
+  },420);
+}
+function stop(){ if(playing) clearInterval(playing); playing=null;
+  q("projPlay").textContent="▶"; }
+function clear(full){
+  stop(); result=null; step=0;
+  q("projTime").classList.remove("on");
+  q("projReport").innerHTML="";
+  map&&map.clearProjection();
+  if(full){ point=null; showPoint(); }
+}
+
+let toastT=null;
+function toast(msg){
+  const t=q("toast"); if(!t) return;
+  t.textContent=msg; t.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2200);
+}
+
+/* ---- open, close, wiring ---------------------------------------------------------- */
+function open(){ q("projPanel").classList.add("on");
+  q("projBtn").setAttribute("aria-pressed","true"); }
+function close(){ q("projPanel").classList.remove("on");
+  q("projBtn").setAttribute("aria-pressed","false"); setPick(false); }
+function isOpen(){ return q("projPanel").classList.contains("on"); }
+
+function init(theMap){
+  map=theMap;
+  buildGrid();
+  choose(A.sim.HAZARDS[0].id);
+  q("projClose").onclick=close;
+  q("projRun").onclick=runNow;
+  q("projPick").onclick=()=>setPick(!api.pickActive);
+  q("projPlay").onclick=play;
+  q("projReset").onclick=()=>clear(true);
+  q("projScrub").addEventListener("input",e=>{ stop(); show(+e.target.value); });
+  q("projScrub").max=A.sim.MONTHS;
+}
+
+A.projui=Object.assign(api,{init:init, open:open, close:close, isOpen:isOpen,
+  setPoint:setPoint, setPick:setPick, clear:clear,
+  get hasResult(){ return !!result; }});
 })();
 </script>
 <script>
@@ -5738,8 +6626,10 @@ function fillKey(){
     swatch(PAL.road.trail)+'TRAIL<br>'+
     swatch(PAL.river)+'RIVER, THICKENED BY FLUX<br>'+
     swatch("#7A3E8F")+'YOUR MARKS AND ANY WAY FOUND'+
+    '<b>PROJECTION</b>'+
+    A.sim.STATES.map(st=>swatch(st[2])+st[0]).join("<br>")+'<br>'+
     '<b>KEYS</b>/ SEARCH &nbsp; G GROUND &nbsp; K KEY<br>'+
-    'W WAY &nbsp; P PIN &nbsp; B INDEX &nbsp; R ROADS<br>ESC OUT';
+    'S SIM &nbsp; W WAY &nbsp; P PIN &nbsp; B INDEX<br>R ROADS &nbsp; ESC OUT';
   q("key").innerHTML=h;
 }
 function ramp(list,lo,hi){
@@ -5759,6 +6649,10 @@ function boot(){
       if(pinMode){ dropMark(x,y); setPin(false); return; }
       if(pickFor){ if(!A.isLand(cell)){ toast("That end is in the water"); return; }
         setEnd(pickFor,cell); setPick(null); return; }
+      if(A.projui&&A.projui.pickActive){
+        if(!A.isLand(cell)){ toast("Put it on land"); return; }
+        A.projui.setPoint(cell); return;
+      }
       if(cell>=0) showCell(cell);
     },
     onBurg(b){ showCell(b.cell); },
@@ -5820,6 +6714,10 @@ function boot(){
   q("tabIndex").onclick=()=>openDrawer("index");
   q("tabMarks").onclick=()=>openDrawer("marks");
   q("tabAccount").onclick=()=>openDrawer("account");
+  if(A.projui){
+    A.projui.init(map);
+    q("projBtn").onclick=()=>A.projui.isOpen()?A.projui.close():A.projui.open();
+  }
   q("wayBtn").onclick=()=>q("wayPanel").classList.contains("on")?closeWay():openWay();
   q("wayClose").onclick=closeWay;
   q("reachBtn").onclick=()=>{
@@ -5903,11 +6801,13 @@ function boot(){
     else if(k==="g") q("grndBtn").click();
     else if(k==="k") q("keyBtn").click();
     else if(k==="w") q("wayBtn").click();
+    else if(k==="s"&&A.projui) q("projBtn").click();
     else if(k==="p") q("pinBtn").click();
     else if(k==="b") q("listBtn").click();
     else if(k==="r") q("rdBtn").click();
     else if(e.key==="Escape"){
       closeSheet(); closeDrawer(); closeWay(); setPin(false); setPick(null);
+      if(A.projui) A.projui.close();
       q("key").classList.remove("on"); q("keyBtn").setAttribute("aria-pressed","false");
     }
   });
@@ -6250,6 +7150,27 @@ const ADRINEM_STEPS=[
   "province marches. <b>GRT</b> a graticule, off the longitude and latitude the export "+
   "carried."},
 
+ {title:"SIM — contingency projections", wait:380,
+  spot:()=>union("#projBtn","#projPanel"),
+  before(){ panel("projBtn","projPanel",true); },
+  body:"Seven hazards over twelve months across the cell field. Four natural — a long "+
+  "drought, a river in spate, a pestilence, a firestorm — and three that are not: a "+
+  "dragon out of the Coves, the blood tide, and a riving of the land.<br><br>"+
+  "Choose one, set its sliders, put it somewhere if it needs a somewhere, and run it. "+
+  "The sheet recolours to the outcome and the scrubber along the bottom walks the "+
+  "twelve months."},
+
+ {title:"What a projection reports", wait:240,
+  spot:()=>union("#projPanel"),
+  after(){ panel("projBtn","projPanel",false); },
+  body:"Two halves, and the second is the point. <b>What it took</b> — ground, people, "+
+  "burgs. <b>What stopped working</b> — the router run again over the ground that is "+
+  "left, giving market pairs that can no longer reach each other, ground that has lost "+
+  "the market that fed it, and how many days further the food now travels.<br><br>"+
+  "The two are not the same thing said twice. A drought empties places without cutting "+
+  "between them and all 92 reachable market pairs hold; a riving across Rithi kills far "+
+  "fewer people and takes 53 of those 92 away."},
+
  {title:"WAY — find a way across", wait:340,
   spot:()=>union("#wayBtn","#wayPanel"),
   before(){ panel("wayBtn","wayPanel",true); },
@@ -6299,8 +7220,9 @@ const ADRINEM_STEPS=[
   "York left to the water. It has a walk of its own."},
 
  {title:"Keys", body:
-  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>W</b> way<br>"+
-  "<b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads &nbsp; <b>Esc</b> out."+
+  "<b>/</b> search &nbsp; <b>G</b> ground &nbsp; <b>K</b> key &nbsp; <b>S</b> sim<br>"+
+  "<b>W</b> way &nbsp; <b>P</b> pin &nbsp; <b>B</b> index &nbsp; <b>R</b> roads<br>"+
+  "<b>Esc</b> out."+
   "<br><br>"+RAIL+" The <b>?</b> at the bottom of it starts this walk again whenever "+
   "you want it."}
 ];

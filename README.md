@@ -452,6 +452,68 @@ Press **MDL** on Ourasen's plate for two drawings, both off the same numbers as 
 
 Heights are at 3× the plan scale and nothing else is exaggerated; the caption says so.
 
+
+## Contingency projections on the Adrinem sheet
+
+The survey sheet runs six hazards across a city over twenty-four hours and scores every
+site twice: what the event broke, and what stopped working because something else broke.
+The same engine is now pointed at a continent — **seven hazards over twelve months across
+2,429 land cells** — and the second half of it is the point here just as it is there.
+
+Press **SIM**, or **S**.
+
+| | |
+| --- | --- |
+| **NATURAL** | a long drought · a river in spate · a pestilence · a firestorm |
+| **SUPERNATURAL** | a dragon out of the Coves · the blood tide · a riving of the land |
+
+Each reads the export rather than a generic map. The **drought** takes each cell by its
+biome and by the flux the export gives it, so a river carries a cell through a dry year
+and a desert barely notices; the **spate** runs down the cells of one river by its own id,
+carrying its flux; the **firestorm** moves with the wind, stops at water and travels at
+the speed the ground will carry it, which is nearly perfect through the Dead Forrest and
+hardly at all through rainforest. The **pestilence** is the one that travels the way trade
+does: it moves out along the least-cost network at a stated number of effective miles a
+month, so the places it reaches first are the places the roads were built to reach.
+
+The supernatural three are not spreads at all except one. A **dragon** is a line laid
+across the sheet on a bearing, of a stated reach and breadth, burning what it crosses and
+leaving everything either side alone — and the Dragon Ridgers know how to answer one where
+almost nobody else does. The **blood tide** creeps cell to cell, faster over ground that is
+already Blood Fields or Dead Forrest, slower uphill, and slower again where a people has a
+ward against it. A **riving** simply stops a line of ground being ground.
+
+### The second half
+
+What breaks first is cells. What breaks second is the network, and that is computed by
+running the router again over what is left — the same router that reproduces the exported
+figures to within 0.006 per cent. Ground hurt past a threshold carries no traffic, and a
+market centre whose own ground is stricken stops keeping a market whether or not the roads
+to it are open. Out of that come the figures a realm would actually notice: **market pairs
+that can no longer reach each other, ground that has lost the market that fed it, and how
+many days further the food now has to travel.**
+
+Two hazards do not close a road at all — a drought makes the going easier, and a
+pestilence travels *because* the roads are open — so they are declared as such, and what
+they do to the network they do by emptying places rather than by cutting between them.
+Which produces the contrast the console is for:
+
+| | Cells touched | People gone | Closed | Market pairs |
+| --- | --- | --- | --- | --- |
+| Long drought, severity 3 | 1,671 | 119,454 | 0 | **92 of 92 hold** |
+| A riving across Rithi, 1,400 mi | 26 | 20,442 | 26 | **39 of 92** |
+
+The riving kills a sixth as many people and takes away 53 of the 92 overland market pairs
+in Adrinem, because it opens across the only through-route on the sheet. Severed pairs are
+counted against the baseline, not in the abstract: 44 of the 136 market pairs never had an
+overland way between them and reporting those as severed would be a lie about what the
+event did.
+
+None of it is a prediction. The vulnerabilities — how readily each biome carries fire, how
+badly it suffers when the water stops, what a people can do about the supernatural — are
+invented to be plausible and internally consistent, and they are in three named tables at
+the top of `js/adrinem-sim.js` where they can be argued with.
+
 ## Finding your way round either sheet
 
 Both sheets carry a great deal and almost none of it announces itself, so each opens
@@ -468,9 +530,10 @@ the box and shows you the results. Nothing is described that is not also shown. 
   coverage and thoroughfare layers, structure heights, the built fabric, the six
   contingency projections and what they report, the hour scrubber, routing with the tide
   and against a projection, the street-level plates, your own marks, and the keys.
-* **Adrinem** — fourteen: the plate, search, the eight things the ground can be coloured
-  by, the layers, the way-finder and what it does when there is no way, the reach, the
-  index and the account, marks, and where the city plates are.
+* **Adrinem** — sixteen: the plate, search, the eight things the ground can be coloured
+  by, the layers, the seven contingency projections and the two halves of what they
+  report, the way-finder and what it does when there is no way, the reach, the index and
+  the account, marks, and where the city plates are.
 * **A city plate** — six, run the first time you open one: reading a block and a named
   place, colouring the fabric, the key, the account and its separation of what the
   export says from what an author's premise says, and why the two archetypes differ.
@@ -506,6 +569,8 @@ js/adrinem-palette.js  the colours the plate is washed in
 js/adrinem-world.js    the cell table, the Voronoi, coast, marches, rivers
 js/adrinem-route.js    the exported cost model, re-run in the browser
 js/adrinem-map.js      the plate renderer and the view state
+js/adrinem-sim.js      seven hazards, twelve months, and the network run again
+js/adrinem-sim-ui.js   the projection console and the month scrubber
 js/adrinem-app.js      wiring: plate, index, search, way-finder, marks
 js/adrinem-city.js     the city generator: site, water, plan, blocks, wall, names,
                        both archetypes, and the doctrine table
