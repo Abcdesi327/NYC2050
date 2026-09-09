@@ -447,6 +447,30 @@ const PLATE_STEPS=[
   "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
   "section under it putting every household at the height that decides its rank."},
 
+ {title:"SIM — what happens to this place", wait:420,
+  spot:()=>union("#cpSimBtn","#cpSimPanel"),
+  before(){ toggle("cpSimBtn",true); }, after(){ toggle("cpSimBtn",false); },
+  body:"The world sheet's projection console, pointed at one plate. Choose a hazard — "+
+  "flood, fire, an earth shock, a hillside going, a dragon, a blood tide, or the "+
+  "waters simply refusing — set what it does, put it somewhere if it needs a place, "+
+  "and run it. Press <b>S</b> for the same thing.<br><br>"+
+  "Every plot is scored on what it is <b>made of</b>, how many <b>storeys</b> it "+
+  "carries and how <b>high up the hill</b> it stands, so a stone sanctuary and a "+
+  "thatched house on stilts come out of a fire and out of a shock in opposite orders."},
+
+ {title:"And then what stopped working", body:
+  "The report is in two halves and the second is the one to read. Every plate is built "+
+  "on exactly one line — Ourasen's <b>head-race</b>, Oem'rek's <b>Long Quay</b>, "+
+  "Rithi's <b>Through-Way</b> — and the run breaks it in places.<br><br>"+
+  "At a village the water runs one way, so <b>every terrace drawn from beyond the "+
+  "first break goes dry however far from the damage it is</b>. Those terraces are "+
+  "coloured separately from the damage, because nothing touched them. And because "+
+  "Ourasen's people were worked out from what its terraces feed, hectares lost convert "+
+  "straight back into <b>people the place can no longer keep</b> — usually a far larger "+
+  "number than the event killed.<br><br>"+
+  "Try <b>REFUSE</b>: it burns nothing, breaks nothing and hurts nobody, and it still "+
+  "empties two thirds of the village."},
+
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+
   "the <b>port</b> plan: a staple where the land road meets the quay, radials to each "+

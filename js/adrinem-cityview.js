@@ -33,14 +33,14 @@ const MARK={
   waggon:{sym:"square", col:"#6E6042"},  gate:{sym:"gate", col:"#2C2C2A"}
 };
 
-let city=null, view=null, sel=null;
+let city=null, view=null, sel=null, layers=null, blockIx=null;
 
 /* =================================================================================== */
 function draw(c){
   const svg=q("cpMap"); clear(svg);
   const root=el("g",{}); svg.appendChild(root);
-  const L={};
-  ["ground","water","marsh","block","street","wall","route","mark","lab"]
+  const L=layers={};
+  ["ground","water","marsh","block","street","wall","route","life","mark","lab"]
     .forEach(k=>{L[k]=el("g",{}); root.appendChild(L[k]);});
 
   const defs=el("defs",{});
@@ -186,7 +186,16 @@ function draw(c){
 
 /* --- blocks, one path per colour, as on the world sheet --------------------------- */
 let blockMode="use";
-function blockColour(b){
+function blockColour(b,i){
+  /* A projection overrides every fabric mode: what a plot is matters less, once one is
+     running, than what has become of it. Ground that is merely dry is given its own
+     colour rather than a damage state, because nothing touched it. */
+  if(simFrame){
+    if(simDry&&simDry[i]) return A.platesim.DRY;
+    const st=simFrame.state[i];
+    if(st<4) return A.platesim.STATES[st][2];
+    return A.city.USES[b.use].colour;
+  }
   if(blockMode==="use") return A.city.USES[b.use].colour;
   if(blockMode==="storeys"){
     const r=["#E3DCC4","#D3C7A2","#C0AE82","#A99167","#8E7550","#71593B"];
@@ -199,8 +208,8 @@ function blockColour(b){
 function paintBlocks(g){
   clear(g);
   const by=new Map();
-  city.blocks.forEach(b=>{
-    const col=blockColour(b), d=path(b.poly)+"Z";
+  city.blocks.forEach((b,i)=>{
+    const col=blockColour(b,i), d=path(b.poly)+"Z";
     const cur=by.get(col); if(cur) cur.push(d); else by.set(col,[d]);
   });
   by.forEach((frags,col)=>g.appendChild(el("path",{d:frags.join(""),fill:col,
@@ -346,6 +355,7 @@ function makeView(svg,root,L){
   stage.addEventListener("click",e=>{
     if(moved>6) return;
     const p=toMap(e.clientX,e.clientY);
+    if(simPicking){ const ix=blockIndexAt(p); if(ix!=null) setSimPoint(ix); return; }
     const m=markAt(p,SYM_PX*0.85/sc);
     if(m) { showMark(m); return; }
     const b=blockAt(p);
@@ -373,6 +383,10 @@ function blockAt(p){
   });
   if(!best||bd>320) return null;
   return inside(best.poly,p)?best:(bd<90?best:null);
+}
+function blockIndexAt(p){
+  const b=blockAt(p);
+  return b?blockIx.get(b):null;
 }
 function inside(poly,p){
   let hit=false;
@@ -429,7 +443,19 @@ function showMark(m){
 /* =================================================================================== */
 function fillKey(){
   let h="";
-  if(blockMode==="use"){
+  if(simFrame){
+    h+="<b>THE FABRIC — UNDER THE PROJECTION</b>";
+    A.platesim.STATES.slice(0,4).forEach(st=>
+      h+='<i style="background:'+st[2]+'"></i>'+st[0]+'<br>');
+    h+='<i style="background:'+A.platesim.DRY+'"></i>DRY — NOTHING TOUCHED IT<br>'+
+      '<span style="opacity:.6">Anything still held keeps the colour of what it is.'+
+      '</span><br>';
+    if(simRes&&simRes.line)
+      h+='<b>'+esc(simRes.line.name.toUpperCase())+'</b>'+
+        '<i style="background:#2C2C2A;opacity:.55"></i>THE LINE THIS PLATE LIVES ON<br>'+
+        '<i style="background:#8F2222"></i>WHERE IT IS BROKEN<br>'+
+        '<i style="background:#8F2222;opacity:.55"></i>AND WHAT IT NO LONGER CARRIES<br>';
+  } else if(blockMode==="use"){
     h+="<b>THE FABRIC — BY USE</b>";
     Object.keys(A.city.USES).forEach(k=>{
       const u=A.city.USES[k], v=city.byUse[k];
@@ -776,11 +802,11 @@ function setModel(on){
       'did not load, so the model cannot be drawn.</p>';
     return;
   }
-  const m=A.model.model(city);
+  const m=A.model.model(city,simFrame?simMark:null);
   if(!m) return;
   q("cpModelWrap").innerHTML='<svg id="cpModelSvg" xmlns="http://www.w3.org/2000/svg" '+
     'viewBox="'+m.view.join(" ")+'" preserveAspectRatio="xMidYMid meet">'+m.svg+'</svg>';
-  q("cpModelSect").innerHTML=A.model.section(city);
+  q("cpModelSect").innerHTML=A.model.section(city,null,null,simFrame?simMark:null);
   const s=city.stats, V=city.V;
   q("cpModelCap").innerHTML=
     '<b>'+esc(city.site.name)+' — the model and the slope</b><br>'+
@@ -790,7 +816,10 @@ function setModel(on){
     'so a terrace riser of '+V.riser+' m gives a tread of '+
     Math.round(city.S.terraceTread)+' m; there are '+s.terraces+' of them. '+
     'The river is '+Math.round(s.riseM)+' m below the temple, and every household in '+
-    'the section is drawn at the height that decides its rank.';
+    'the section is drawn at the height that decides its rank.'+
+    (simFrame?'<br><b>Under the projection.</b> Every building and every terrace is '+
+      'washed with what the run has left of it, at step '+simStep+' of '+simRes.steps+
+      ' — the same colours the plan is carrying, on the same numbers.':'');
   fitModel(m.view);
 }
 function fitModel(view){
@@ -835,6 +864,301 @@ function fitModel(view){
 }
 
 /* =================================================================================== */
+/*  the projection, at plate scale                                                     */
+/*  The survey sheet's console pointed at one place instead of a continent. It asks the */
+/*  same two questions in the same order — what the event took, and then what stopped   */
+/*  working because of it — but here the second question has a sharper answer, because  */
+/*  every plate is built on exactly one line and the engine knows which blocks draw     */
+/*  from which stretch of it.                                                           */
+/* =================================================================================== */
+let simHaz=null, simParams={}, simPoint=null, simRes=null, simStep=0,
+    simFrame=null, simDry=null, simPicking=false, simPlaying=null;
+
+function simGrid(){
+  const wrap=q("cpSimHazards"); wrap.innerHTML="";
+  const list=A.platesim.hazardsFor(city.archetype);
+  [["natural","NATURAL"],["supernatural","SUPERNATURAL"]].forEach(([kind,label])=>{
+    const mine=list.filter(H=>H.kind===kind);
+    if(!mine.length) return;
+    const h=document.createElement("p"); h.className="hkind"; h.textContent=label;
+    wrap.appendChild(h);
+    const row=document.createElement("div"); row.className="hrow";
+    mine.forEach(H=>{
+      const b=document.createElement("button");
+      b.className="chip"; b.textContent=H.short; b.dataset.id=H.id;
+      b.setAttribute("aria-pressed","false");
+      b.onclick=()=>simChoose(H.id);
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+  });
+  simChoose(list[0].id);
+}
+
+function simChoose(id){
+  simHaz=A.platesim.hazardById(id);
+  if(!simHaz) return;
+  simParams={}; simHaz.params.forEach(p=>simParams[p.id]=p.val);
+  simPoint=null; simClear(false);
+  [...q("cpSimHazards").querySelectorAll(".chip")].forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.id===id)));
+  q("cpSimName").textContent=simHaz.name;
+  q("cpSimBlurb").textContent=A.platesim.blurbFor(simHaz,city.archetype);
+  q("cpSimPointRow").style.display=simHaz.point?"":"none";
+  q("cpSimPick").textContent=simHaz.pointLabel?("SET "+simHaz.pointLabel):"SET POINT";
+  setSimPick(false);
+  showSimPoint();
+  simParamRows();
+}
+
+function simParamRows(){
+  const box=q("cpSimParams"); box.innerHTML="";
+  simHaz.params.forEach(p=>{
+    const row=document.createElement("div"); row.className="prow";
+    const lab=document.createElement("label"); lab.innerHTML=esc(p.label)+"<b></b>";
+    const inp=document.createElement("input");
+    inp.type="range"; inp.min=p.min; inp.max=p.max; inp.step=p.step;
+    inp.value=simParams[p.id];
+    const show=()=>{
+      const v=+inp.value;
+      lab.querySelector("b").textContent=p.onoff?(v?"YES":"NO"):
+        p.bearing?bearingLabel(v):(v+(p.unit||""));
+    };
+    inp.addEventListener("input",()=>{ simParams[p.id]=+inp.value; show(); });
+    show();
+    row.appendChild(lab); row.appendChild(inp); box.appendChild(row);
+  });
+}
+const bearingLabel=d=>["E","SE","S","SW","W","NW","N","NE"]
+  [(Math.round(((d%360)+360)%360/45))%8]+" ("+d+"°)";
+
+/* --- putting it somewhere on the plate --------------------------------------------- */
+function setSimPick(on){
+  simPicking=!!on;
+  q("cpSimPick").setAttribute("aria-pressed",String(simPicking));
+  q("cpStage").classList.toggle("picking",simPicking);
+}
+function setSimPoint(ix){
+  if(simHaz&&simHaz.pointBuilt&&city.blocks[ix].use==="paddy"){
+    const c=city.blocks[ix].c; let best=ix, bd=Infinity;
+    city.blocks.forEach((b,i)=>{
+      if(b.use==="paddy") return;
+      const d=Math.hypot(b.c[0]-c[0],b.c[1]-c[1]);
+      if(d<bd){ bd=d; best=i; }
+    });
+    ix=best;
+  }
+  simPoint=ix; setSimPick(false); showSimPoint();
+  paintLife();
+}
+function showSimPoint(){
+  const e=q("cpSimPointRef");
+  if(simPoint==null){ e.textContent="— not set —"; return; }
+  const b=city.blocks[simPoint];
+  const where=b.rankName?b.rankName:A.city.USES[b.use].label;
+  e.textContent=where+(b.people?" · "+b.people+" people":"");
+}
+
+/* --- the run ------------------------------------------------------------------------ */
+function simRun(){
+  if(!simHaz) return;
+  if(simHaz.point&&simPoint==null){ simToast("This one needs a point on the plate."); return; }
+  const btn=q("cpSimRun");
+  btn.disabled=true; btn.textContent="RUNNING…";
+  setTimeout(()=>{
+    try{
+      simRes=A.platesim.run(city,{hazard:simHaz.id,point:simPoint,
+        params:Object.assign({},simParams)});
+    }catch(err){ simRes=null; console.error(err); }
+    btn.disabled=false; btn.textContent="RUN PROJECTION";
+    if(!simRes){ q("cpSimReport").innerHTML=
+      '<div class="rterr">The projection did not run.</div>'; return; }
+    q("cpSimTime").classList.add("on");
+    q("cpSimScrub").max=simRes.steps;
+    simShow(simRes.steps);
+    simReport();
+  },30);
+}
+
+function simShow(n){
+  if(!simRes) return;
+  simStep=Math.max(1,Math.min(simRes.steps,n));
+  simFrame=simRes.frames[simStep-1];
+  simDry=A.platesim.dryAt(city,simRes,simFrame);
+  q("cpSimScrub").value=simStep;
+  q("cpSimStep").textContent=(simRes.unit==="D"?"DAY ":"HOUR ")+
+    String(simStep).padStart(2,"0");
+  const t=simFrame.tally;
+  q("cpSimCounts").innerHTML=
+    A.platesim.STATES.slice(0,4).map(s=>'<i style="background:'+s[2]+'"></i>'+
+      (t[s[0]]||0)).join('<b class="sep"></b>')+
+    (dryCount()?'<b class="sep"></b><i style="background:'+A.platesim.DRY+
+      '"></i>'+dryCount():'')+
+    '<span class="dd">'+simFrame.dead.toLocaleString()+' gone</span>';
+  const log=q("cpSimLog");
+  log.innerHTML=simRes.events.filter(e=>e.t<=simStep).slice(-5).map(e=>
+    '<span class="'+e.kind+'">'+(simRes.unit==="D"?"D":"H")+
+    String(e.t).padStart(2,"0")+'</span> '+esc(e.text)).join("<br>")||"—";
+  view&&view.repaint();
+  paintLife();
+  fillKey();
+  if(modelOn) setModel(true);
+}
+function dryCount(){ if(!simDry) return 0;
+  let n=0; for(let i=0;i<simDry.length;i++) n+=simDry[i]; return n; }
+
+/* --- the line, and where it has stopped carrying ----------------------------------- */
+function paintLife(){
+  if(!layers) return;
+  const g=layers.life; clear(g);
+  const pin=()=>{
+    if(simPoint==null||!simHaz||!simHaz.point) return;
+    const b=city.blocks[simPoint];
+    /* held at a constant size on screen, the way the named places are: the placing is
+       an attribute, the scaling is the stylesheet's, because a transform attribute
+       cannot read a custom property */
+    const n=el("g",{class:"cpick",
+      transform:"translate("+b.c[0].toFixed(1)+" "+b.c[1].toFixed(1)+")"});
+    const in_=el("g",{class:"csym"});
+    in_.appendChild(el("circle",{cx:0,cy:0,r:11}));
+    in_.appendChild(el("circle",{cx:0,cy:0,r:2.4}));
+    n.appendChild(in_); g.appendChild(n);
+  };
+  if(!simRes||!simRes.line){ pin(); return; }
+  const line=simRes.line;
+  g.appendChild(el("path",{d:path(line.pts),class:"lifeline"}));
+  const dead=A.platesim.deadRun(simRes,simFrame);
+  if(dead){
+    const n=26, pts=[];
+    for(let k=0;k<=n;k++) pts.push(line.point(dead[0]+(dead[1]-dead[0])*k/n));
+    g.appendChild(el("path",{d:path(pts),class:"lifedead"}));
+  }
+  const L=simFrame?simFrame.line:simRes.lineDmg;
+  for(let k=0;k<L.length;k++){
+    if(L[k]<A.platesim.LINE_CUT) continue;
+    const t=k/(L.length-1);
+    g.appendChild(el("path",{class:"lifecut",
+      d:path([line.point(Math.max(0,t-0.012)),line.point(Math.min(1,t+0.012))])}));
+  }
+  pin();
+}
+
+/* --- the two halves ----------------------------------------------------------------- */
+function simReport(){
+  const r=simRes.report, w=r.works, village=city.archetype==="village";
+  const row=(k,v)=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>';
+  const n=city.blocks.length;
+  let h='<p class="rep-h">WHAT IT TOOK</p><dl class="acct">'+
+    row(village?"Plots touched":"Blocks touched",
+      r.hit.toLocaleString()+" of "+n.toLocaleString())+
+    row("Stricken or lost",(r.byState.LOST+r.byState.STRICKEN).toLocaleString())+
+    row("People gone",r.dead.toLocaleString())+
+    row("Floor lost",Math.round(r.floorLost).toLocaleString()+" m²")+
+    (r.paddyLostHa>0.05?row("Terrace destroyed",r.paddyLostHa.toFixed(1)+" ha"):"")+
+    (r.templeHit>0?row(village?"The sanctuary":"The temple precinct",
+      A.platesim.stateOf(r.templeHit)):"")+
+    '</dl>';
+
+  if(village&&r.hit>0&&Object.keys(r.byRank).length){
+    h+='<p class="rep-h">WHO IT FALLS ON</p><ul class="why">';
+    city.RANKS.forEach(rk=>{
+      const k=r.byRank[rk.key]; if(!k) return;
+      h+='<li><b>'+esc(k.name)+'</b><span>'+k.hit+' of '+k.n+
+        ' households harmed or worse'+(k.dead?', '+k.dead+' gone':'')+'</span></li>';
+    });
+    h+='</ul>';
+  } else {
+    const uses=Object.keys(r.byUse).filter(k=>r.byUse[k].hit>0)
+      .sort((a,b)=>(r.byUse[b].hit/r.byUse[b].n)-(r.byUse[a].hit/r.byUse[a].n)).slice(0,6);
+    if(uses.length){
+      h+='<p class="rep-h">WHERE IT FALLS</p><ul class="why">';
+      uses.forEach(k=>h+='<li><b>'+esc(A.city.USES[k].label)+'</b><span>'+
+        r.byUse[k].hit+' of '+r.byUse[k].n+' blocks harmed or worse'+
+        (r.byUse[k].dead?', '+r.byUse[k].dead+' gone':'')+'</span></li>');
+      h+='</ul>';
+    }
+  }
+
+  h+='<p class="rep-h">WHAT STOPPED WORKING</p><dl class="acct">';
+  if(!w.line) h+=row("The line","this plate has none the plan named");
+  else if(village){
+    h+=row(w.line,A.platesim.cutPhrase(w))+
+      row("Terraces gone dry",w.dry.toLocaleString()+" · "+w.dryHa.toFixed(1)+" ha")+
+      row("Terrace still watered",w.workingHa.toFixed(1)+" of "+
+        city.stats.paddyHa.toFixed(1)+" ha")+
+      row("It can feed",w.fedNow.toLocaleString()+" of "+w.fedBefore.toLocaleString())+
+      row("No longer fed",w.shortfall.toLocaleString()+" people");
+  } else {
+    h+=row(w.line,A.platesim.cutPhrase(w))+
+      (w.crossing?row("The crossing",w.crossing==="closed"?
+        "closed — and it is the only through-route on the sheet":"open"):"");
+  }
+  h+='</dl>';
+
+  if(village&&w.shortfall>0)
+    h+='<p class="rep-note"><b>'+w.shortfall.toLocaleString()+' people the terraces '+
+      'can no longer keep, against '+r.dead.toLocaleString()+' the event killed.</b> '+
+      'The village was laid out at '+city.V.feedPerHa+' people to the watered hectare, '+
+      'so hectares lost convert straight back into people — whether the water was taken '+
+      'by the damage or merely left above the break.</p>';
+
+  h+='<p class="rep-note">'+esc(r.text)+'</p>';
+  h+='<p class="rtfoot">'+simRes.steps+' '+(simRes.unit==="D"?"days":"hours")+
+    ' over '+n.toLocaleString()+(village?' plots':' blocks')+', each scored on what it '+
+    'is made of, how many storeys it carries and'+
+    (village?' how high up the hill it stands':' where on the plan it stands')+
+    '. What stopped working is read off the one line the plate lives on — '+
+    esc(w.line||"none the plan named")+'. None of it is a prediction: every '+
+    'vulnerability is invented and they are all in one table in '+
+    'js/adrinem-plate-sim.js.</p>';
+  q("cpSimReport").innerHTML=h;
+}
+
+/* --- the scrubber -------------------------------------------------------------------- */
+function simPlay(){
+  if(simPlaying) return simStop();
+  q("cpSimPlay").textContent="❚❚";
+  if(simStep>=simRes.steps) simShow(1);
+  simPlaying=setInterval(()=>{
+    if(simStep>=simRes.steps) return simStop();
+    simShow(simStep+1);
+  },420);
+}
+function simStop(){ if(simPlaying) clearInterval(simPlaying); simPlaying=null;
+  q("cpSimPlay").textContent="▶"; }
+function simClear(full){
+  simStop(); simRes=null; simStep=0; simFrame=null; simDry=null;
+  q("cpSimTime").classList.remove("on");
+  q("cpSimReport").innerHTML="";
+  if(full){ simPoint=null; showSimPoint(); }
+  if(layers){ clear(layers.life); view&&view.repaint(); }
+  if(modelOn) setModel(true);
+  fillKey();
+}
+let simToastT=null;
+function simToast(msg){
+  const t=q("toast"); if(!t) return;
+  t.textContent=msg; t.classList.add("on");
+  clearTimeout(simToastT); simToastT=setTimeout(()=>t.classList.remove("on"),2200);
+}
+function simOpen(on){
+  q("cpSimPanel").classList.toggle("on",on);
+  q("cpSimBtn").setAttribute("aria-pressed",String(on));
+  if(!on) setSimPick(false);
+  else if(!q("cpSimHazards").children.length) simGrid();
+}
+/* how the model is asked to tint one building */
+function simMark(b){
+  if(!simFrame) return null;
+  const i=blockIx?blockIx.get(b):-1;
+  if(i==null||i<0) return null;
+  if(simDry&&simDry[i]) return {colour:A.platesim.DRY,f:.7};
+  const st=simFrame.state[i];
+  if(st>=4) return null;
+  return {colour:A.platesim.STATES[st][2],f:[.82,.66,.5,.32][st]};
+}
+
+/* =================================================================================== */
 /*  open and close                                                                     */
 /* =================================================================================== */
 function open(cell){
@@ -858,6 +1182,10 @@ function open(cell){
       : st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
         st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
         s.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
+    blockIx=new Map(city.blocks.map((b,i)=>[b,i]));
+    simRes=null; simFrame=null; simDry=null; simPoint=null; simHaz=null;
+    q("cpSimHazards").innerHTML=""; q("cpSimReport").innerHTML="";
+    q("cpSimTime").classList.remove("on"); simOpen(false);
     draw(city);
     setModel(false);
     q("cpModelBtn").style.display=
@@ -866,7 +1194,8 @@ function open(cell){
     if(window.TOUR) window.TOUR.maybePlate();
   },30);
 }
-function close(){ q("cityPlate").classList.remove("on"); setModel(false); }
+function close(){ q("cityPlate").classList.remove("on"); setModel(false);
+  simStop(); simOpen(false); }
 
 function boot(){
   q("cpClose").onclick=close;
@@ -884,6 +1213,9 @@ function boot(){
   };
   const modes=["use","storeys","density"];
   q("cpFabBtn").onclick=()=>{
+    /* a projection owns the fabric while it is up; stepping the mode under it would
+       change a legend nobody can see the effect of */
+    if(simFrame){ simToast("Clear the projection to colour the fabric again."); return; }
     blockMode=modes[(modes.indexOf(blockMode)+1)%modes.length];
     q("cpFabBtn").textContent=blockMode==="use"?"USE":blockMode==="storeys"?"HGT":"DENS";
     view&&view.repaint(); fillKey();
@@ -892,6 +1224,13 @@ function boot(){
   q("cpOut").onclick=()=>view&&view.zoomAt(1/1.4,innerWidth/2,innerHeight/2);
   q("cpRst").onclick=()=>{ if(modelOn&&mv) mv.reset(); else if(view) view.fit(); };
   q("cpModelBtn").onclick=()=>setModel(!modelOn);
+  q("cpSimBtn").onclick=()=>simOpen(!q("cpSimPanel").classList.contains("on"));
+  q("cpSimClose").onclick=()=>simOpen(false);
+  q("cpSimRun").onclick=simRun;
+  q("cpSimPick").onclick=()=>setSimPick(!simPicking);
+  q("cpSimPlay").onclick=simPlay;
+  q("cpSimReset").onclick=()=>simClear(true);
+  q("cpSimScrub").addEventListener("input",e=>{ simStop(); simShow(+e.target.value); });
   /* While the plate is up it owns the keyboard — the world sheet underneath must not
      also act on the key. Caught on the way down, before the sheet's own listener. */
   addEventListener("keydown",e=>{
@@ -905,6 +1244,8 @@ function boot(){
     else if(k==="a") q("cpAcctBtn").click();
     else if(k==="r") q("cpRst").click();
     else if(k==="m"&&q("cpModelBtn").style.display!=="none") q("cpModelBtn").click();
+    else if(k==="s") q("cpSimBtn").click();
+    else if(k===" "&&simRes){ e.preventDefault(); simPlay(); }
   },true);
   addEventListener("resize",()=>{ if(view&&q("cityPlate").classList.contains("on")) view.fit(); });
 }

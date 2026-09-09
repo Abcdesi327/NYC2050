@@ -600,6 +600,45 @@ svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:s
 #projTime .log .start{color:var(--muted)}
 #projTime .log .loss{color:var(--z1)}
 #projTime .counts .sep{display:inline-block;width:5px}
+
+/* ---------- the projection console on a plate -------------------------------------- */
+.cpsim{z-index:46}
+.cpline{z-index:46}
+#cpSimHazards .hkind{margin:9px 0 4px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;color:var(--muted)}
+#cpSimHazards .hkind:first-child{margin-top:0}
+#cpSimHazards .hrow{display:flex;flex-wrap:wrap;gap:5px}
+#cpSimReport .rep-h{margin:13px 0 5px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--rule);
+  padding-bottom:4px}
+#cpSimReport .rep-note{font-size:12.5px;line-height:1.55;color:#44443F;margin:12px 0 0;
+  padding:10px 11px;background:#F2F0E7;border-radius:9px}
+#cpSimTime .counts i{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin:0 3px 0 7px;vertical-align:-1px}
+#cpSimTime .counts .sep{display:inline-block;width:5px}
+#cpSimTime .counts .dd{margin-left:10px;color:var(--z1)}
+#cpSimTime .log .loss{color:var(--z1)}
+#cpSimTime .log .start{color:var(--muted)}
+/* The line the plate lives on, traced over whatever the plan already drew there — a
+   channel at a village, a quay or a road at a city — so the strokes are given in pixels
+   and held there at every zoom. */
+#cpMap .lifeline{fill:none;stroke:#2C2C2A;stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:1 7;stroke-opacity:.55;vector-effect:non-scaling-stroke}
+#cpMap .lifecut{fill:none;stroke:#8F2222;stroke-width:11;stroke-linecap:round;
+  vector-effect:non-scaling-stroke}
+/* the stretch beyond the first break, which carries nothing however sound it looks */
+#cpMap .lifedead{fill:none;stroke:#8F2222;stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:9 8;stroke-opacity:.8;vector-effect:non-scaling-stroke}
+#cpMap .cpick circle{fill:none;stroke:#8F2222;stroke-width:2.6;stroke-opacity:.95;
+  vector-effect:non-scaling-stroke}
+@media (max-width:620px){
+  /* the console takes the whole screen at this width, so the scrubber waits behind it
+     rather than sitting across the report; close the console and it is there */
+  .cpsim.on ~ .cpline{z-index:44}
+}
+#cpStage.picking{cursor:crosshair}
+#cpStage.picking::after{content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 3px rgba(143,34,34,.5)}
 </style>
 </head>
 <body>
@@ -767,8 +806,37 @@ svg.vsect .bl{font-family:var(--mono);font-size:6.5px;fill:#4A463C;text-anchor:s
     <div class="msect" id="cpModelSect"></div>
     <div class="mcap" id="cpModelCap"></div>
   </div>
+  <div class="simp cpsim" id="cpSimPanel">
+    <header>
+      <h2>Projection on the plate</h2>
+      <button id="cpSimClose" aria-label="Close the console">&times;</button>
+    </header>
+    <div class="body">
+      <div id="cpSimHazards"></div>
+      <p class="hname" id="cpSimName"></p>
+      <p class="blurb" id="cpSimBlurb"></p>
+      <div id="cpSimParams"></div>
+      <div class="pointrow" id="cpSimPointRow">
+        <button id="cpSimPick" aria-pressed="false">SET POINT</button>
+        <span id="cpSimPointRef"></span>
+      </div>
+      <button id="cpSimRun" class="run">RUN PROJECTION</button>
+      <div id="cpSimReport"></div>
+    </div>
+  </div>
+
+  <div class="timeline cpline" id="cpSimTime">
+    <button id="cpSimPlay" aria-label="Play the projection">&#9654;</button>
+    <input type="range" id="cpSimScrub" min="1" max="12" value="12" aria-label="Step">
+    <span class="hh" id="cpSimStep">+12</span>
+    <span class="counts" id="cpSimCounts"></span>
+    <button id="cpSimReset" class="txt">CLEAR</button>
+    <div class="log" id="cpSimLog"></div>
+  </div>
+
   <div class="ctl cpctl">
     <button id="cpKeyBtn" class="sm" aria-pressed="false" aria-label="Toggle the key">KEY</button>
+    <button id="cpSimBtn" class="sm" aria-pressed="false" aria-label="Projection">SIM</button>
     <button id="cpModelBtn" class="sm" aria-pressed="false" aria-label="The model"
       style="display:none">MDL</button>
     <button id="cpFabBtn" class="sm" aria-label="Colour the fabric by">USE</button>
@@ -4876,6 +4944,637 @@ A.village={ build:build, siteOf:siteOf, RANKS:RANKS, V:V, HAMLETS:HAMLETS,
 </script>
 <script>
 /* ===================================================================================
+   Adrinem — projections at plate scale. The world sheet asks what a hazard does to a
+   continent; this asks what it does to one place, block by block, with the properties
+   the plate generator already gave every block: what it is made of, how many storeys
+   it carries, how high up the hill it stands, and how many people sleep in it.
+
+   The second half is the same idea as everywhere else in this project and it has a
+   better answer here than at any other scale, because every plate is built on exactly
+   one line:
+
+       Ourasen   the head-race         water, and it runs one way, downhill from a weir
+       Oem'rek   the Long Quay         everything the province sells
+       Rithi     the Through-Way       a third of the continent's overland trade
+
+   Break a stretch of that line and what depended on it stops, whether or not the event
+   touched it. At Ourasen the cascade is directional: cut the race at any point and
+   every terrace drawn from below that point goes dry, however far from the damage it
+   is — and because the village's population was solved from what its terraces feed,
+   the hectares lost convert straight back into people the place can no longer keep.
+
+   Nothing here is a prediction. Every vulnerability is invented, and they are all in
+   one table below.
+   =================================================================================== */
+(function(){
+"use strict";
+const A=window.ADRINEM=window.ADRINEM||{};
+const STEPS=12;
+
+const STATES=[["LOST",.80,"#6E1A1A"],["STRICKEN",.55,"#8F2222"],["HARMED",.32,"#C4472A"],
+              ["TOUCHED",.14,"#E08A24"],["HELD",0,"#3F6B3A"]];
+const stateIndex=f=>{ for(let i=0;i<STATES.length;i++) if(f>=STATES[i][1]) return i;
+  return STATES.length-1; };
+const stateOf=f=>STATES[stateIndex(f)][0];
+const mortality=f=>f<=0.14?0:Math.pow((f-0.14)/0.86,1.9)*0.5;
+/* a stretch of lifeline hurt this badly no longer carries what it carried */
+const LINE_CUT=0.5;
+/* ground nothing touched, which has simply lost its water. It is not damage and it must
+   not be drawn as damage; it is the second-order reading, and at a village it is nearly
+   always the larger number. */
+const DRY="#B39A63";
+
+/* ===================================================================================
+   WHAT EACH KIND OF BUILT THING IS MADE OF
+   ---------------------------------------------------------------------------------
+   burn: how readily it takes fire.  shake: how badly it takes a shock.
+   Both invented. A village house is timber and thatch on stilts — it burns almost
+   perfectly and shrugs off a shock; a stone temple is the other way round; a flooded
+   paddy will not burn at all.
+   =================================================================================== */
+const MAT={
+  paddy:   {burn:.02, shake:.18, label:"terrace"},
+  dwelling:{burn:.86, shake:.30, label:"dwelling"},
+  poor:    {burn:.90, shake:.42, label:"tenement"},
+  craft:   {burn:.80, shake:.34, label:"workshop"},
+  merchant:{burn:.52, shake:.46, label:"merchant house"},
+  ward:    {burn:.82, shake:.44, label:"ward"},
+  wharf:   {burn:.76, shake:.36, label:"wharf"},
+  store:   {burn:.72, shake:.34, label:"store"},
+  yard:    {burn:.70, shake:.26, label:"yard"},
+  waggon:  {burn:.64, shake:.24, label:"waggon yard"},
+  staple:  {burn:.44, shake:.38, label:"market"},
+  civic:   {burn:.30, shake:.52, label:"civic"},
+  garrison:{burn:.22, shake:.56, label:"garrison"},
+  temple:  {burn:.18, shake:.58, label:"sanctuary"},
+  noxious: {burn:.74, shake:.30, label:"noxious trade"},
+  quarry:  {burn:.04, shake:.14, label:"working"},
+  garden:  {burn:.34, shake:.06, label:"garden"}
+};
+const matOf=b=>MAT[b.use]||MAT.dwelling;
+/* stone in the footing helps against fire and hurts under a shock, which is the whole
+   argument between the two materials */
+function burnOf(b){
+  const m=matOf(b), st=b.stone||0;
+  return Math.max(0.02,m.burn*(1-0.55*st));
+}
+function shakeOf(b){
+  const m=matOf(b), st=b.stone||0;
+  return Math.min(1,m.shake+0.30*st+0.06*Math.max(0,(b.storeys||1)-1));
+}
+
+/* ===================================================================================
+   THE HAZARDS
+   =================================================================================== */
+const HAZARDS=[
+ {id:"spate", kind:"natural", name:"The river comes up", short:"SPATE",
+  plates:["village","port","crossing"], point:false, unit:"D",
+  blurb:"It rises from the bottom. On a terraced hillside that means the lowest bunds "+
+        "first, then the Water-Foot, then the weir itself — and the weir is the whole "+
+        "village's water.",
+  /* the same event, described from the plate it is standing on */
+  blurbs:{city:"It rises from the water and works inland, so it takes the quay, the "+
+        "wharves and the granaries behind them before it touches anything that could "+
+        "afford to be built higher. The ground here has no surveyed height: it is "+
+        "assumed to rise one metre for every sixty inland from the water."},
+  params:[
+   {id:"crest", label:"CREST",min:1,max:12,step:1,val:5,unit:" m"},
+   {id:"days",  label:"IN SPATE",min:1,max:12,step:1,val:4,unit:" d"},
+   {id:"scour", label:"IT SCOURS",min:0,max:1,step:1,val:1,onoff:true}]},
+
+ {id:"fire", kind:"natural", name:"Fire in the village", short:"FIRE",
+  plates:["village","port","crossing"], point:true, unit:"H", pointLabel:"IGNITION",
+  /* a flooded terrace cannot be where a fire starts, and on this plate the terraces are
+     nineteen plots in twenty, so a click has to be taken to the nearest thing that burns */
+  pointBuilt:true,
+  blurb:"Thatch and timber on a dry wind. It goes from roof to roof and stops at "+
+        "water, at stone and at anything nobody built on — which on this plate means "+
+        "the terraces, and they are the reason the whole place does not go.",
+  blurbs:{city:"It goes from roof to roof on the wind and stops at water, at stone and "+
+        "at open ground. A close-built quarter of timber workshops carries it; a "+
+        "consecrated precinct of stone does not, and a wide street is worth more than "+
+        "any wall."},
+  params:[
+   {id:"wind",   label:"WIND",min:0,max:80,step:5,val:35,unit:" km/h"},
+   {id:"bearing",label:"WIND FROM",min:0,max:315,step:45,val:225,bearing:true},
+   {id:"dry",    label:"DRYNESS",min:10,max:100,step:5,val:75,unit:" %"}]},
+
+ {id:"quake", kind:"natural", name:"Earth shock", short:"QUAKE",
+  plates:["village","port","crossing"], point:false, unit:"H",
+  blurb:"Low timber on stilts rides a shock better than anything else anyone builds. "+
+        "Stone does not, which is why the sanctuary at the top is the most exposed "+
+        "thing on the plate and the poorest houses are among the safest.",
+  blurbs:{city:"Height and masonry are what a shock punishes, so the order is inverted "+
+        "from every other hazard here: the sanctuaries, the citadel and the tall "+
+        "merchant houses take it worst, and the single-storey ground at the edge of "+
+        "the built-up area comes through nearly whole."},
+  params:[
+   {id:"force", label:"FORCE",min:1,max:9,step:1,val:5},
+   {id:"after", label:"AFTERSHOCKS",min:0,max:4,step:1,val:2},
+   {id:"works", label:"IT BREAKS THE WORKS",min:0,max:1,step:1,val:1,onoff:true}]},
+
+ {id:"slip", kind:"natural", name:"The hillside goes", short:"SLIP",
+  plates:["village"], point:false, unit:"H",
+  blurb:"A wedge of slope lets go and takes what is on it. The terraces are what has "+
+        "held this hill for generations; where they go, so does everything below them, "+
+        "and the race goes with the first one it crosses.",
+  params:[
+   {id:"where", label:"ALONG THE HILL",min:-100,max:100,step:10,val:0,unit:" %"},
+   {id:"width", label:"WIDTH",min:60,max:600,step:20,val:240,unit:" m"},
+   {id:"depth", label:"HOW FAR UP",min:20,max:100,step:10,val:60,unit:" %"}]},
+
+ {id:"dragon", kind:"supernatural", name:"A dragon overhead", short:"DRAGON",
+  plates:["village","port","crossing"], point:true, unit:"H", pointLabel:"WHERE IT COMES IN",
+  blurb:"One pass, on a bearing, and it does not care what anything is worth. What it "+
+        "leaves is a line — and whether that line crosses the works decides whether "+
+        "the place recovers or not.",
+  params:[
+   {id:"bearing",label:"IT FLIES",min:0,max:315,step:45,val:180,bearing:true},
+   {id:"wing",   label:"BREADTH",min:20,max:400,step:20,val:200,unit:" m"},
+   {id:"passes", label:"PASSES",min:1,max:5,step:1,val:2}]},
+
+ {id:"blood", kind:"supernatural", name:"The blood tide", short:"BLOOD",
+  plates:["village","port","crossing"], point:true, unit:"D", pointLabel:"WHERE IT RISES",
+  blurb:"It creeps from where it rose, faster over the low and the wet — which on a "+
+        "terraced hillside is the entire field, and the field is the village's whole "+
+        "living.",
+  blurbs:{city:"It creeps from where it rose, faster over the low and the wet, slower "+
+        "uphill, and slower again where the ground is consecrated. What it reaches it "+
+        "does not give back."},
+  params:[
+   {id:"rise",  label:"RISE",min:1,max:5,step:1,val:3},
+   {id:"reach", label:"REACH",min:20,max:300,step:20,val:120,unit:" m/d"},
+   {id:"uphill",label:"IT CLIMBS",min:0,max:1,step:1,val:0,onoff:true}]},
+
+ {id:"refuse", kind:"supernatural", name:"The waters refuse", short:"REFUSE",
+  plates:["village"], point:false, unit:"D",
+  blurb:"No footprint at all. Nothing is burnt, nothing falls, nobody is hurt. The "+
+        "race simply stops carrying below a point, and the plate is asked what else "+
+        "stops with it. This is the projection that says what the head-race is worth.",
+  params:[
+   {id:"at",   label:"IT FAILS AT",min:0,max:100,step:5,val:35,unit:" % along"},
+   {id:"total",label:"TOTALLY",min:0,max:1,step:1,val:1,onoff:true}]}
+];
+const hazardsFor=arche=>HAZARDS.filter(H=>H.plates.indexOf(arche)>=0);
+/* a village plate and a walled city are different enough that the same event wants
+   describing differently; ports and crossings share the city wording */
+const blurbFor=(H,arche)=>(arche!=="village"&&H.blurbs&&H.blurbs.city)||H.blurb;
+const hazardById=id=>HAZARDS.find(h=>h.id===id);
+
+/* ===================================================================================
+   THE LIFELINE
+   ---------------------------------------------------------------------------------
+   One polyline per plate, taken from the plan. Every block is given the point along it
+   that it draws from, and the line is given a damage value per sample. What breaks is
+   then a matter of reading one against the other — and at a village, of reading it in
+   the direction the water runs.
+   =================================================================================== */
+function lifelineOf(plate){
+  const s=(plate.plan.streets||[]).find(x=>x.cls==="way")||
+          (plate.plan.streets||[]).find(x=>x.cls==="quay");
+  if(!s||!s.pts||s.pts.length<2) return null;
+  const pts=s.pts, cum=[0];
+  for(let i=1;i<pts.length;i++)
+    cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+  const total=cum[cum.length-1]||1;
+  return {
+    name:s.name||"the works", pts:pts, cum:cum, total:total,
+    /* one-way at a village: water runs from the weir onward and cannot come back */
+    directed:plate.archetype==="village",
+    /* where along it (0..1) a point draws from, and how far off it stands */
+    at(p){
+      let best=Infinity,bt=0;
+      for(let i=0;i<pts.length-1;i++){
+        const ax=pts[i][0],ay=pts[i][1];
+        const ex=pts[i+1][0]-ax, ey=pts[i+1][1]-ay, l2=ex*ex+ey*ey||1;
+        let t=((p[0]-ax)*ex+(p[1]-ay)*ey)/l2; t=t<0?0:t>1?1:t;
+        const dx=p[0]-(ax+ex*t), dy=p[1]-(ay+ey*t), d=Math.hypot(dx,dy);
+        if(d<best){ best=d; bt=(cum[i]+t*Math.sqrt(l2))/total; }
+      }
+      return {t:bt, off:best};
+    },
+    point(t){
+      const want=t*total;
+      for(let i=0;i<pts.length-1;i++){
+        const seg=cum[i+1]-cum[i];
+        if(want<=cum[i+1]||i===pts.length-2){
+          const k=seg?(want-cum[i])/seg:0;
+          return [pts[i][0]+(pts[i+1][0]-pts[i][0])*k,
+                  pts[i][1]+(pts[i+1][1]-pts[i][1])*k];
+        }
+      }
+      return pts[pts.length-1];
+    }
+  };
+}
+
+/* ===================================================================================
+   THE RUN
+   =================================================================================== */
+const SAMPLES=48;                       /* how finely the lifeline is scored */
+
+function run(plate,spec){
+  const H=hazardById(spec.hazard);
+  if(!H||!plate) return null;
+  const B=plate.blocks, n=B.length, p=spec.params||{};
+  const dmg=new Float32Array(n);
+  const line=lifelineOf(plate);
+  const lineDmg=new Float32Array(SAMPLES);
+  const frames=[], events=[];
+  const note=(t,text,kind)=>events.push({t:t,text:text,kind:kind||"note"});
+
+  /* every block's place: along the lifeline, and up the hill */
+  const village=plate.archetype==="village";
+  const F=plate.F, S=plate.S;
+  /* A village plate carries a real height field, because it was laid out on one. A city
+     plate does not, so it is given the only proxy its own plan supports: ground rises
+     away from the water, at an invented and deliberately gentle SHORE_RISE. Without it
+     every block on a city plate sits at zero and a flood either takes all of it or none. */
+  const SHORE_RISE=1/60;      /* one metre up for every sixty inland */
+  const W=plate.water;
+  const zAt=p=>village?0:(W&&W.room?W.room(p)*SHORE_RISE:0);
+  const zOf=b=>village?(F?F.z(b.fw!=null?b.fw:0):0):zAt(b.c);
+  const meta=B.map(b=>{
+    const l=line?line.at(b.c):{t:0,off:1e9};
+    return {t:l.t, off:l.off, z:zOf(b), burn:burnOf(b), shake:shakeOf(b)};
+  });
+  /* and the line's own height, sample by sample, so a flood can be asked whether it is
+     over the quay rather than only over the ground beside it */
+  let lineZs=null;
+  if(line&&!village){
+    lineZs=new Float32Array(SAMPLES);
+    for(let k=0;k<SAMPLES;k++) lineZs[k]=zAt(line.point(k/(SAMPLES-1)));
+  }
+  /* The head-race climbs from a weir standing in the river to the top bund. Its two
+     ends are therefore at opposite ends of the hill, and a flood that cannot reach a
+     single house can still take the weir — which is the village's whole water. */
+  const lineZ=village&&F?F.z(S.raceTopW):0;
+  const weirZ=village&&F?F.z(S.riverW+18):0;
+  const riverZ=village&&F?F.z(S.riverW):0;
+
+  const at=spec.point!=null&&spec.point>=0?spec.point:null;  /* an index into blocks */
+  const org=at!=null?B[at].c:null;
+
+  if(H.id==="fire"&&at!=null){ dmg[at]=1; note(0,"It starts in the "+
+    matOf(B[at]).label+".","start"); }
+  if(H.id==="blood"&&at!=null){ dmg[at]=1; note(0,"It rises here.","start"); }
+  if(H.id==="dragon"&&at!=null) note(0,"It comes in over the "+matOf(B[at]).label+
+    ", flying "+compass(p.bearing||0)+".","start");
+  if(H.id==="refuse") note(0,"The race stops carrying "+(p.at||35)+
+    " per cent along, and nothing else happens at all.","start");
+
+  for(let s=1;s<=STEPS;s++){
+    step(H,s,plate,B,meta,dmg,lineDmg,line,p,org,note,
+      {lineZ,weirZ,riverZ,village,F,S,lineZs});
+    frames.push(snapshot(B,dmg,lineDmg,s));
+  }
+
+  const report=direct(plate,B,meta,dmg,H);
+  report.works=works(plate,B,meta,dmg,lineDmg,line,H,p,report.dead);
+  narrate(report,plate,H);
+  events.sort((a,b)=>a.t-b.t);
+
+  return {hazard:H, spec:spec, steps:STEPS, unit:H.unit, frames:frames,
+    events:events, report:report, line:line, lineDmg:lineDmg, point:at,
+    /* where along the line each block draws from, so the console can work out at any
+       step which ground is dry without walking the polyline again */
+    t:Float32Array.from(meta.map(m=>m.t))};
+}
+
+/* ---- one step -------------------------------------------------------------------- */
+function step(H,s,plate,B,meta,dmg,lineDmg,line,p,org,note,G){
+  const n=B.length;
+  const bump=(i,v)=>{ if(v>dmg[i]) dmg[i]=Math.min(1,v); };
+  const hurtLine=(t,v)=>{ const k=Math.max(0,Math.min(SAMPLES-1,Math.round(t*(SAMPLES-1))));
+    if(v>lineDmg[k]) lineDmg[k]=Math.min(1,v); };
+
+  if(H.id==="spate"){
+    if(s>(p.days||4)) return;
+    const crest=G.riverZ+(p.crest||5)*(0.45+0.55*Math.min(1,s/3));
+    for(let i=0;i<n;i++){
+      const over=crest-meta[i].z;
+      if(over<=0) continue;
+      const f=Math.min(1,over/(p.crest||5))*(B[i].use==="paddy"?0.55:1);
+      bump(i,f*(p.scour?1:0.7));
+    }
+    /* the weir is in the water by definition, so it takes the whole crest */
+    if(G.village&&crest>G.weirZ+1.2){
+      hurtLine(0.0,Math.min(1,(p.scour?0.42:0.24)*(p.crest||5)*Math.min(1,s/2)));
+      hurtLine(0.02,Math.min(1,(p.scour?0.34:0.18)*(p.crest||5)*Math.min(1,s/2)));
+    }
+    /* a quay stands in the water and a road along a shore runs low, so any stretch the
+       crest is over stops carrying whatever else survives */
+    else if(G.lineZs) for(let k=0;k<SAMPLES;k++){
+      const over=crest-G.lineZs[k];
+      if(over>0.8) hurtLine(k/(SAMPLES-1),
+        Math.min(1,(p.scour?0.5:0.3)*over*Math.min(1,s/2)));
+    }
+    if(s===1) note(1,G.village?"The lowest bunds are under.":
+      "It is over the low ground by the water.","loss");
+    if(s===2&&G.village) note(2,"It is over the weir.","loss");
+  }
+
+  else if(H.id==="fire"){
+    const wind=vec(p.bearing||0), sp=(p.wind||35), dry=(p.dry||75)/100;
+    const jump=1+Math.floor(sp/25);
+    /* A thatch roof that catches burns down; it does not stay half burnt. Without this
+       the fire spreads at the strength of whatever lit it, which decays by a third at
+       every jump and dies out after three houses no matter what the wind is doing. */
+    for(let i=0;i<n;i++)
+      if(dmg[i]>0.30) dmg[i]=Math.min(1,dmg[i]+0.34*dry*meta[i].burn+0.06);
+    for(let k=0;k<jump;k++){
+      const lit=[];
+      for(let i=0;i<n;i++) if(dmg[i]>0.30) lit.push(i);
+      lit.forEach(i=>{
+        const a=B[i].c;
+        for(let j=0;j<n;j++){
+          if(j===i||dmg[j]>0.85) continue;
+          const dx=B[j].c[0]-a[0], dy=B[j].c[1]-a[1];
+          const d=Math.hypot(dx,dy);
+          const span=72+sp*1.7;      /* how far a spark carries on this wind */
+          if(d>span) continue;
+          const with_=d?((dx/d)*(-wind[0])+(dy/d)*(-wind[1])):0;
+          /* Burning thatch throws embers, so the fall-off with distance is nothing
+             like linear — a linear one stalls the fire at the first gap between
+             houses and a village with any space in it never burns at all. */
+          const near=Math.pow(1-d/span,0.6);
+          const take=meta[j].burn*dry*(0.30+0.70*Math.max(0,with_))*near;
+          /* anything properly alight throws embers at full strength */
+          const src=dmg[i]>=0.55?1:dmg[i];
+          if(take>0.05) bump(j,Math.min(1,src*0.95*take*2.6));
+        }
+      });
+    }
+    /* a channel is not a roof: fire only hurts the works where they are timber */
+    for(let i=0;i<n;i++) if(dmg[i]>0.6&&meta[i].off<26) hurtLine(meta[i].t,dmg[i]*0.45);
+    if(s===3) note(3,"It has the wind and the roofs.","loss");
+  }
+
+  else if(H.id==="quake"){
+    const shocks=1+(p.after||0);
+    if(s>shocks*2) return;
+    if(s%2) return;                                   /* one shock, then aftershocks */
+    const which=s/2, force=(p.force||5)/9*(which===1?1:0.55/which);
+    for(let i=0;i<n;i++) bump(i,dmg[i]+meta[i].shake*force*1.25);
+    if(p.works) for(let k=0;k<SAMPLES;k++)
+      if(hash(k,which)<force*0.5) hurtLine(k/(SAMPLES-1),force*1.3);
+    note(s,which===1?"The first shock.":"Aftershock "+(which-1)+".","loss");
+  }
+
+  else if(H.id==="slip"){
+    if(s>2) return;
+    const S=plate.S, F=plate.F;
+    if(!F) return;
+    const half=(p.width||240)/2;
+    const uAt=(p.where||0)/100*(plate.V?plate.V.fieldWidth*0.5:400);
+    const upTo=S.raceTopW*(p.depth||60)/100;
+    for(let i=0;i<n;i++){
+      const b=B[i];
+      if(b.fu==null) continue;
+      if(Math.abs(b.fu-uAt)>half) continue;
+      if(b.fw>upTo) continue;
+      bump(i,1);
+    }
+    /* the race crosses the top of the field; if the slip reaches it, it goes */
+    if(upTo>=S.raceTopW*0.94){
+      const t=line?line.at(F.at(uAt,S.raceTopW)).t:0.5;
+      hurtLine(t,1);
+      if(s===1) note(1,"It has taken the race with it.","loss");
+    } else if(s===1) note(1,"The slope has let go below the race.","loss");
+  }
+
+  else if(H.id==="dragon"){
+    if(!org||s>(p.passes||2)*2) return;
+    if(s%2) return;
+    const v=vec(p.bearing||0), wing=(p.wing||120)/2;
+    for(let i=0;i<n;i++){
+      const rx=B[i].c[0]-org[0], ry=B[i].c[1]-org[1];
+      const along=rx*v[0]+ry*v[1];
+      if(along<-40) continue;
+      const off=Math.abs(rx*(-v[1])+ry*v[0]);
+      if(off>wing) continue;
+      bump(i,Math.min(1,dmg[i]+(1-off/wing)*(0.45+0.55*meta[i].burn)));
+    }
+    for(let i=0;i<n;i++) if(dmg[i]>0.7&&meta[i].off<30) hurtLine(meta[i].t,0.8);
+    note(s,"Pass "+(s/2)+".","loss");
+  }
+
+  else if(H.id==="blood"){
+    if(!org) return;
+    const rise=(p.rise||3)/5, reach=(p.reach||120);
+    for(let k=0;k<2;k++){
+      const edge=[];
+      for(let i=0;i<n;i++) if(dmg[i]>0.4) edge.push(i);
+      edge.forEach(i=>{
+        for(let j=0;j<n;j++){
+          if(dmg[j]>0.92) continue;
+          const d=Math.hypot(B[j].c[0]-B[i].c[0],B[j].c[1]-B[i].c[1]);
+          if(d>reach) continue;
+          let take=rise*(1-d/reach);
+          if(!p.uphill&&meta[j].z>meta[i].z+0.4) take*=0.3;
+          if(B[j].use==="paddy") take*=1.35;            /* the wet takes it first */
+          if(B[j].use==="temple") take*=0.4;
+          if(take>0.05) bump(j,Math.min(1,dmg[i]*0.95*take*1.7));
+        }
+      });
+    }
+    for(let i=0;i<n;i++) if(dmg[i]>0.6&&meta[i].off<30) hurtLine(meta[i].t,dmg[i]*0.7);
+    if(s===4) note(4,"It is in the field.","loss");
+  }
+
+  else if(H.id==="refuse"){
+    if(s>1) return;
+    const t=(p.at||35)/100;
+    hurtLine(t,p.total?1:0.7);
+    note(1,"It fails, and nothing else does.","loss");
+  }
+}
+const vec=d=>[Math.cos(d*Math.PI/180),Math.sin(d*Math.PI/180)];
+const compass=d=>["east","south-east","south","south-west","west","north-west","north",
+  "north-east"][(Math.round(((d%360)+360)%360/45))%8];
+function hash(a,b){
+  let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263))|0;
+  h=Math.imul(h^(h>>>13),1274126177); h^=h>>>16;
+  return (h>>>0)/4294967296;
+}
+
+/* ---- a step's picture ------------------------------------------------------------- */
+function snapshot(B,dmg,lineDmg,s){
+  const st=new Uint8Array(B.length);
+  const tally={LOST:0,STRICKEN:0,HARMED:0,TOUCHED:0,HELD:0};
+  let dead=0;
+  for(let i=0;i<B.length;i++){
+    const ix=stateIndex(dmg[i]);
+    st[i]=ix; tally[STATES[ix][0]]++;
+    dead+=(B[i].people||0)*mortality(dmg[i]);
+  }
+  return {step:s, state:st, tally:tally, dead:Math.round(dead),
+    line:Float32Array.from(lineDmg)};
+}
+
+/* ---- what it took ----------------------------------------------------------------- */
+function direct(plate,B,meta,dmg,H){
+  const r={byState:{LOST:0,STRICKEN:0,HARMED:0,TOUCHED:0,HELD:0},
+    dead:0, hit:0, byUse:{}, byRank:{}, floorLost:0, paddyLostHa:0, templeHit:0};
+  B.forEach((b,i)=>{
+    const nm=STATES[stateIndex(dmg[i])][0];
+    r.byState[nm]++;
+    if(dmg[i]>=0.14) r.hit++;
+    r.dead+=(b.people||0)*mortality(dmg[i]);
+    r.floorLost+=(b.floor||0)*dmg[i];
+    if(b.use==="paddy") r.paddyLostHa+=(b.area/10000)*dmg[i];
+    if(b.use==="temple"&&dmg[i]>r.templeHit) r.templeHit=dmg[i];
+    const u=r.byUse[b.use]||(r.byUse[b.use]={n:0,hit:0,dead:0});
+    u.n++; if(dmg[i]>=0.32) u.hit++;
+    u.dead+=(b.people||0)*mortality(dmg[i]);
+    if(b.rank){
+      const k=r.byRank[b.rank]||(r.byRank[b.rank]={name:b.rankName,n:0,hit:0,dead:0});
+      k.n++; if(dmg[i]>=0.32) k.hit++;
+      k.dead+=(b.people||0)*mortality(dmg[i]);
+    }
+  });
+  r.dead=Math.round(r.dead);
+  Object.keys(r.byUse).forEach(k=>r.byUse[k].dead=Math.round(r.byUse[k].dead));
+  Object.keys(r.byRank).forEach(k=>r.byRank[k].dead=Math.round(r.byRank[k].dead));
+  return r;
+}
+
+/* ---- and what stopped working ---------------------------------------------------- */
+function works(plate,B,meta,dmg,lineDmg,line,H,p,dead){
+  const out={line:line?line.name:null, cut:[], cutAt:null, dry:0, dryHa:0,
+    fedBefore:null, fedNow:null, shortfall:0, blocked:false, crossing:null};
+  if(!line) return out;
+
+  /* where the line is broken */
+  const cuts=[];
+  for(let k=0;k<SAMPLES;k++) if(lineDmg[k]>=LINE_CUT) cuts.push(k/(SAMPLES-1));
+  out.cut=cuts;
+  out.cutAt=cuts.length?Math.min.apply(null,cuts):null;
+  out.cutShare=cuts.length/SAMPLES;
+  out.blocked=cuts.length>0;
+
+  if(plate.archetype==="village"){
+    /* Water runs one way. Everything drawing from beyond the first break is dry,
+       whether or not anything touched it. */
+    const first=out.cutAt;
+    let dry=0, dryHa=0;
+    B.forEach((b,i)=>{
+      if(b.use!=="paddy") return;
+      const beyond=first!=null&&meta[i].t>=first-1e-6;
+      /* ground already destroyed is counted as taken, not as merely dry */
+      if(beyond&&dmg[i]<0.55){ dry++; dryHa+=b.area/10000; }
+    });
+    out.dry=dry; out.dryHa=dryHa;
+    const V=plate.V, st=plate.stats;
+    out.fedBefore=st.population;
+    const workingHa=Math.max(0,st.paddyHa-dryHa-
+      B.reduce((s,b,i)=>s+(b.use==="paddy"&&dmg[i]>=0.55?b.area/10000:0),0));
+    out.workingHa=workingHa;
+    out.fedNow=Math.round(workingHa*V.feedPerHa);
+    const alive=Math.max(0,st.population-(dead||0));
+    out.shortfall=Math.max(0,alive-out.fedNow);
+  } else if(plate.archetype==="crossing"){
+    out.crossing=out.blocked?"closed":"open";
+  } else {
+    out.crossing=null;
+  }
+  return out;
+}
+
+/* How to say where a line is broken. "Broken 0 per cent along" is true and useless when
+   the whole of it is under; the first break is only worth naming when there is line
+   either side of it. */
+function cutPhrase(w){
+  if(!w||!w.blocked) return "holds";
+  if(w.cutShare>=0.8) return "gone along its whole length";
+  if(w.cutAt<=0.04) return "cut at its head";
+  if(w.cutAt>=0.96) return "cut at its far end";
+  return "broken "+Math.round(w.cutAt*100)+"% along";
+}
+
+/* ---- which ground is dry at a given step ------------------------------------------
+   The same reading as works() makes at the end, but for one frame, so the plan can show
+   the cascade spreading rather than only its final extent. Water runs one way: beyond
+   the first break there is none, however far from the damage the terrace is. */
+function dryAt(plate,res,frame){
+  const B=plate.blocks, n=B.length, out=new Uint8Array(n);
+  if(plate.archetype!=="village"||!res||!res.t) return out;
+  const L=frame?frame.line:res.lineDmg;
+  let first=null;
+  for(let k=0;k<SAMPLES;k++) if(L[k]>=LINE_CUT){ first=k/(SAMPLES-1); break; }
+  if(first==null) return out;
+  const st=frame?frame.state:null;
+  for(let i=0;i<n;i++){
+    if(B[i].use!=="paddy"||res.t[i]<first-1e-6) continue;
+    if(st&&st[i]<=1) continue;         /* already stricken or lost, not merely dry */
+    out[i]=1;
+  }
+  return out;
+}
+/* the stretch of line that no longer carries, as a pair of positions along it */
+function deadRun(res,frame){
+  const L=frame?frame.line:res.lineDmg;
+  let first=null;
+  for(let k=0;k<SAMPLES;k++) if(L[k]>=LINE_CUT){ first=k/(SAMPLES-1); break; }
+  return first==null?null:[first,1];
+}
+
+/* ---- the write-up ----------------------------------------------------------------- */
+function narrate(r,plate,H){
+  const w=r.works, out=[];
+  const total=plate.blocks.length;
+  const village=plate.archetype==="village";
+  const unit=village?"plots":"blocks";
+  const holy=village?"The sanctuary":"The temple precinct";
+  out.push(r.hit.toLocaleString()+" of "+total.toLocaleString()+" "+unit+" are touched, "+
+    (r.byState.LOST+r.byState.STRICKEN).toLocaleString()+" stricken or lost.");
+  if(r.dead>0) out.push(r.dead.toLocaleString()+" people are gone.");
+  if(r.templeHit>=0.32) out.push(holy+" is "+stateOf(r.templeHit).toLowerCase()+".");
+  else if(r.templeHit>0) out.push(holy+" is touched, and stands.");
+
+  if(village){
+    const ranks=Object.keys(r.byRank).filter(k=>r.byRank[k].hit>0);
+    if(ranks.length){
+      const worst=ranks.sort((a,b)=>
+        (r.byRank[b].hit/r.byRank[b].n)-(r.byRank[a].hit/r.byRank[a].n))[0];
+      out.push("It falls hardest on "+r.byRank[worst].name+" — "+
+        r.byRank[worst].hit+" of its "+r.byRank[worst].n+" households.");
+    }
+    out.push("");
+    if(w.blocked){
+      out.push(w.line+" is "+cutPhrase(w)+".");
+      if(w.dry>0) out.push(w.dry.toLocaleString()+" terraces below the break — "+
+        w.dryHa.toFixed(1)+" hectares — are dry, and nothing touched them.");
+      out.push("The terraces that still have water feed "+
+        w.fedNow.toLocaleString()+", against the "+w.fedBefore.toLocaleString()+
+        " this village was laid out to keep.");
+      if(w.shortfall>0) out.push("That is "+w.shortfall.toLocaleString()+
+        " people it can no longer feed — more than "+
+        (w.shortfall>r.dead?"the event killed outright":"the harvest can cover")+".");
+    } else {
+      out.push(w.line+" holds, so what has water still has water.");
+      if(r.paddyLostHa>0.5) out.push("The terraces themselves have lost "+
+        r.paddyLostHa.toFixed(1)+" hectares.");
+    }
+  } else {
+    out.push("");
+    if(w.blocked) out.push(w.line+" is "+cutPhrase(w)+
+      (plate.archetype==="crossing"?
+      " — the crossing is closed, and it is the only through-route on the sheet.":
+      " — the berths behind it stop."));
+    else out.push(w.line+" holds.");
+  }
+  r.lines=out;
+  r.text=out.filter(x=>x!=="").join(" ");
+}
+
+A.platesim={HAZARDS,STATES,STEPS,MAT,LINE_CUT,DRY,SAMPLES,run,stateOf,stateIndex,
+  hazardsFor,blurbFor,hazardById,lifelineOf,matOf,burnOf,shakeOf,mortality,dryAt,deadRun,
+  cutPhrase};
+})();
+</script>
+<script>
+/* ===================================================================================
    Adrinem — the model view. The survey sheet draws New York in three dimensions twice:
    the street-level plates, built from a kit of masonry, glazing and growth primitives
    in js/sv-kit.js, and the throw-line section in the projection console, which takes
@@ -4929,11 +5628,25 @@ const py=(u,w,z)=>-w*OY-(z||0)*VZ;
 const pt=(u,w,z)=>[px(u,w),py(u,w,z)];
 const depth=w=>w;                 /* larger w is further away, so it is drawn first */
 
+/* ---- tinting, for when a projection is running ------------------------------------
+   The model is drawn once per frame and every face of one building has to carry the
+   same reading, so rather than thread a colour through six primitives the tint is set
+   just before a building is drawn and cleared just after. Nothing here is asynchronous,
+   so the two are never further apart than a single call. */
+let TC=null, TF=0;
+function setTint(m){ TC=m&&m.colour||null; TF=m?Math.max(0,Math.min(1,m.f||0)):0; }
+function mix(a,b,t){
+  const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const x=p(a),y=p(b);
+  return "#"+x.map((v,i)=>Math.round(v+(y[i]-v)*t).toString(16).padStart(2,"0")).join("");
+}
+const tint=col=>(TF>0&&TC&&typeof col==="string"&&col[0]==="#")?mix(col,TC,TF):col;
+
 /* =================================================================================== */
 /*  primitives — the kit's idiom: functions that return SVG strings                    */
 /* =================================================================================== */
 function quad(a,b,c,d,fill,o){
-  return K.PG([a,b,c,d],Object.assign({fill:fill},o||{}));
+  return K.PG([a,b,c,d],Object.assign({fill:tint(fill)},o||{}));
 }
 
 /* a flat sheet of water sitting in a terrace, with the bund that holds it in */
@@ -4965,9 +5678,9 @@ function thatch(u0,u1,w0,w1,base,rise){
   const A0=pt(u0-eave,w0-eave,base), B0=pt(u1+eave,w0-eave,base);
   const C0=pt(u1+eave,w1+eave,base), D0=pt(u0-eave,w1+eave,base);
   const R0=pt(um-(u1-u0)*0.18,wm,r), R1=pt(um+(u1-u0)*0.18,wm,r);
-  return K.PG([D0,C0,R1,R0],{fill:P.thatchX})+          /* the far slope */
-         K.PG([B0,C0,R1],{fill:P.thatchD})+             /* the side */
-         K.PG([A0,B0,R1,R0],{fill:P.thatch,stroke:P.thatchX,"stroke-width":.4})+
+  return K.PG([D0,C0,R1,R0],{fill:tint(P.thatchX)})+    /* the far slope */
+         K.PG([B0,C0,R1],{fill:tint(P.thatchD)})+       /* the side */
+         K.PG([A0,B0,R1,R0],{fill:tint(P.thatch),stroke:P.thatchX,"stroke-width":.4})+
          K.LN(R0[0],R0[1],R1[0],R1[1],{stroke:P.thatchX,"stroke-width":.9});
 }
 
@@ -5040,7 +5753,9 @@ function tree(u,w,g0,seed){
 /* =================================================================================== */
 /*  the model                                                                          */
 /* =================================================================================== */
-function model(v){
+/* mark: an optional (block) -> {colour, f} saying how a projection has left it. Absent,
+   the model is drawn as the place stands. */
+function model(v,mark){
   if(!ready()) return null;
   const F=v.F, S=v.S, V=v.V;
   /* Every block carries the (u, w) it was laid out at, so the model reads the same
@@ -5075,8 +5790,10 @@ function model(v){
   const paddies=v.blocks.filter(b=>b.use==="paddy");
   paddies.sort((a,b)=>b.fw-a.fw);
   paddies.forEach((b,ix)=>{
+    setTint(mark&&mark(b));
     add(paddy(b.fu-b.fdu,b.fu+b.fdu,b.fw-b.fdw,b.fw+b.fdw,b.z,ix),b.fw);
   });
+  setTint(null);
 
   /* --- the head-race, holding the contour above the top bund ---------------------- */
   const raceZ=F.z(S.raceTopW)+0.5, rHalf=V.fieldWidth*0.52;
@@ -5096,10 +5813,12 @@ function model(v){
 
   /* --- the houses and the temple -------------------------------------------------- */
   v.blocks.filter(b=>b.use==="dwelling").forEach((b,ix)=>{
+    setTint(mark&&mark(b));
     const h=house(b,F,S,ix*29+11); add(h.d,h.depth);
   });
+  setTint(null);
   const tb=v.blocks.find(b=>b.use==="temple");
-  if(tb){ const t=temple(tb,F,S); add(t.d,t.depth); }
+  if(tb){ setTint(mark&&mark(tb)); const t=temple(tb,F,S); add(t.d,t.depth); setTint(null); }
 
   /* --- paint it back to front ----------------------------------------------------- */
   parts.sort((a,b)=>b.depth-a.depth);
@@ -5121,7 +5840,7 @@ function model(v){
 /* =================================================================================== */
 /*  the section — the throw-line elevation, pointed up a hillside                       */
 /* =================================================================================== */
-function section(v,W,H){
+function section(v,W,H,mark){
   if(!ready()) return "";
   const F=v.F, S=v.S, V=v.V;
   W=W||760; H=H||190;
@@ -5158,8 +5877,10 @@ function section(v,W,H){
     temple:"#8E7BA8"};
   v.blocks.filter(b=>b.use==="dwelling").forEach(b=>{
     const z=F.z(b.fw)-F.z(w0), x=X(b.fw);
+    const m=mark&&mark(b);
     g+='<rect x="'+(x-1.6)+'" y="'+(Y(z)-7)+'" width="3.2" height="7" fill="'+
-       (RK[b.rank]||"#8F8459")+'"><title>'+b.rankName+" — "+b.z.toFixed(1)+
+       (m?mix(RK[b.rank]||"#8F8459",m.colour,m.f):(RK[b.rank]||"#8F8459"))+
+       '"><title>'+b.rankName+" — "+b.z.toFixed(1)+
        ' m above the top bund, '+b.people+' people</title></rect>';
   });
   /* the rank boundaries */
@@ -5225,14 +5946,14 @@ const MARK={
   waggon:{sym:"square", col:"#6E6042"},  gate:{sym:"gate", col:"#2C2C2A"}
 };
 
-let city=null, view=null, sel=null;
+let city=null, view=null, sel=null, layers=null, blockIx=null;
 
 /* =================================================================================== */
 function draw(c){
   const svg=q("cpMap"); clear(svg);
   const root=el("g",{}); svg.appendChild(root);
-  const L={};
-  ["ground","water","marsh","block","street","wall","route","mark","lab"]
+  const L=layers={};
+  ["ground","water","marsh","block","street","wall","route","life","mark","lab"]
     .forEach(k=>{L[k]=el("g",{}); root.appendChild(L[k]);});
 
   const defs=el("defs",{});
@@ -5378,7 +6099,16 @@ function draw(c){
 
 /* --- blocks, one path per colour, as on the world sheet --------------------------- */
 let blockMode="use";
-function blockColour(b){
+function blockColour(b,i){
+  /* A projection overrides every fabric mode: what a plot is matters less, once one is
+     running, than what has become of it. Ground that is merely dry is given its own
+     colour rather than a damage state, because nothing touched it. */
+  if(simFrame){
+    if(simDry&&simDry[i]) return A.platesim.DRY;
+    const st=simFrame.state[i];
+    if(st<4) return A.platesim.STATES[st][2];
+    return A.city.USES[b.use].colour;
+  }
   if(blockMode==="use") return A.city.USES[b.use].colour;
   if(blockMode==="storeys"){
     const r=["#E3DCC4","#D3C7A2","#C0AE82","#A99167","#8E7550","#71593B"];
@@ -5391,8 +6121,8 @@ function blockColour(b){
 function paintBlocks(g){
   clear(g);
   const by=new Map();
-  city.blocks.forEach(b=>{
-    const col=blockColour(b), d=path(b.poly)+"Z";
+  city.blocks.forEach((b,i)=>{
+    const col=blockColour(b,i), d=path(b.poly)+"Z";
     const cur=by.get(col); if(cur) cur.push(d); else by.set(col,[d]);
   });
   by.forEach((frags,col)=>g.appendChild(el("path",{d:frags.join(""),fill:col,
@@ -5538,6 +6268,7 @@ function makeView(svg,root,L){
   stage.addEventListener("click",e=>{
     if(moved>6) return;
     const p=toMap(e.clientX,e.clientY);
+    if(simPicking){ const ix=blockIndexAt(p); if(ix!=null) setSimPoint(ix); return; }
     const m=markAt(p,SYM_PX*0.85/sc);
     if(m) { showMark(m); return; }
     const b=blockAt(p);
@@ -5565,6 +6296,10 @@ function blockAt(p){
   });
   if(!best||bd>320) return null;
   return inside(best.poly,p)?best:(bd<90?best:null);
+}
+function blockIndexAt(p){
+  const b=blockAt(p);
+  return b?blockIx.get(b):null;
 }
 function inside(poly,p){
   let hit=false;
@@ -5621,7 +6356,19 @@ function showMark(m){
 /* =================================================================================== */
 function fillKey(){
   let h="";
-  if(blockMode==="use"){
+  if(simFrame){
+    h+="<b>THE FABRIC — UNDER THE PROJECTION</b>";
+    A.platesim.STATES.slice(0,4).forEach(st=>
+      h+='<i style="background:'+st[2]+'"></i>'+st[0]+'<br>');
+    h+='<i style="background:'+A.platesim.DRY+'"></i>DRY — NOTHING TOUCHED IT<br>'+
+      '<span style="opacity:.6">Anything still held keeps the colour of what it is.'+
+      '</span><br>';
+    if(simRes&&simRes.line)
+      h+='<b>'+esc(simRes.line.name.toUpperCase())+'</b>'+
+        '<i style="background:#2C2C2A;opacity:.55"></i>THE LINE THIS PLATE LIVES ON<br>'+
+        '<i style="background:#8F2222"></i>WHERE IT IS BROKEN<br>'+
+        '<i style="background:#8F2222;opacity:.55"></i>AND WHAT IT NO LONGER CARRIES<br>';
+  } else if(blockMode==="use"){
     h+="<b>THE FABRIC — BY USE</b>";
     Object.keys(A.city.USES).forEach(k=>{
       const u=A.city.USES[k], v=city.byUse[k];
@@ -5968,11 +6715,11 @@ function setModel(on){
       'did not load, so the model cannot be drawn.</p>';
     return;
   }
-  const m=A.model.model(city);
+  const m=A.model.model(city,simFrame?simMark:null);
   if(!m) return;
   q("cpModelWrap").innerHTML='<svg id="cpModelSvg" xmlns="http://www.w3.org/2000/svg" '+
     'viewBox="'+m.view.join(" ")+'" preserveAspectRatio="xMidYMid meet">'+m.svg+'</svg>';
-  q("cpModelSect").innerHTML=A.model.section(city);
+  q("cpModelSect").innerHTML=A.model.section(city,null,null,simFrame?simMark:null);
   const s=city.stats, V=city.V;
   q("cpModelCap").innerHTML=
     '<b>'+esc(city.site.name)+' — the model and the slope</b><br>'+
@@ -5982,7 +6729,10 @@ function setModel(on){
     'so a terrace riser of '+V.riser+' m gives a tread of '+
     Math.round(city.S.terraceTread)+' m; there are '+s.terraces+' of them. '+
     'The river is '+Math.round(s.riseM)+' m below the temple, and every household in '+
-    'the section is drawn at the height that decides its rank.';
+    'the section is drawn at the height that decides its rank.'+
+    (simFrame?'<br><b>Under the projection.</b> Every building and every terrace is '+
+      'washed with what the run has left of it, at step '+simStep+' of '+simRes.steps+
+      ' — the same colours the plan is carrying, on the same numbers.':'');
   fitModel(m.view);
 }
 function fitModel(view){
@@ -6027,6 +6777,301 @@ function fitModel(view){
 }
 
 /* =================================================================================== */
+/*  the projection, at plate scale                                                     */
+/*  The survey sheet's console pointed at one place instead of a continent. It asks the */
+/*  same two questions in the same order — what the event took, and then what stopped   */
+/*  working because of it — but here the second question has a sharper answer, because  */
+/*  every plate is built on exactly one line and the engine knows which blocks draw     */
+/*  from which stretch of it.                                                           */
+/* =================================================================================== */
+let simHaz=null, simParams={}, simPoint=null, simRes=null, simStep=0,
+    simFrame=null, simDry=null, simPicking=false, simPlaying=null;
+
+function simGrid(){
+  const wrap=q("cpSimHazards"); wrap.innerHTML="";
+  const list=A.platesim.hazardsFor(city.archetype);
+  [["natural","NATURAL"],["supernatural","SUPERNATURAL"]].forEach(([kind,label])=>{
+    const mine=list.filter(H=>H.kind===kind);
+    if(!mine.length) return;
+    const h=document.createElement("p"); h.className="hkind"; h.textContent=label;
+    wrap.appendChild(h);
+    const row=document.createElement("div"); row.className="hrow";
+    mine.forEach(H=>{
+      const b=document.createElement("button");
+      b.className="chip"; b.textContent=H.short; b.dataset.id=H.id;
+      b.setAttribute("aria-pressed","false");
+      b.onclick=()=>simChoose(H.id);
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+  });
+  simChoose(list[0].id);
+}
+
+function simChoose(id){
+  simHaz=A.platesim.hazardById(id);
+  if(!simHaz) return;
+  simParams={}; simHaz.params.forEach(p=>simParams[p.id]=p.val);
+  simPoint=null; simClear(false);
+  [...q("cpSimHazards").querySelectorAll(".chip")].forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.id===id)));
+  q("cpSimName").textContent=simHaz.name;
+  q("cpSimBlurb").textContent=A.platesim.blurbFor(simHaz,city.archetype);
+  q("cpSimPointRow").style.display=simHaz.point?"":"none";
+  q("cpSimPick").textContent=simHaz.pointLabel?("SET "+simHaz.pointLabel):"SET POINT";
+  setSimPick(false);
+  showSimPoint();
+  simParamRows();
+}
+
+function simParamRows(){
+  const box=q("cpSimParams"); box.innerHTML="";
+  simHaz.params.forEach(p=>{
+    const row=document.createElement("div"); row.className="prow";
+    const lab=document.createElement("label"); lab.innerHTML=esc(p.label)+"<b></b>";
+    const inp=document.createElement("input");
+    inp.type="range"; inp.min=p.min; inp.max=p.max; inp.step=p.step;
+    inp.value=simParams[p.id];
+    const show=()=>{
+      const v=+inp.value;
+      lab.querySelector("b").textContent=p.onoff?(v?"YES":"NO"):
+        p.bearing?bearingLabel(v):(v+(p.unit||""));
+    };
+    inp.addEventListener("input",()=>{ simParams[p.id]=+inp.value; show(); });
+    show();
+    row.appendChild(lab); row.appendChild(inp); box.appendChild(row);
+  });
+}
+const bearingLabel=d=>["E","SE","S","SW","W","NW","N","NE"]
+  [(Math.round(((d%360)+360)%360/45))%8]+" ("+d+"°)";
+
+/* --- putting it somewhere on the plate --------------------------------------------- */
+function setSimPick(on){
+  simPicking=!!on;
+  q("cpSimPick").setAttribute("aria-pressed",String(simPicking));
+  q("cpStage").classList.toggle("picking",simPicking);
+}
+function setSimPoint(ix){
+  if(simHaz&&simHaz.pointBuilt&&city.blocks[ix].use==="paddy"){
+    const c=city.blocks[ix].c; let best=ix, bd=Infinity;
+    city.blocks.forEach((b,i)=>{
+      if(b.use==="paddy") return;
+      const d=Math.hypot(b.c[0]-c[0],b.c[1]-c[1]);
+      if(d<bd){ bd=d; best=i; }
+    });
+    ix=best;
+  }
+  simPoint=ix; setSimPick(false); showSimPoint();
+  paintLife();
+}
+function showSimPoint(){
+  const e=q("cpSimPointRef");
+  if(simPoint==null){ e.textContent="— not set —"; return; }
+  const b=city.blocks[simPoint];
+  const where=b.rankName?b.rankName:A.city.USES[b.use].label;
+  e.textContent=where+(b.people?" · "+b.people+" people":"");
+}
+
+/* --- the run ------------------------------------------------------------------------ */
+function simRun(){
+  if(!simHaz) return;
+  if(simHaz.point&&simPoint==null){ simToast("This one needs a point on the plate."); return; }
+  const btn=q("cpSimRun");
+  btn.disabled=true; btn.textContent="RUNNING…";
+  setTimeout(()=>{
+    try{
+      simRes=A.platesim.run(city,{hazard:simHaz.id,point:simPoint,
+        params:Object.assign({},simParams)});
+    }catch(err){ simRes=null; console.error(err); }
+    btn.disabled=false; btn.textContent="RUN PROJECTION";
+    if(!simRes){ q("cpSimReport").innerHTML=
+      '<div class="rterr">The projection did not run.</div>'; return; }
+    q("cpSimTime").classList.add("on");
+    q("cpSimScrub").max=simRes.steps;
+    simShow(simRes.steps);
+    simReport();
+  },30);
+}
+
+function simShow(n){
+  if(!simRes) return;
+  simStep=Math.max(1,Math.min(simRes.steps,n));
+  simFrame=simRes.frames[simStep-1];
+  simDry=A.platesim.dryAt(city,simRes,simFrame);
+  q("cpSimScrub").value=simStep;
+  q("cpSimStep").textContent=(simRes.unit==="D"?"DAY ":"HOUR ")+
+    String(simStep).padStart(2,"0");
+  const t=simFrame.tally;
+  q("cpSimCounts").innerHTML=
+    A.platesim.STATES.slice(0,4).map(s=>'<i style="background:'+s[2]+'"></i>'+
+      (t[s[0]]||0)).join('<b class="sep"></b>')+
+    (dryCount()?'<b class="sep"></b><i style="background:'+A.platesim.DRY+
+      '"></i>'+dryCount():'')+
+    '<span class="dd">'+simFrame.dead.toLocaleString()+' gone</span>';
+  const log=q("cpSimLog");
+  log.innerHTML=simRes.events.filter(e=>e.t<=simStep).slice(-5).map(e=>
+    '<span class="'+e.kind+'">'+(simRes.unit==="D"?"D":"H")+
+    String(e.t).padStart(2,"0")+'</span> '+esc(e.text)).join("<br>")||"—";
+  view&&view.repaint();
+  paintLife();
+  fillKey();
+  if(modelOn) setModel(true);
+}
+function dryCount(){ if(!simDry) return 0;
+  let n=0; for(let i=0;i<simDry.length;i++) n+=simDry[i]; return n; }
+
+/* --- the line, and where it has stopped carrying ----------------------------------- */
+function paintLife(){
+  if(!layers) return;
+  const g=layers.life; clear(g);
+  const pin=()=>{
+    if(simPoint==null||!simHaz||!simHaz.point) return;
+    const b=city.blocks[simPoint];
+    /* held at a constant size on screen, the way the named places are: the placing is
+       an attribute, the scaling is the stylesheet's, because a transform attribute
+       cannot read a custom property */
+    const n=el("g",{class:"cpick",
+      transform:"translate("+b.c[0].toFixed(1)+" "+b.c[1].toFixed(1)+")"});
+    const in_=el("g",{class:"csym"});
+    in_.appendChild(el("circle",{cx:0,cy:0,r:11}));
+    in_.appendChild(el("circle",{cx:0,cy:0,r:2.4}));
+    n.appendChild(in_); g.appendChild(n);
+  };
+  if(!simRes||!simRes.line){ pin(); return; }
+  const line=simRes.line;
+  g.appendChild(el("path",{d:path(line.pts),class:"lifeline"}));
+  const dead=A.platesim.deadRun(simRes,simFrame);
+  if(dead){
+    const n=26, pts=[];
+    for(let k=0;k<=n;k++) pts.push(line.point(dead[0]+(dead[1]-dead[0])*k/n));
+    g.appendChild(el("path",{d:path(pts),class:"lifedead"}));
+  }
+  const L=simFrame?simFrame.line:simRes.lineDmg;
+  for(let k=0;k<L.length;k++){
+    if(L[k]<A.platesim.LINE_CUT) continue;
+    const t=k/(L.length-1);
+    g.appendChild(el("path",{class:"lifecut",
+      d:path([line.point(Math.max(0,t-0.012)),line.point(Math.min(1,t+0.012))])}));
+  }
+  pin();
+}
+
+/* --- the two halves ----------------------------------------------------------------- */
+function simReport(){
+  const r=simRes.report, w=r.works, village=city.archetype==="village";
+  const row=(k,v)=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>';
+  const n=city.blocks.length;
+  let h='<p class="rep-h">WHAT IT TOOK</p><dl class="acct">'+
+    row(village?"Plots touched":"Blocks touched",
+      r.hit.toLocaleString()+" of "+n.toLocaleString())+
+    row("Stricken or lost",(r.byState.LOST+r.byState.STRICKEN).toLocaleString())+
+    row("People gone",r.dead.toLocaleString())+
+    row("Floor lost",Math.round(r.floorLost).toLocaleString()+" m²")+
+    (r.paddyLostHa>0.05?row("Terrace destroyed",r.paddyLostHa.toFixed(1)+" ha"):"")+
+    (r.templeHit>0?row(village?"The sanctuary":"The temple precinct",
+      A.platesim.stateOf(r.templeHit)):"")+
+    '</dl>';
+
+  if(village&&r.hit>0&&Object.keys(r.byRank).length){
+    h+='<p class="rep-h">WHO IT FALLS ON</p><ul class="why">';
+    city.RANKS.forEach(rk=>{
+      const k=r.byRank[rk.key]; if(!k) return;
+      h+='<li><b>'+esc(k.name)+'</b><span>'+k.hit+' of '+k.n+
+        ' households harmed or worse'+(k.dead?', '+k.dead+' gone':'')+'</span></li>';
+    });
+    h+='</ul>';
+  } else {
+    const uses=Object.keys(r.byUse).filter(k=>r.byUse[k].hit>0)
+      .sort((a,b)=>(r.byUse[b].hit/r.byUse[b].n)-(r.byUse[a].hit/r.byUse[a].n)).slice(0,6);
+    if(uses.length){
+      h+='<p class="rep-h">WHERE IT FALLS</p><ul class="why">';
+      uses.forEach(k=>h+='<li><b>'+esc(A.city.USES[k].label)+'</b><span>'+
+        r.byUse[k].hit+' of '+r.byUse[k].n+' blocks harmed or worse'+
+        (r.byUse[k].dead?', '+r.byUse[k].dead+' gone':'')+'</span></li>');
+      h+='</ul>';
+    }
+  }
+
+  h+='<p class="rep-h">WHAT STOPPED WORKING</p><dl class="acct">';
+  if(!w.line) h+=row("The line","this plate has none the plan named");
+  else if(village){
+    h+=row(w.line,A.platesim.cutPhrase(w))+
+      row("Terraces gone dry",w.dry.toLocaleString()+" · "+w.dryHa.toFixed(1)+" ha")+
+      row("Terrace still watered",w.workingHa.toFixed(1)+" of "+
+        city.stats.paddyHa.toFixed(1)+" ha")+
+      row("It can feed",w.fedNow.toLocaleString()+" of "+w.fedBefore.toLocaleString())+
+      row("No longer fed",w.shortfall.toLocaleString()+" people");
+  } else {
+    h+=row(w.line,A.platesim.cutPhrase(w))+
+      (w.crossing?row("The crossing",w.crossing==="closed"?
+        "closed — and it is the only through-route on the sheet":"open"):"");
+  }
+  h+='</dl>';
+
+  if(village&&w.shortfall>0)
+    h+='<p class="rep-note"><b>'+w.shortfall.toLocaleString()+' people the terraces '+
+      'can no longer keep, against '+r.dead.toLocaleString()+' the event killed.</b> '+
+      'The village was laid out at '+city.V.feedPerHa+' people to the watered hectare, '+
+      'so hectares lost convert straight back into people — whether the water was taken '+
+      'by the damage or merely left above the break.</p>';
+
+  h+='<p class="rep-note">'+esc(r.text)+'</p>';
+  h+='<p class="rtfoot">'+simRes.steps+' '+(simRes.unit==="D"?"days":"hours")+
+    ' over '+n.toLocaleString()+(village?' plots':' blocks')+', each scored on what it '+
+    'is made of, how many storeys it carries and'+
+    (village?' how high up the hill it stands':' where on the plan it stands')+
+    '. What stopped working is read off the one line the plate lives on — '+
+    esc(w.line||"none the plan named")+'. None of it is a prediction: every '+
+    'vulnerability is invented and they are all in one table in '+
+    'js/adrinem-plate-sim.js.</p>';
+  q("cpSimReport").innerHTML=h;
+}
+
+/* --- the scrubber -------------------------------------------------------------------- */
+function simPlay(){
+  if(simPlaying) return simStop();
+  q("cpSimPlay").textContent="❚❚";
+  if(simStep>=simRes.steps) simShow(1);
+  simPlaying=setInterval(()=>{
+    if(simStep>=simRes.steps) return simStop();
+    simShow(simStep+1);
+  },420);
+}
+function simStop(){ if(simPlaying) clearInterval(simPlaying); simPlaying=null;
+  q("cpSimPlay").textContent="▶"; }
+function simClear(full){
+  simStop(); simRes=null; simStep=0; simFrame=null; simDry=null;
+  q("cpSimTime").classList.remove("on");
+  q("cpSimReport").innerHTML="";
+  if(full){ simPoint=null; showSimPoint(); }
+  if(layers){ clear(layers.life); view&&view.repaint(); }
+  if(modelOn) setModel(true);
+  fillKey();
+}
+let simToastT=null;
+function simToast(msg){
+  const t=q("toast"); if(!t) return;
+  t.textContent=msg; t.classList.add("on");
+  clearTimeout(simToastT); simToastT=setTimeout(()=>t.classList.remove("on"),2200);
+}
+function simOpen(on){
+  q("cpSimPanel").classList.toggle("on",on);
+  q("cpSimBtn").setAttribute("aria-pressed",String(on));
+  if(!on) setSimPick(false);
+  else if(!q("cpSimHazards").children.length) simGrid();
+}
+/* how the model is asked to tint one building */
+function simMark(b){
+  if(!simFrame) return null;
+  const i=blockIx?blockIx.get(b):-1;
+  if(i==null||i<0) return null;
+  if(simDry&&simDry[i]) return {colour:A.platesim.DRY,f:.7};
+  const st=simFrame.state[i];
+  if(st>=4) return null;
+  return {colour:A.platesim.STATES[st][2],f:[.82,.66,.5,.32][st]};
+}
+
+/* =================================================================================== */
 /*  open and close                                                                     */
 /* =================================================================================== */
 function open(cell){
@@ -6050,6 +7095,10 @@ function open(cell){
       : st.province.toUpperCase()+" · "+st.state.toUpperCase()+" · "+
         st.pop.toLocaleString()+" PEOPLE · HARBOUR "+st.harbour+" · "+
         s.blocks.toLocaleString()+" BLOCKS GENERATED IN "+ms+" MS";
+    blockIx=new Map(city.blocks.map((b,i)=>[b,i]));
+    simRes=null; simFrame=null; simDry=null; simPoint=null; simHaz=null;
+    q("cpSimHazards").innerHTML=""; q("cpSimReport").innerHTML="";
+    q("cpSimTime").classList.remove("on"); simOpen(false);
     draw(city);
     setModel(false);
     q("cpModelBtn").style.display=
@@ -6058,7 +7107,8 @@ function open(cell){
     if(window.TOUR) window.TOUR.maybePlate();
   },30);
 }
-function close(){ q("cityPlate").classList.remove("on"); setModel(false); }
+function close(){ q("cityPlate").classList.remove("on"); setModel(false);
+  simStop(); simOpen(false); }
 
 function boot(){
   q("cpClose").onclick=close;
@@ -6076,6 +7126,9 @@ function boot(){
   };
   const modes=["use","storeys","density"];
   q("cpFabBtn").onclick=()=>{
+    /* a projection owns the fabric while it is up; stepping the mode under it would
+       change a legend nobody can see the effect of */
+    if(simFrame){ simToast("Clear the projection to colour the fabric again."); return; }
     blockMode=modes[(modes.indexOf(blockMode)+1)%modes.length];
     q("cpFabBtn").textContent=blockMode==="use"?"USE":blockMode==="storeys"?"HGT":"DENS";
     view&&view.repaint(); fillKey();
@@ -6084,6 +7137,13 @@ function boot(){
   q("cpOut").onclick=()=>view&&view.zoomAt(1/1.4,innerWidth/2,innerHeight/2);
   q("cpRst").onclick=()=>{ if(modelOn&&mv) mv.reset(); else if(view) view.fit(); };
   q("cpModelBtn").onclick=()=>setModel(!modelOn);
+  q("cpSimBtn").onclick=()=>simOpen(!q("cpSimPanel").classList.contains("on"));
+  q("cpSimClose").onclick=()=>simOpen(false);
+  q("cpSimRun").onclick=simRun;
+  q("cpSimPick").onclick=()=>setSimPick(!simPicking);
+  q("cpSimPlay").onclick=simPlay;
+  q("cpSimReset").onclick=()=>simClear(true);
+  q("cpSimScrub").addEventListener("input",e=>{ simStop(); simShow(+e.target.value); });
   /* While the plate is up it owns the keyboard — the world sheet underneath must not
      also act on the key. Caught on the way down, before the sheet's own listener. */
   addEventListener("keydown",e=>{
@@ -6097,6 +7157,8 @@ function boot(){
     else if(k==="a") q("cpAcctBtn").click();
     else if(k==="r") q("cpRst").click();
     else if(k==="m"&&q("cpModelBtn").style.display!=="none") q("cpModelBtn").click();
+    else if(k==="s") q("cpSimBtn").click();
+    else if(k===" "&&simRes){ e.preventDefault(); simPlay(); }
   },true);
   addEventListener("resize",()=>{ if(view&&q("cityPlate").classList.contains("on")) view.fit(); });
 }
@@ -7268,6 +8330,30 @@ const PLATE_STEPS=[
   "It carries a <b>MDL</b> button the cities do not: the same numbers drawn in three "+
   "dimensions by the kit the survey sheet uses for its street-level plates, with a "+
   "section under it putting every household at the height that decides its rank."},
+
+ {title:"SIM — what happens to this place", wait:420,
+  spot:()=>union("#cpSimBtn","#cpSimPanel"),
+  before(){ toggle("cpSimBtn",true); }, after(){ toggle("cpSimBtn",false); },
+  body:"The world sheet's projection console, pointed at one plate. Choose a hazard — "+
+  "flood, fire, an earth shock, a hillside going, a dragon, a blood tide, or the "+
+  "waters simply refusing — set what it does, put it somewhere if it needs a place, "+
+  "and run it. Press <b>S</b> for the same thing.<br><br>"+
+  "Every plot is scored on what it is <b>made of</b>, how many <b>storeys</b> it "+
+  "carries and how <b>high up the hill</b> it stands, so a stone sanctuary and a "+
+  "thatched house on stilts come out of a fire and out of a shock in opposite orders."},
+
+ {title:"And then what stopped working", body:
+  "The report is in two halves and the second is the one to read. Every plate is built "+
+  "on exactly one line — Ourasen's <b>head-race</b>, Oem'rek's <b>Long Quay</b>, "+
+  "Rithi's <b>Through-Way</b> — and the run breaks it in places.<br><br>"+
+  "At a village the water runs one way, so <b>every terrace drawn from beyond the "+
+  "first break goes dry however far from the damage it is</b>. Those terraces are "+
+  "coloured separately from the damage, because nothing touched them. And because "+
+  "Ourasen's people were worked out from what its terraces feed, hectares lost convert "+
+  "straight back into <b>people the place can no longer keep</b> — usually a far larger "+
+  "number than the event killed.<br><br>"+
+  "Try <b>REFUSE</b>: it burns nothing, breaks nothing and hurts nobody, and it still "+
+  "empties two thirds of the village."},
 
  {title:"Two kinds of city", body:
   "The generator picks the plan from the network. A burg whose trade is seaborne gets "+

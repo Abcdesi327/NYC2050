@@ -52,11 +52,25 @@ const py=(u,w,z)=>-w*OY-(z||0)*VZ;
 const pt=(u,w,z)=>[px(u,w),py(u,w,z)];
 const depth=w=>w;                 /* larger w is further away, so it is drawn first */
 
+/* ---- tinting, for when a projection is running ------------------------------------
+   The model is drawn once per frame and every face of one building has to carry the
+   same reading, so rather than thread a colour through six primitives the tint is set
+   just before a building is drawn and cleared just after. Nothing here is asynchronous,
+   so the two are never further apart than a single call. */
+let TC=null, TF=0;
+function setTint(m){ TC=m&&m.colour||null; TF=m?Math.max(0,Math.min(1,m.f||0)):0; }
+function mix(a,b,t){
+  const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const x=p(a),y=p(b);
+  return "#"+x.map((v,i)=>Math.round(v+(y[i]-v)*t).toString(16).padStart(2,"0")).join("");
+}
+const tint=col=>(TF>0&&TC&&typeof col==="string"&&col[0]==="#")?mix(col,TC,TF):col;
+
 /* =================================================================================== */
 /*  primitives — the kit's idiom: functions that return SVG strings                    */
 /* =================================================================================== */
 function quad(a,b,c,d,fill,o){
-  return K.PG([a,b,c,d],Object.assign({fill:fill},o||{}));
+  return K.PG([a,b,c,d],Object.assign({fill:tint(fill)},o||{}));
 }
 
 /* a flat sheet of water sitting in a terrace, with the bund that holds it in */
@@ -88,9 +102,9 @@ function thatch(u0,u1,w0,w1,base,rise){
   const A0=pt(u0-eave,w0-eave,base), B0=pt(u1+eave,w0-eave,base);
   const C0=pt(u1+eave,w1+eave,base), D0=pt(u0-eave,w1+eave,base);
   const R0=pt(um-(u1-u0)*0.18,wm,r), R1=pt(um+(u1-u0)*0.18,wm,r);
-  return K.PG([D0,C0,R1,R0],{fill:P.thatchX})+          /* the far slope */
-         K.PG([B0,C0,R1],{fill:P.thatchD})+             /* the side */
-         K.PG([A0,B0,R1,R0],{fill:P.thatch,stroke:P.thatchX,"stroke-width":.4})+
+  return K.PG([D0,C0,R1,R0],{fill:tint(P.thatchX)})+    /* the far slope */
+         K.PG([B0,C0,R1],{fill:tint(P.thatchD)})+       /* the side */
+         K.PG([A0,B0,R1,R0],{fill:tint(P.thatch),stroke:P.thatchX,"stroke-width":.4})+
          K.LN(R0[0],R0[1],R1[0],R1[1],{stroke:P.thatchX,"stroke-width":.9});
 }
 
@@ -163,7 +177,9 @@ function tree(u,w,g0,seed){
 /* =================================================================================== */
 /*  the model                                                                          */
 /* =================================================================================== */
-function model(v){
+/* mark: an optional (block) -> {colour, f} saying how a projection has left it. Absent,
+   the model is drawn as the place stands. */
+function model(v,mark){
   if(!ready()) return null;
   const F=v.F, S=v.S, V=v.V;
   /* Every block carries the (u, w) it was laid out at, so the model reads the same
@@ -198,8 +214,10 @@ function model(v){
   const paddies=v.blocks.filter(b=>b.use==="paddy");
   paddies.sort((a,b)=>b.fw-a.fw);
   paddies.forEach((b,ix)=>{
+    setTint(mark&&mark(b));
     add(paddy(b.fu-b.fdu,b.fu+b.fdu,b.fw-b.fdw,b.fw+b.fdw,b.z,ix),b.fw);
   });
+  setTint(null);
 
   /* --- the head-race, holding the contour above the top bund ---------------------- */
   const raceZ=F.z(S.raceTopW)+0.5, rHalf=V.fieldWidth*0.52;
@@ -219,10 +237,12 @@ function model(v){
 
   /* --- the houses and the temple -------------------------------------------------- */
   v.blocks.filter(b=>b.use==="dwelling").forEach((b,ix)=>{
+    setTint(mark&&mark(b));
     const h=house(b,F,S,ix*29+11); add(h.d,h.depth);
   });
+  setTint(null);
   const tb=v.blocks.find(b=>b.use==="temple");
-  if(tb){ const t=temple(tb,F,S); add(t.d,t.depth); }
+  if(tb){ setTint(mark&&mark(tb)); const t=temple(tb,F,S); add(t.d,t.depth); setTint(null); }
 
   /* --- paint it back to front ----------------------------------------------------- */
   parts.sort((a,b)=>b.depth-a.depth);
@@ -244,7 +264,7 @@ function model(v){
 /* =================================================================================== */
 /*  the section — the throw-line elevation, pointed up a hillside                       */
 /* =================================================================================== */
-function section(v,W,H){
+function section(v,W,H,mark){
   if(!ready()) return "";
   const F=v.F, S=v.S, V=v.V;
   W=W||760; H=H||190;
@@ -281,8 +301,10 @@ function section(v,W,H){
     temple:"#8E7BA8"};
   v.blocks.filter(b=>b.use==="dwelling").forEach(b=>{
     const z=F.z(b.fw)-F.z(w0), x=X(b.fw);
+    const m=mark&&mark(b);
     g+='<rect x="'+(x-1.6)+'" y="'+(Y(z)-7)+'" width="3.2" height="7" fill="'+
-       (RK[b.rank]||"#8F8459")+'"><title>'+b.rankName+" — "+b.z.toFixed(1)+
+       (m?mix(RK[b.rank]||"#8F8459",m.colour,m.f):(RK[b.rank]||"#8F8459"))+
+       '"><title>'+b.rankName+" — "+b.z.toFixed(1)+
        ' m above the top bund, '+b.people+' people</title></rect>';
   });
   /* the rank boundaries */

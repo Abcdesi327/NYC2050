@@ -172,8 +172,37 @@
     <div class="msect" id="cpModelSect"></div>
     <div class="mcap" id="cpModelCap"></div>
   </div>
+  <div class="simp cpsim" id="cpSimPanel">
+    <header>
+      <h2>Projection on the plate</h2>
+      <button id="cpSimClose" aria-label="Close the console">&times;</button>
+    </header>
+    <div class="body">
+      <div id="cpSimHazards"></div>
+      <p class="hname" id="cpSimName"></p>
+      <p class="blurb" id="cpSimBlurb"></p>
+      <div id="cpSimParams"></div>
+      <div class="pointrow" id="cpSimPointRow">
+        <button id="cpSimPick" aria-pressed="false">SET POINT</button>
+        <span id="cpSimPointRef"></span>
+      </div>
+      <button id="cpSimRun" class="run">RUN PROJECTION</button>
+      <div id="cpSimReport"></div>
+    </div>
+  </div>
+
+  <div class="timeline cpline" id="cpSimTime">
+    <button id="cpSimPlay" aria-label="Play the projection">&#9654;</button>
+    <input type="range" id="cpSimScrub" min="1" max="12" value="12" aria-label="Step">
+    <span class="hh" id="cpSimStep">+12</span>
+    <span class="counts" id="cpSimCounts"></span>
+    <button id="cpSimReset" class="txt">CLEAR</button>
+    <div class="log" id="cpSimLog"></div>
+  </div>
+
   <div class="ctl cpctl">
     <button id="cpKeyBtn" class="sm" aria-pressed="false" aria-label="Toggle the key">KEY</button>
+    <button id="cpSimBtn" class="sm" aria-pressed="false" aria-label="Projection">SIM</button>
     <button id="cpModelBtn" class="sm" aria-pressed="false" aria-label="The model"
       style="display:none">MDL</button>
     <button id="cpFabBtn" class="sm" aria-label="Colour the fabric by">USE</button>
@@ -196,6 +225,7 @@
 <script src="js/sv-kit.js"></script>
 <script src="js/adrinem-city.js"></script>
 <script src="js/adrinem-village.js"></script>
+<script src="js/adrinem-plate-sim.js"></script>
 <script src="js/adrinem-model.js"></script>
 <script src="js/adrinem-cityview.js"></script>
 <script src="js/adrinem-app.js"></script>
